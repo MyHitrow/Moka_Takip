@@ -5,16 +5,19 @@ import { Header } from '@/components/layout/header';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2, Clock, CheckCircle2 } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
 export default function PaylasimTakvimiPage() {
-  const { takvimPosts, isletmeler, addTakvimPost, deleteTakvimPost, updateTakvimPostStatus } = useData();
+  const { takvimPosts, isletmeler, addTakvimPost, deleteTakvimPost, updateTakvimPostStatus, formatDateTr } = useData();
 
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // Default Aug 2026
+  const [selectedDay, setSelectedDay] = useState<number>(3); // Selected day on mobile carousel
+  const [mobileView, setMobileView] = useState<'carousel' | 'list'>('carousel');
   const [open, setOpen] = useState(false);
 
   const [client, setClient] = useState('');
@@ -43,7 +46,9 @@ export default function PaylasimTakvimiPage() {
   };
 
   const goToToday = () => {
-    setCurrentDate(new Date());
+    const now = new Date();
+    setCurrentDate(now);
+    setSelectedDay(now.getDate());
   };
 
   const firstDayOfMonth = new Date(year, month, 1);
@@ -69,7 +74,8 @@ export default function PaylasimTakvimiPage() {
     if (targetDateStr) {
       setDate(targetDateStr);
     } else {
-      setDate(`${year}-${String(month + 1).padStart(2, '0')}-01`);
+      const selectedDayStr = String(selectedDay).padStart(2, '0');
+      setDate(`${year}-${String(month + 1).padStart(2, '0')}-${selectedDayStr}`);
     }
     setOpen(true);
   };
@@ -94,14 +100,20 @@ export default function PaylasimTakvimiPage() {
   };
 
   const getPlatformBadgeColor = (plat: string) => {
-    if (plat.includes('Reels')) return 'bg-pink-500/10 text-pink-400 border-pink-500/20';
-    if (plat.includes('Post')) return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-    if (plat.includes('Story')) return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-    if (plat.includes('YouTube')) return 'bg-red-500/10 text-red-400 border-red-500/20';
-    return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    if (plat.includes('Reels')) return 'bg-pink-500/20 text-pink-300 border-pink-500/30';
+    if (plat.includes('Post')) return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
+    if (plat.includes('Story')) return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+    if (plat.includes('YouTube')) return 'bg-red-500/20 text-red-300 border-red-500/30';
+    return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  const selectedMonthStr = String(month + 1).padStart(2, '0');
+  const selectedDayStr = String(selectedDay).padStart(2, '0');
+  const selectedDateStr = `${year}-${selectedMonthStr}-${selectedDayStr}`;
+
+  const selectedDayPosts = takvimPosts.filter((p) => p.date === selectedDateStr);
 
   return (
     <div>
@@ -109,13 +121,13 @@ export default function PaylasimTakvimiPage() {
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
           title="Paylaşım Takvimi"
-          subtitle="İçerik paylaşım planlaması (Aylık Takvim)"
+          subtitle="İçerik paylaşım planlaması"
           icon={CalendarDays}
           action={
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger
                 render={
-                  <Button className="bg-primary hover:bg-primary/90">
+                  <Button className="bg-primary hover:bg-primary/90 w-full sm:w-auto">
                     <Plus className="w-4 h-4 mr-2" /> Yeni Paylaşım
                   </Button>
                 }
@@ -214,38 +226,222 @@ export default function PaylasimTakvimiPage() {
           }
         />
 
-        {/* Monthly Calendar Header Controls */}
-        <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-card border border-border rounded-xl p-4 mb-6 gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold">
-              {monthNames[month]} {year}
-            </h2>
-            <Button variant="outline" size="sm" onClick={goToToday} className="text-xs">
-              Bugün
-            </Button>
+        {/* ======================================================== */}
+        {/* IPHONE / MOBILE PHONE CAROUSEL & CARD DESIGN (md:hidden) */}
+        {/* ======================================================== */}
+        <div className="block md:hidden mt-4 space-y-4">
+          {/* Month & View Mode Selector */}
+          <div className="bg-card border border-border rounded-xl p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon-sm" onClick={prevMonth}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <h2 className="text-base font-bold">
+                {monthNames[month]} {year}
+              </h2>
+              <Button variant="outline" size="icon-sm" onClick={nextMonth}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+              <button
+                onClick={() => setMobileView('carousel')}
+                className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-colors ${
+                  mobileView === 'carousel' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                }`}
+              >
+                Günlük
+              </button>
+              <button
+                onClick={() => setMobileView('list')}
+                className={`text-xs px-2.5 py-1 rounded-md font-semibold transition-colors ${
+                  mobileView === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
+                }`}
+              >
+                Tüm Liste
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground block md:hidden mr-2">Kaydırılabilir Takvim ↔</span>
-            <Button variant="outline" size="icon-sm" onClick={prevMonth}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="icon-sm" onClick={nextMonth}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+
+          {/* iPhone Carousel Day Selector */}
+          {mobileView === 'carousel' && (
+            <>
+              <div className="overflow-x-auto flex gap-2 py-1 no-scrollbar">
+                {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
+                  const dStr = `${year}-${selectedMonthStr}-${String(d).padStart(2, '0')}`;
+                  const isSelected = d === selectedDay;
+                  const isToday = dStr === todayStr;
+                  const postCount = takvimPosts.filter((p) => p.date === dStr).length;
+
+                  const dayOfWeekIndex = new Date(year, month, d).getDay();
+                  const dayName = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'][dayOfWeekIndex];
+
+                  return (
+                    <button
+                      key={d}
+                      onClick={() => setSelectedDay(d)}
+                      className={`flex flex-col items-center justify-center min-w-[56px] h-16 rounded-xl border transition-all shrink-0 ${
+                        isSelected
+                          ? 'bg-primary text-primary-foreground border-primary font-bold shadow-md scale-105'
+                          : isToday
+                          ? 'bg-primary/10 border-primary/40 text-foreground font-semibold'
+                          : 'bg-card border-border text-muted-foreground hover:bg-accent'
+                      }`}
+                    >
+                      <span className="text-[10px] uppercase font-mono">{dayName}</span>
+                      <span className="text-lg font-extrabold leading-none mt-0.5">{d}</span>
+                      {postCount > 0 && (
+                        <span
+                          className={`text-[9px] px-1.5 rounded-full mt-1 ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary'
+                          }`}
+                        >
+                          {postCount} Gönderi
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected Day Header & Large Mobile Cards */}
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-foreground">
+                    {selectedDay} {monthNames[month]} {year} Paylaşımları ({selectedDayPosts.length})
+                  </h3>
+                  <Button
+                    size="sm"
+                    onClick={() => handleOpenAddModal(selectedDateStr)}
+                    className="h-7 text-xs bg-primary hover:bg-primary/90"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Bu Güne Ekle
+                  </Button>
+                </div>
+
+                {selectedDayPosts.length === 0 ? (
+                  <Card className="p-8 text-center bg-card border border-dashed border-border">
+                    <CalendarDays className="w-8 h-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                    <p className="text-sm font-semibold text-foreground">Bu gün için paylaşım bulunmuyor.</p>
+                    <p className="text-xs text-muted-foreground mt-1">İçerik planlamak için "Bu Güne Ekle" butonuna basın.</p>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedDayPosts.map((post) => (
+                      <Card key={post.id} className="p-4 bg-card border border-border shadow-sm space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-primary block">{post.client}</span>
+                            <h4 className="text-base font-extrabold text-foreground mt-0.5">{post.title}</h4>
+                          </div>
+                          <button
+                            onClick={() => deleteTakvimPost(post.id)}
+                            className="text-muted-foreground hover:text-red-500 p-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs pt-1">
+                          <Badge variant="outline" className={`text-xs px-2.5 py-0.5 ${getPlatformBadgeColor(post.platform)}`}>
+                            {post.platform}
+                          </Badge>
+
+                          <span className="flex items-center font-mono text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5 mr-1 text-primary" /> Saat: {post.time}
+                          </span>
+                        </div>
+
+                        <div className="pt-3 border-t border-border flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Paylaşım Durumu:</span>
+                          <select
+                            value={post.status}
+                            onChange={(e) => updateTakvimPostStatus(post.id, e.target.value as any)}
+                            className="text-xs bg-background border border-input rounded-lg px-3 py-1.5 font-semibold text-foreground outline-none cursor-pointer"
+                          >
+                            <option value="preparing">Hazırlanıyor</option>
+                            <option value="ready">Paylaşıma Hazır</option>
+                            <option value="scheduled">Planlandı</option>
+                            <option value="published">Paylaşıldı</option>
+                          </select>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Full List View on Mobile */}
+          {mobileView === 'list' && (
+            <div className="space-y-3 pt-2">
+              {takvimPosts.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">Kayıtlı paylaşım bulunmuyor.</p>
+              ) : (
+                takvimPosts.map((post) => (
+                  <Card key={post.id} className="p-4 bg-card border border-border shadow-sm space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-xs font-bold text-primary">{post.client}</span>
+                        <h4 className="font-extrabold text-base text-foreground">{post.title}</h4>
+                      </div>
+                      <Badge variant="outline" className={`text-xs ${getPlatformBadgeColor(post.platform)}`}>
+                        {post.platform}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                      <span>Tarih: {formatDateTr(post.date)} - {post.time}</span>
+                      <select
+                        value={post.status}
+                        onChange={(e) => updateTakvimPostStatus(post.id, e.target.value as any)}
+                        className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground"
+                      >
+                        <option value="preparing">Hazırlanıyor</option>
+                        <option value="ready">Hazır</option>
+                        <option value="scheduled">Planlandı</option>
+                        <option value="published">Paylaşıldı</option>
+                      </select>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Responsive Horizontal Scroll Wrapper for Mobile */}
-        <div className="bg-card border border-border rounded-xl overflow-x-auto shadow-sm">
-          <div className="min-w-[700px]">
-            {/* Weekday headers */}
+        {/* ======================================================== */}
+        {/* DESKTOP FULL MONTHLY GRID (hidden md:block)              */}
+        {/* ======================================================== */}
+        <div className="hidden md:block mt-6">
+          <div className="flex items-center justify-between bg-card border border-border rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold">
+                {monthNames[month]} {year}
+              </h2>
+              <Button variant="outline" size="sm" onClick={goToToday} className="text-xs">
+                Bugün
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon-sm" onClick={prevMonth}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="icon-sm" onClick={nextMonth}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="grid grid-cols-7 border-b border-border bg-muted/40 text-center text-xs font-semibold text-muted-foreground py-2.5">
               {weekDays.map((d) => (
                 <div key={d}>{d}</div>
               ))}
             </div>
 
-            {/* Days Grid */}
             <div className="grid grid-cols-7 auto-rows-fr gap-px bg-border">
               {calendarDays.map((item, idx) => {
                 if (item.day === null) {
