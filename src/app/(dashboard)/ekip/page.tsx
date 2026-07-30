@@ -9,36 +9,45 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Users, Phone, Video, Trash2, Plus } from 'lucide-react';
+import { Users, Phone, Video, Trash2, Plus, Key, UserCheck } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
 export default function EkipPage() {
-  const { ekip, editler, addEkipUyesi, deleteEkipUyesi } = useData();
+  const { ekip, editler, systemUsers, addEkipUyesi, deleteEkipUyesi } = useData();
   const [open, setOpen] = useState(false);
 
   const [name, setName] = useState('');
   const [role, setRole] = useState('Kurgucu');
   const [phone, setPhone] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('123456');
   const [color, setColor] = useState('bg-blue-500');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
-    addEkipUyesi({
-      name,
-      role: role || 'Ekip Üyesi',
-      phone: phone || '-',
-      color,
-    });
+
+    addEkipUyesi(
+      {
+        name,
+        role: role || 'Ekip Üyesi',
+        phone: phone || '-',
+        color,
+      },
+      username.trim(),
+      password
+    );
+
     setName('');
     setRole('Kurgucu');
     setPhone('');
+    setUsername('');
+    setPassword('123456');
     setColor('bg-blue-500');
     setOpen(false);
   };
 
   const getActiveEditsCount = (memberName: string) => {
-    // Count edits assigned to this team member that are not yet ready/completed
     return editler.filter(
       (e) =>
         e.editor.toLowerCase().includes(memberName.toLowerCase()) ||
@@ -46,26 +55,34 @@ export default function EkipPage() {
     ).length;
   };
 
+  const getMemberUsername = (memberName: string, fallbackUsername?: string) => {
+    if (fallbackUsername) return `@${fallbackUsername}`;
+    const user = systemUsers.find(
+      (u) => u.name.toLowerCase().includes(memberName.toLowerCase()) || memberName.toLowerCase().includes(u.name.toLowerCase())
+    );
+    return user ? `@${user.username}` : '@kullanici';
+  };
+
   return (
     <div>
       <Header title="Ekip" />
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
-          title="Ekip"
-          subtitle="Ekip üyeleri ve görev atamaları"
+          title="Ekip & Kullanıcı Hesapları"
+          subtitle="Ekip üyeleri ve eşzamanlı sistem giriş hesapları"
           icon={Users}
           action={
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger
                 render={
                   <Button className="bg-primary hover:bg-primary/90">
-                    <Plus className="w-4 h-4 mr-2" /> Yeni Üye
+                    <Plus className="w-4 h-4 mr-2" /> Yeni Üye & Otomatik Giriş Hesabı
                   </Button>
                 }
               />
               <DialogContent className="sm:max-w-[425px] bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle>Yeni Ekip Üyesi Ekle</DialogTitle>
+                  <DialogTitle>Yeni Ekip Üyesi & Giriş Hesabı Ekle</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
                   <div className="space-y-2">
@@ -75,6 +92,26 @@ export default function EkipPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Örn: Caner Yılmaz"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Sistem Kullanıcı Adı (Opsiyonel)</Label>
+                    <Input
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Boş bırakılırsa isimden üretilir"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Giriş Şifresi</Label>
+                    <Input
+                      id="password"
+                      type="text"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Giriş şifresi"
                       required
                     />
                   </div>
@@ -92,6 +129,7 @@ export default function EkipPage() {
                       <option value="Sosyal Medya Uzmanı">Sosyal Medya Uzmanı</option>
                       <option value="Grafiker">Grafiker</option>
                       <option value="Prodüktör">Prodüktör</option>
+                      <option value="Admin">Admin (Yönetici)</option>
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -120,7 +158,7 @@ export default function EkipPage() {
                     </select>
                   </div>
                   <Button type="submit" className="w-full mt-4">
-                    Kaydet
+                    Kaydet ve Giriş Hesabı Oluştur
                   </Button>
                 </form>
               </DialogContent>
@@ -130,8 +168,10 @@ export default function EkipPage() {
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {ekip.map((member) => {
             const activeEdits = getActiveEditsCount(member.name);
+            const userTag = getMemberUsername(member.name, member.username);
+
             return (
-              <Card key={member.id} className="p-6 bg-card border-border flex flex-col items-center text-center relative group">
+              <Card key={member.id} className="p-6 bg-card border-border flex flex-col items-center text-center relative group shadow-sm">
                 <button
                   onClick={() => deleteEkipUyesi(member.id)}
                   className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
@@ -139,18 +179,19 @@ export default function EkipPage() {
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                <div className={`w-16 h-16 rounded-full ${member.color} text-white flex items-center justify-center text-xl font-bold mb-4 shadow-md`}>
+                <div className={`w-16 h-16 rounded-full ${member.color} text-white flex items-center justify-center text-xl font-bold mb-3 shadow-md`}>
                   {member.initials}
                 </div>
-                <h3 className="font-semibold text-lg mb-1">{member.name}</h3>
+                <h3 className="font-bold text-lg text-foreground">{member.name}</h3>
+                <span className="text-xs text-purple-400 font-mono font-semibold mb-2">{userTag}</span>
                 <Badge variant="secondary" className="mb-4">{member.role}</Badge>
 
-                <div className="w-full space-y-3 mt-2 text-sm text-muted-foreground border-t border-border pt-4">
+                <div className="w-full space-y-2 mt-2 text-xs text-muted-foreground border-t border-border pt-3">
                   <div className="flex items-center justify-center">
-                    <Phone className="w-4 h-4 mr-2" /> {member.phone}
+                    <Phone className="w-3.5 h-3.5 mr-1.5 text-primary" /> {member.phone}
                   </div>
                   <div className="flex items-center justify-center">
-                    <Video className="w-4 h-4 mr-2" /> {activeEdits} Aktif Görev
+                    <Video className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" /> {activeEdits} Aktif Görev
                   </div>
                 </div>
               </Card>

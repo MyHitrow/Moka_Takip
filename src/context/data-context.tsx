@@ -68,6 +68,7 @@ export interface EkipUyesi {
   phone: string;
   color: string;
   initials: string;
+  username?: string;
 }
 
 export interface UserPermissions {
@@ -127,9 +128,10 @@ interface DataContextType {
   addTakvimPost: (item: Omit<TakvimPost, 'id'>) => void;
   deleteTakvimPost: (id: string) => void;
   updateTakvimPostStatus: (id: string, status: TakvimPost['status']) => void;
-  addEkipUyesi: (item: Omit<EkipUyesi, 'id' | 'initials'>) => void;
+  addEkipUyesi: (item: Omit<EkipUyesi, 'id' | 'initials'>, customUsername?: string, customPassword?: string) => void;
   deleteEkipUyesi: (id: string) => void;
   addSystemUser: (user: Omit<SystemUser, 'id'>) => boolean;
+  updateSystemUser: (id: string, updatedFields: Partial<SystemUser>) => void;
   deleteSystemUser: (id: string) => void;
   addHaftalikNot: (content: string) => void;
   deleteHaftalikNot: (id: string) => void;
@@ -181,7 +183,7 @@ const initialGiderler: Gider[] = [];
 const initialTakvimPosts: TakvimPost[] = [];
 
 const initialEkip: EkipUyesi[] = [
-  { id: '1', name: 'Kadir (Süper Admin)', initials: 'KS', color: 'bg-purple-500', role: 'Süper Admin', phone: '0555 000 0000' },
+  { id: '1', name: 'Kadir (Süper Admin)', initials: 'KS', color: 'bg-purple-500', role: 'Süper Admin', phone: '0555 000 0000', username: 'kadorizator' },
 ];
 
 export function formatDateTr(dateStr: string): string {
@@ -193,7 +195,7 @@ export function formatDateTr(dateStr: string): string {
     const day = parts[2];
     const months = [
       'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      'Temmuz', 'Ağustos', 'Eylü', 'Ekim', 'Kasım', 'Aralık'
     ];
     if (months[monthIndex]) {
       return `${day} ${months[monthIndex]} ${year}`;
@@ -382,6 +384,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const updateSystemUser = (id: string, updatedFields: Partial<SystemUser>) => {
+    if (currentUser.role !== 'super_admin') return;
+
+    setSystemUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === id) {
+          const updated = { ...u, ...updatedFields };
+          // If current logged in user is being updated, update current user state too
+          if (currentUser.id === id) {
+            setCurrentUser(updated);
+          }
+          return updated;
+        }
+        return u;
+      })
+    );
+  };
+
   const deleteSystemUser = (id: string) => {
     if (currentUser.role !== 'super_admin') return;
     const target = systemUsers.find((u) => u.id === id);
@@ -416,10 +436,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Helper function to check if string is UUID
   const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
-  // Optimistic & Cloud Delete Handlers
   const addIsletme = async (item: Omit<Isletme, 'id'>) => {
     const numFee = parseFloat(item.fee.replace(/[^0-9.]/g, '')) || 0;
 
@@ -451,11 +469,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteIsletme = async (id: string) => {
-    // 1. Optimistic instant local UI delete
     const target = isletmeler.find((i) => i.id === id);
     setIsletmeler((prev) => prev.filter((i) => i.id !== id));
 
-    // 2. Cloud DB Delete
     try {
       if (isUUID(id)) {
         await supabase.from('clients').delete().eq('id', id);
@@ -668,22 +684,66 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   };
 
-  const addEkipUyesi = (item: Omit<EkipUyesi, 'id' | 'initials'>) => {
+  // UNIFIED Team Member & System User Account Creation
+  const addEkipUyesi = (
+    item: Omit<EkipUyesi, 'id' | 'initials'>,
+    customUsername?: string,
+    customPassword?: string
+  ) => {
     const parts = item.name.trim().split(' ');
     const initials = parts.length >= 2
       ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
       : item.name.substring(0, 2).toUpperCase();
 
+    const autoUsername = customUsername?.trim().toLowerCase() ||
+      item.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const autoPassword = customPassword || '123456';
+
     const newItem: EkipUyesi = {
       ...item,
       id: Date.now().toString(),
       initials,
+      username: autoUsername,
     };
+
     setEkip((prev) => [...prev, newItem]);
+
+    // Automatically create matching System User account!
+    const userRole: SystemUser['role'] = item.role.toLowerCase().includes('admin')
+      ? 'admin'
+      : item.role.toLowerCase().includes('kurgu') || item.role.toLowerCase().includes('edit')
+      ? 'editor'
+      : 'member';
+
+    const newSysUser: SystemUser = {
+      id: Date.now().toString(),
+      username: autoUsername,
+      password: autoPassword,
+      name: item.name,
+      role: userRole,
+      permissions: {
+        canManageFinance: userRole === 'admin',
+        canManageShoots: true,
+        canManageEdits: true,
+        canManageTakvim: true,
+        canManageTeam: userRole === 'admin',
+        canManageUsers: false,
+      },
+    };
+
+    setSystemUsers((prev) => {
+      const exists = prev.some((u) => u.username === autoUsername);
+      if (exists) return prev;
+      return [...prev, newSysUser];
+    });
   };
 
   const deleteEkipUyesi = (id: string) => {
+    const member = ekip.find((e) => e.id === id);
     setEkip((prev) => prev.filter((e) => e.id !== id));
+    if (member?.username) {
+      setSystemUsers((prev) => prev.filter((u) => u.username !== member.username));
+    }
   };
 
   return (
@@ -721,6 +781,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         addEkipUyesi,
         deleteEkipUyesi,
         addSystemUser,
+        updateSystemUser,
         deleteSystemUser,
         addHaftalikNot,
         deleteHaftalikNot,

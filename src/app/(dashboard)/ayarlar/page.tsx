@@ -9,12 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Settings, User, Shield, ShieldCheck, Plus, Trash2, Key, UserCheck, AlertTriangle } from 'lucide-react';
+import { Settings, ShieldCheck, Plus, Trash2, Edit, AlertTriangle } from 'lucide-react';
 import { useData, SystemUser } from '@/context/data-context';
 
 export default function AyarlarPage() {
-  const { systemUsers, currentUser, addSystemUser, deleteSystemUser, logout } = useData();
+  const { systemUsers, currentUser, addSystemUser, updateSystemUser, deleteSystemUser, logout } = useData();
   const [openUserModal, setOpenUserModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Form states for new user creation
@@ -27,6 +29,11 @@ export default function AyarlarPage() {
   const [canManageEdits, setCanManageEdits] = useState(true);
   const [canManageTakvim, setCanManageTakvim] = useState(true);
   const [canManageTeam, setCanManageTeam] = useState(false);
+
+  // Edit User state
+  const [editName, setEditName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editPassword, setEditPassword] = useState('');
 
   const isSuperAdmin = currentUser.role === 'super_admin';
 
@@ -61,6 +68,28 @@ export default function AyarlarPage() {
     }
   };
 
+  const handleStartEdit = (user: SystemUser) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditUsername(user.username);
+    setEditPassword(user.password || '');
+    setOpenEditModal(true);
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !editName || !editUsername) return;
+
+    updateSystemUser(editingUser.id, {
+      name: editName,
+      username: editUsername.trim(),
+      password: editPassword || editingUser.password,
+    });
+
+    setOpenEditModal(false);
+    setEditingUser(null);
+  };
+
   const getRoleBadge = (userRole: SystemUser['role']) => {
     switch (userRole) {
       case 'super_admin':
@@ -80,7 +109,7 @@ export default function AyarlarPage() {
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
           title="Ayarlar & Kullanıcı Yönetimi"
-          subtitle="Süper Admin kullanıcı ve yetki kontrol paneli"
+          subtitle="Kullanıcı oluşturma, düzenleme ve yetki kontrolü"
           icon={Settings}
         />
 
@@ -111,16 +140,16 @@ export default function AyarlarPage() {
             </div>
           </Card>
 
-          {/* User Management Section (SADECE SÜPER ADMİN YÖNETEBİLİR) */}
+          {/* User Management Section */}
           <Card className="p-6 bg-card border-border">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-purple-400" />
-                  <h3 className="text-lg font-bold">Kullanıcı ve Yetki Yönetimi</h3>
+                  <h3 className="text-lg font-bold">Sistem Kullanıcıları & Şifre Yönetimi</h3>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Sadece Süper Admin (`kadorizator`) yeni kullanıcı oluşturabilir ve yetki tanımlayabilir.
+                  Kullanıcı isimleri, kullanıcı adları ve şifreleri buradan düzenlenebilir.
                 </p>
               </div>
 
@@ -155,13 +184,13 @@ export default function AyarlarPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="newPass">Şifre</Label>
+                        <Label htmlFor="newPass">Giriş Şifresi</Label>
                         <Input
                           id="newPass"
-                          type="password"
+                          type="text"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          placeholder="Giriş şifresi"
+                          placeholder="Örn: 123456"
                           required
                         />
                       </div>
@@ -190,45 +219,6 @@ export default function AyarlarPage() {
                         </select>
                       </div>
 
-                      {/* Permissions Checklist */}
-                      <div className="space-y-2 pt-2 border-t border-border">
-                        <Label className="text-xs font-semibold">Sayfa Yetkileri (İzinler)</Label>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <label className="flex items-center gap-2 cursor-pointer bg-muted/40 p-2 rounded border border-border">
-                            <input
-                              type="checkbox"
-                              checked={canManageFinance}
-                              onChange={(e) => setCanManageFinance(e.target.checked)}
-                            />
-                            <span>Finans / Gelirler</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer bg-muted/40 p-2 rounded border border-border">
-                            <input
-                              type="checkbox"
-                              checked={canManageShoots}
-                              onChange={(e) => setCanManageShoots(e.target.checked)}
-                            />
-                            <span>Çekim Yönetimi</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer bg-muted/40 p-2 rounded border border-border">
-                            <input
-                              type="checkbox"
-                              checked={canManageEdits}
-                              onChange={(e) => setCanManageEdits(e.target.checked)}
-                            />
-                            <span>Edit Yönetimi</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer bg-muted/40 p-2 rounded border border-border">
-                            <input
-                              type="checkbox"
-                              checked={canManageTakvim}
-                              onChange={(e) => setCanManageTakvim(e.target.checked)}
-                            />
-                            <span>Paylaşım Takvimi</span>
-                          </label>
-                        </div>
-                      </div>
-
                       <Button type="submit" className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white">
                         Kullanıcıyı Kaydet
                       </Button>
@@ -245,8 +235,8 @@ export default function AyarlarPage() {
                   <tr>
                     <th className="px-4 py-3 rounded-l">Kullanıcı Adı</th>
                     <th className="px-4 py-3">Ad Soyad</th>
+                    <th className="px-4 py-3">Şifre</th>
                     <th className="px-4 py-3">Rol</th>
-                    <th className="px-4 py-3">İzinler</th>
                     <th className="px-4 py-3 text-right rounded-r">İşlem</th>
                   </tr>
                 </thead>
@@ -264,29 +254,32 @@ export default function AyarlarPage() {
                           )}
                         </td>
                         <td className="px-4 py-3.5 text-muted-foreground">{user.name}</td>
-                        <td className="px-4 py-3.5">{getRoleBadge(user.role)}</td>
-                        <td className="px-4 py-3.5 text-xs text-muted-foreground">
-                          {user.role === 'super_admin' ? (
-                            <span className="text-purple-400 font-semibold">Tam Yetkili</span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {user.permissions.canManageFinance && <span className="bg-muted px-1.5 py-0.5 rounded">Finans</span>}
-                              {user.permissions.canManageShoots && <span className="bg-muted px-1.5 py-0.5 rounded">Çekim</span>}
-                              {user.permissions.canManageEdits && <span className="bg-muted px-1.5 py-0.5 rounded">Edit</span>}
-                              {user.permissions.canManageTakvim && <span className="bg-muted px-1.5 py-0.5 rounded">Takvim</span>}
-                            </div>
-                          )}
+                        <td className="px-4 py-3.5 font-mono text-xs text-foreground">
+                          {user.password || '******'}
                         </td>
+                        <td className="px-4 py-3.5">{getRoleBadge(user.role)}</td>
                         <td className="px-4 py-3.5 text-right">
-                          {isSuperAdmin && !isProtected && !isSelf && (
-                            <button
-                              onClick={() => deleteSystemUser(user.id)}
-                              className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                              title="Kullanıcıyı Sil"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {isSuperAdmin && (
+                              <button
+                                onClick={() => handleStartEdit(user)}
+                                className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                title="Kullanıcı Bilgilerini Düzenle"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+
+                            {isSuperAdmin && !isProtected && !isSelf && (
+                              <button
+                                onClick={() => deleteSystemUser(user.id)}
+                                className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                                title="Kullanıcıyı Sil"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -297,6 +290,49 @@ export default function AyarlarPage() {
           </Card>
         </div>
       </div>
+
+      {/* EDIT USER MODAL */}
+      <Dialog open={openEditModal} onOpenChange={setOpenEditModal}>
+        <DialogContent className="sm:max-w-[425px] bg-card border-border">
+          <DialogHeader>
+            <DialogTitle>Kullanıcı Bilgilerini Düzenle</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="editNameInput">Ad Soyad</Label>
+              <Input
+                id="editNameInput"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editUsernameInput">Kullanıcı Adı</Label>
+              <Input
+                id="editUsernameInput"
+                value={editUsername}
+                onChange={(e) => setEditUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="editPasswordInput">Giriş Şifresi</Label>
+              <Input
+                id="editPasswordInput"
+                type="text"
+                value={editPassword}
+                onChange={(e) => setEditPassword(e.target.value)}
+                placeholder="Yeni Şifre"
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90">
+              Değişiklikleri Kaydet
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
