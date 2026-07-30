@@ -1,36 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎬 Ajans Panel — Prodüksiyon Yönetim Sistemi
 
-## Getting Started
+Prodüksiyon ve sosyal medya ajansları için modern, koyu temalı, responsive yönetim paneli.
 
-First, run the development server:
+Çekim planlaması, edit/kurgu süreçleri, paylaşım takvimi, gelir-gider takibi ve ekip yönetimini tek panelde birleştiren profesyonel SaaS çözümü.
+
+## ✨ Özellikler
+
+- **İşletme Yönetimi** — Müşteri portföyü, abonelik paketleri, sözleşme bilgileri
+- **Çekim Planlama** — Takvim + liste görünüm, ekip ataması, ekipman takibi
+- **Edit Yönetimi** — Kanban board ile kurgu süreçleri (sürükle-bırak)
+- **Paylaşım Takvimi** — Haftalık/aylık içerik planlaması
+- **Ön Muhasebe** — Gelir/gider takibi, tahsilat durumları
+- **Raporlama** — Finansal ve operasyonel raporlar
+- **Ekip Yönetimi** — Görev atamaları, editör iş yükleri
+- **Bildirimler** — Panel içi bildirim sistemi
+- **PWA Desteği** — Telefona uygulama olarak yüklenebilir
+
+## 🛠 Teknoloji Yığını
+
+| Teknoloji | Amaç |
+|-----------|------|
+| [Next.js 16](https://nextjs.org/) | App Router, SSR/SSG |
+| [TypeScript](https://www.typescriptlang.org/) | Tip güvenliği |
+| [Tailwind CSS v4](https://tailwindcss.com/) | Utility-first CSS |
+| [shadcn/ui](https://ui.shadcn.com/) | UI bileşen kütüphanesi |
+| [Supabase](https://supabase.com/) | PostgreSQL, Auth, Storage |
+| [Vercel](https://vercel.com/) | Deployment |
+| [Lucide Icons](https://lucide.dev/) | İkonlar |
+
+## 📋 Gereksinimler
+
+- Node.js **18** veya üzeri
+- npm (veya pnpm/yarn)
+- [Supabase](https://supabase.com/) hesabı (ücretsiz plan yeterli)
+
+## 🚀 Kurulum
+
+### 1. Projeyi klonla
+
+```bash
+git clone <repo-url>
+cd Muhasebe
+```
+
+### 2. Bağımlılıkları yükle
+
+```bash
+npm install
+```
+
+### 3. Supabase projesi oluştur
+
+1. [supabase.com](https://supabase.com/) adresine git
+2. **New Project** butonuna tıkla
+3. Proje adını ve veritabanı şifresini belirle
+4. Region olarak en yakın bölgeyi seç (örn: Frankfurt)
+5. Proje oluşturulduktan sonra **Project Settings > API** bölümünden:
+   - `Project URL` → Bu senin `NEXT_PUBLIC_SUPABASE_URL` değerin
+   - `anon public` key → Bu senin `NEXT_PUBLIC_SUPABASE_ANON_KEY` değerin
+
+### 4. Ortam değişkenlerini ayarla
+
+```bash
+cp .env.local.example .env.local
+```
+
+`.env.local` dosyasını aç ve Supabase bilgilerini gir:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsIn...
+```
+
+### 5. Veritabanı tablolarını oluştur
+
+1. Supabase Dashboard'da **SQL Editor** bölümüne git
+2. `supabase/migrations/001_initial_schema.sql` dosyasının içeriğini kopyala
+3. SQL Editor'e yapıştır ve **Run** butonuna tıkla
+4. Tüm tablolar, indeksler, trigger'lar ve RLS politikaları otomatik oluşturulacak
+
+### 6. Geliştirme sunucusunu başlat
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Tarayıcıda [http://localhost:3000](http://localhost:3000) adresini aç.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> **Not:** İlk aşamada Supabase bağlantısı olmadan çalıştırmak isterseniz, `src/middleware.ts` dosyasının tamamını yorum satırına alabilirsiniz. Dashboard mock verilerle çalışacaktır.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📁 Proje Yapısı
 
-## Learn More
+```
+src/
+├── app/
+│   ├── (auth)/            # Login sayfası
+│   ├── (dashboard)/       # Tüm panel sayfaları
+│   │   ├── isletmeler/    # İşletme yönetimi
+│   │   ├── cekimler/      # Çekim planlama
+│   │   ├── editler/       # Edit/kurgu yönetimi
+│   │   ├── paylasim-takvimi/
+│   │   ├── gelirler/      # Gelir takibi
+│   │   ├── giderler/      # Gider takibi
+│   │   ├── raporlar/      # Raporlar
+│   │   ├── ekip/          # Ekip yönetimi
+│   │   ├── bildirimler/   # Bildirimler
+│   │   └── ayarlar/       # Panel ayarları
+│   ├── layout.tsx         # Root layout
+│   └── globals.css        # Koyu tema stilleri
+├── components/
+│   ├── ui/                # shadcn/ui bileşenleri
+│   ├── layout/            # Sidebar, BottomNav, Header
+│   ├── dashboard/         # Dashboard kartları
+│   └── shared/            # Ortak bileşenler
+├── lib/
+│   ├── supabase/          # Supabase istemcileri
+│   ├── constants.ts       # Menü, etiketler, renkler
+│   └── utils.ts           # Yardımcı fonksiyonlar
+├── types/
+│   └── database.ts        # TypeScript tablo tipleri
+├── hooks/
+│   └── use-mobile.ts      # Mobil tespit hook
+└── middleware.ts           # Auth middleware
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 👥 Kullanıcı Rolleri
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Rol | Yetkiler |
+|-----|----------|
+| **Admin** | Tüm modüllere tam erişim, finansal veriler, kullanıcı yönetimi |
+| **Editör** | Sadece atanan editler, durum güncelleme, dosya ekleme. Finans YOK |
+| **Muhasebe** | Gelir/gider yönetimi, tahsilat, finans raporları. Edit düzenleme YOK |
+| **Ekip Üyesi** | Sadece atanan çekimler, çekim notu, durum güncelleme. Finans YOK |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔐 Ortam Değişkenleri
 
-## Deploy on Vercel
+| Değişken | Açıklama | Zorunlu |
+|----------|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase proje URL'si | ✅ |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (public) key | ✅ |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (sadece sunucu) | ❌ |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+> ⚠️ `SUPABASE_SERVICE_ROLE_KEY` asla tarayıcı tarafında kullanılmamalıdır!
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🌐 Vercel'e Deploy
+
+1. [vercel.com](https://vercel.com/)'a git ve GitHub hesabını bağla
+2. **Import Project** ile bu repoyu seç
+3. **Environment Variables** bölümünden Supabase bilgilerini ekle
+4. **Deploy** butonuna tıkla
+
+## 📱 Mobil Kullanım
+
+Panel telefona PWA olarak yüklenebilir:
+
+1. Chrome'da paneli aç
+2. Menü > **Ana ekrana ekle** seçeneğine tıkla
+3. Panel uygulama gibi çalışacaktır
+
+## 📜 Lisans
+
+Bu proje MIT lisansı altındadır.
