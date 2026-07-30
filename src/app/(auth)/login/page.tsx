@@ -13,15 +13,21 @@ export default function LoginPage() {
   const router = useRouter();
   const { login } = useData();
 
-  const [username, setUsername] = useState('kadorizator');
-  const [password, setPassword] = useState('Kc3543**');
+  // Clean empty inputs by default (no prefilled values!)
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
-    const success = login(username, password);
+    if (!username.trim() || !password) {
+      setErrorMsg('Lütfen kullanıcı adı ve şifrenizi girin.');
+      return;
+    }
+
+    const success = login(username.trim(), password);
     if (success) {
       router.push('/');
     } else {
@@ -54,7 +60,7 @@ export default function LoginPage() {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="kadorizator"
+            placeholder="Kullanıcı adınız..."
             required
             className="bg-background"
           />
@@ -68,6 +74,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="Şifreniz..."
             required
             className="bg-background"
           />
@@ -80,9 +87,9 @@ export default function LoginPage() {
 
       <div className="mt-6 pt-6 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
         <span className="flex items-center gap-1 text-emerald-400">
-          <ShieldCheck className="w-3.5 h-3.5" /> Süper Admin Girişi
+          <ShieldCheck className="w-3.5 h-3.5" /> Süper Admin Hesabı
         </span>
-        <span>kadorizator</span>
+        <span className="font-mono">kadorizator</span>
       </div>
     </Card>
   );

@@ -287,13 +287,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [takvimPosts, setTakvimPosts] = useState<TakvimPost[]>(initialTakvimPosts);
   const [ekip, setEkip] = useState<EkipUyesi[]>(initialEkip);
 
-  // Supabase Client
   const supabase = createClient();
 
-  // Fetch initial data from Supabase Cloud DB & Subscribe to Realtime Changes
   const fetchCloudData = async () => {
     try {
-      // 1. Fetch Clients / İşletmeler
       const { data: clientsData } = await supabase.from('clients').select('*');
       if (clientsData && clientsData.length > 0) {
         setIsletmeler(
@@ -309,7 +306,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 2. Fetch Shoots / Çekimler
       const { data: shootsData } = await supabase.from('shoots').select('*');
       if (shootsData && shootsData.length > 0) {
         setCekimler(
@@ -325,7 +321,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 3. Fetch Edits / Editler
       const { data: editsData } = await supabase.from('edits').select('*');
       if (editsData && editsData.length > 0) {
         setEditler(
@@ -341,7 +336,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 4. Fetch Calendar Posts
       const { data: calData } = await supabase.from('content_calendar').select('*');
       if (calData && calData.length > 0) {
         setTakvimPosts(
@@ -357,7 +351,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 5. Fetch Income Records / Gelirler
       const { data: incomeData } = await supabase.from('income_records').select('*');
       if (incomeData && incomeData.length > 0) {
         setGelirler(
@@ -372,7 +365,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 6. Fetch Expense Records / Giderler
       const { data: expData } = await supabase.from('expense_records').select('*');
       if (expData && expData.length > 0) {
         setGiderler(
@@ -395,11 +387,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setIsMounted(true);
-
-    // Initial Cloud Fetch
     fetchCloudData();
 
-    // Supabase Realtime Channels Subscription
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
@@ -407,7 +396,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
       .subscribe();
 
-    // Local Storage backup load if available
     try {
       const savedUser = localStorage.getItem('app_currentUser');
       if (savedUser) setCurrentUser(JSON.parse(savedUser));
@@ -424,7 +412,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Sync to localStorage as backup
   useEffect(() => {
     if (isMounted) localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
   }, [currentUser, isMounted]);
@@ -465,7 +452,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (isMounted) localStorage.setItem('app_ekip', JSON.stringify(ekip));
   }, [ekip, isMounted]);
 
-  // Auth Methods
+  // Auth Methods with Cookie Sync for Middleware
   const login = (usernameInput: string, passInput: string): boolean => {
     const user = systemUsers.find(
       (u) =>
@@ -475,6 +462,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (user) {
       setCurrentUser(user);
+      if (typeof document !== 'undefined') {
+        document.cookie = 'app_session=true; path=/; max-age=2592000; SameSite=Lax';
+      }
       return true;
     }
     return false;
@@ -482,6 +472,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setCurrentUser(defaultSuperAdmin);
+    if (typeof document !== 'undefined') {
+      document.cookie = 'app_session=; path=/; max-age=0; SameSite=Lax';
+      window.location.href = '/login';
+    }
   };
 
   const addSystemUser = (user: Omit<SystemUser, 'id'>): boolean => {
@@ -558,7 +552,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setGelirler((prev) => [newGelir, ...prev]);
     }
 
-    // Sync to Supabase
     try {
       await supabase.from('clients').insert({
         name: item.name,

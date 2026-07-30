@@ -9,6 +9,19 @@ export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  const isAuthPage = request.nextUrl.pathname.startsWith('/login');
+  const hasAppSession = request.cookies.has('app_session');
+
+  // If app_session cookie is set (username/password login), bypass Supabase Auth redirect
+  if (hasAppSession) {
+    if (isAuthPage) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/';
+      return NextResponse.redirect(redirectUrl);
+    }
+    return supabaseResponse;
+  }
+
   if (
     !url ||
     !key ||
@@ -39,26 +52,20 @@ export async function updateSession(request: NextRequest) {
       },
     });
 
-    // Session'ı yenile — önemli: getUser() çağrısı gerekli
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    // Auth gerektiren sayfalar için kontrol
-    const isAuthPage = request.nextUrl.pathname.startsWith('/login');
-
-    if (!user && !isAuthPage) {
-      // Giriş yapmamış kullanıcıyı login sayfasına yönlendir
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
+    if (!user && !hasAppSession && !isAuthPage) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/login';
+      return NextResponse.redirect(redirectUrl);
     }
 
-    if (user && isAuthPage) {
-      // Giriş yapmış kullanıcıyı dashboard'a yönlendir
-      const url = request.nextUrl.clone();
-      url.pathname = '/';
-      return NextResponse.redirect(url);
+    if ((user || hasAppSession) && isAuthPage) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = '/';
+      return NextResponse.redirect(redirectUrl);
     }
   } catch (error) {
     console.error('Supabase middleware auth error:', error);
@@ -66,4 +73,3 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse;
 }
-
