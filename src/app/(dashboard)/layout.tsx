@@ -16,7 +16,8 @@ export default function DashboardLayout({
     <div className="flex h-screen w-full bg-background overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col h-full md:pl-[280px]">
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        {/* Generous pb-32 bottom padding on mobile so fixed bottom menu never covers content */}
+        <main className="flex-1 overflow-y-auto pb-32 md:pb-8">
           {children}
         </main>
       </div>

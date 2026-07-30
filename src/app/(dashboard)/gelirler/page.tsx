@@ -53,7 +53,6 @@ export default function GelirlerPage() {
     setTimeout(() => setGeneratedMsg(''), 4000);
   };
 
-  // Helper to determine if income is overdue
   const getItemStatus = (income: { status: string; date: string }) => {
     if (income.status === 'paid') return 'paid';
     if (income.status === 'overdue' || (income.status === 'pending' && income.date < todayStr)) {
@@ -76,23 +75,23 @@ export default function GelirlerPage() {
       <Header title="Gelirler" />
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
-          title="Gelirler"
+          title="Gelirler & Tahsilat"
           subtitle="Gelir ve tahsilat takibi (Ayın İlk Haftası Ödemeleri)"
           icon={TrendingUp}
           action={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
               <Button
                 variant="outline"
                 onClick={handleGenerateMonthly}
-                className="bg-card border-border hover:bg-muted text-xs"
+                className="bg-card border-border hover:bg-muted text-xs shrink-0"
               >
-                <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Bu Ayın Tahsilat Fişlerini Bastır
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Fişleri Bastır
               </Button>
 
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger
                   render={
-                    <Button className="bg-primary hover:bg-primary/90">
+                    <Button className="bg-primary hover:bg-primary/90 shrink-0">
                       <Plus className="w-4 h-4 mr-2" /> Yeni Gelir Kaydı
                     </Button>
                   }
@@ -182,44 +181,46 @@ export default function GelirlerPage() {
         )}
 
         <div className="mt-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="p-5 bg-card border-border flex items-center">
-              <div className="bg-blue-500/10 p-3 rounded-full mr-4">
-                <Wallet className="w-6 h-6 text-blue-500" />
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="p-4 sm:p-5 bg-card border-border flex items-center">
+              <div className="bg-blue-500/10 p-3 rounded-full mr-3 shrink-0">
+                <Wallet className="w-5 h-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Toplam Beklenen</p>
-                <h3 className="text-2xl font-bold" suppressHydrationWarning>{formatCurrency(totalExpected)}</h3>
+                <p className="text-xs text-muted-foreground font-medium">Toplam Beklenen</p>
+                <h3 className="text-xl sm:text-2xl font-bold">{formatCurrency(totalExpected)}</h3>
               </div>
             </Card>
-            <Card className="p-5 bg-card border-border flex items-center">
-              <div className="bg-emerald-500/10 p-3 rounded-full mr-4">
-                <ArrowUpRight className="w-6 h-6 text-emerald-500" />
+            <Card className="p-4 sm:p-5 bg-card border-border flex items-center">
+              <div className="bg-emerald-500/10 p-3 rounded-full mr-3 shrink-0">
+                <ArrowUpRight className="w-5 h-5 text-emerald-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Tahsil Edilen (Ödendi)</p>
-                <h3 className="text-2xl font-bold text-emerald-400" suppressHydrationWarning>{formatCurrency(totalPaid)}</h3>
+                <p className="text-xs text-muted-foreground font-medium">Tahsil Edilen (Ödendi)</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-emerald-400">{formatCurrency(totalPaid)}</h3>
               </div>
             </Card>
-            <Card className="p-5 bg-card border-border flex items-center">
-              <div className="bg-red-500/10 p-3 rounded-full mr-4">
-                <AlertCircle className="w-6 h-6 text-red-500" />
+            <Card className="p-4 sm:p-5 bg-card border-border flex items-center">
+              <div className="bg-red-500/10 p-3 rounded-full mr-3 shrink-0">
+                <AlertCircle className="w-5 h-5 text-red-500" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Tahsilat Bekleyen / Geciken</p>
-                <h3 className="text-2xl font-bold text-amber-400" suppressHydrationWarning>{formatCurrency(totalOverdue)}</h3>
+                <p className="text-xs text-muted-foreground font-medium">Bekleyen / Geciken</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-amber-400">{formatCurrency(totalOverdue)}</h3>
               </div>
             </Card>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm text-left text-muted-foreground">
               <thead className="text-xs uppercase bg-muted/50 text-muted-foreground">
                 <tr>
                   <th className="px-6 py-3 rounded-tl-lg">Müşteri / Açıklama</th>
                   <th className="px-6 py-3">Tutar</th>
                   <th className="px-6 py-3">Vade Tarihi</th>
-                  <th className="px-6 py-3">Tahsilat Durumu (Değiştir)</th>
+                  <th className="px-6 py-3">Tahsilat Durumu</th>
                   <th className="px-6 py-3 rounded-tr-lg text-right">İşlem</th>
                 </tr>
               </thead>
@@ -267,7 +268,7 @@ export default function GelirlerPage() {
                                 : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                             }`}
                           >
-                            <option value="pending" className="bg-card text-foreground">Bekliyor (Vade: Ayın İlk Haftası)</option>
+                            <option value="pending" className="bg-card text-foreground">Bekliyor (Ayın İlk Haftası)</option>
                             <option value="paid" className="bg-card text-foreground">Ödendi (Tamamlandı)</option>
                             <option value="overdue" className="bg-card text-foreground">Gecikti!</option>
                           </select>
@@ -278,7 +279,6 @@ export default function GelirlerPage() {
                               variant="outline"
                               onClick={() => updateGelirStatus(income.id, 'paid')}
                               className="h-7 text-[11px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
-                              title="Tamamlandı olarak işaretle"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Ödendi Yap
                             </Button>
@@ -299,6 +299,74 @@ export default function GelirlerPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Card List View for Phones */}
+          <div className="md:hidden space-y-3">
+            {gelirler.map((income) => {
+              const calculatedStatus = getItemStatus(income);
+              const isOverdue = calculatedStatus === 'overdue';
+
+              return (
+                <Card
+                  key={income.id}
+                  className={`p-4 border ${
+                    isOverdue ? 'bg-red-500/10 border-red-500/30' : 'bg-card border-border'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className={`font-bold text-base ${isOverdue ? 'text-red-300' : 'text-foreground'}`}>
+                        {income.client}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">{income.description}</p>
+                    </div>
+                    <button
+                      onClick={() => deleteGelir(income.id)}
+                      className="text-muted-foreground hover:text-red-500 p-1"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="my-3 pt-2 border-t border-border/50 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Tutar</span>
+                      <span className="text-lg font-extrabold text-foreground">{formatCurrency(income.amount)}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Vade Tarihi</span>
+                      <span className="text-xs font-mono font-medium">{formatDateTr(income.date)}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">Durumu:</span>
+                      <select
+                        value={calculatedStatus}
+                        onChange={(e) => updateGelirStatus(income.id, e.target.value)}
+                        className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground font-medium outline-none"
+                      >
+                        <option value="pending">Bekliyor (Ayın İlk Haftası)</option>
+                        <option value="paid">Ödendi (Tamamlandı)</option>
+                        <option value="overdue">Gecikti!</option>
+                      </select>
+                    </div>
+
+                    {calculatedStatus !== 'paid' && (
+                      <Button
+                        size="sm"
+                        onClick={() => updateGelirStatus(income.id, 'paid')}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs font-semibold"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Ödendi Olarak İşaretle
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </div>
