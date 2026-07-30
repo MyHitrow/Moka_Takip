@@ -173,7 +173,6 @@ const initialSystemUsers: SystemUser[] = [
 
 const initialHaftalikNotlar: HaftalikNot[] = [];
 
-// Clean initial empty arrays (data is fetched directly from Supabase Cloud DB)
 const initialIsletmeler: Isletme[] = [];
 const initialCekimler: Cekim[] = [];
 const initialEditler: EditItem[] = [];
@@ -223,10 +222,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
-  // Fetch Cloud DB data from Supabase
   const fetchCloudData = async () => {
     try {
-      // 1. Clients
       const { data: clientsData } = await supabase.from('clients').select('*');
       if (clientsData && clientsData.length > 0) {
         setIsletmeler(
@@ -243,7 +240,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setIsCloudConnected(true);
       }
 
-      // 2. Shoots
       const { data: shootsData } = await supabase.from('shoots').select('*');
       if (shootsData && shootsData.length > 0) {
         setCekimler(
@@ -259,7 +255,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 3. Edits
       const { data: editsData } = await supabase.from('edits').select('*');
       if (editsData && editsData.length > 0) {
         setEditler(
@@ -275,7 +270,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 4. Calendar
       const { data: calData } = await supabase.from('content_calendar').select('*');
       if (calData && calData.length > 0) {
         setTakvimPosts(
@@ -291,7 +285,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 5. Incomes
       const { data: incomeData } = await supabase.from('income_records').select('*');
       if (incomeData && incomeData.length > 0) {
         setGelirler(
@@ -306,7 +299,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 6. Expenses
       const { data: expData } = await supabase.from('expense_records').select('*');
       if (expData && expData.length > 0) {
         setGiderler(
@@ -327,7 +319,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setIsMounted(true);
     fetchCloudData();
 
-    // Realtime channel listener
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
@@ -425,6 +416,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Helper function to check if string is UUID
+  const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+  // Optimistic & Cloud Delete Handlers
   const addIsletme = async (item: Omit<Isletme, 'id'>) => {
     const numFee = parseFloat(item.fee.replace(/[^0-9.]/g, '')) || 0;
 
@@ -456,8 +451,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteIsletme = async (id: string) => {
+    // 1. Optimistic instant local UI delete
+    const target = isletmeler.find((i) => i.id === id);
+    setIsletmeler((prev) => prev.filter((i) => i.id !== id));
+
+    // 2. Cloud DB Delete
     try {
-      await supabase.from('clients').delete().eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('clients').delete().eq('id', id);
+      } else if (target) {
+        await supabase.from('clients').delete().eq('name', target.name);
+      }
       fetchCloudData();
     } catch (e) {}
   };
@@ -477,8 +481,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteCekim = async (id: string) => {
+    const target = cekimler.find((c) => c.id === id);
+    setCekimler((prev) => prev.filter((i) => i.id !== id));
+
     try {
-      await supabase.from('shoots').delete().eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('shoots').delete().eq('id', id);
+      } else if (target) {
+        await supabase.from('shoots').delete().eq('title', target.title);
+      }
       fetchCloudData();
     } catch (e) {}
   };
@@ -498,15 +509,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteEdit = async (id: string) => {
+    const target = editler.find((e) => e.id === id);
+    setEditler((prev) => prev.filter((i) => i.id !== id));
+
     try {
-      await supabase.from('edits').delete().eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('edits').delete().eq('id', id);
+      } else if (target) {
+        await supabase.from('edits').delete().eq('title', target.title);
+      }
       fetchCloudData();
     } catch (e) {}
   };
 
   const updateEditStatus = async (id: string, status: string) => {
+    setEditler((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
     try {
-      await supabase.from('edits').update({ status }).eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('edits').update({ status }).eq('id', id);
+      }
       fetchCloudData();
     } catch (e) {}
   };
@@ -525,15 +546,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteGelir = async (id: string) => {
+    const target = gelirler.find((g) => g.id === id);
+    setGelirler((prev) => prev.filter((i) => i.id !== id));
+
     try {
-      await supabase.from('income_records').delete().eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('income_records').delete().eq('id', id);
+      } else if (target) {
+        await supabase.from('income_records').delete().eq('description', target.description);
+      }
       fetchCloudData();
     } catch (e) {}
   };
 
   const updateGelirStatus = async (id: string, status: string) => {
+    setGelirler((prev) => prev.map((g) => (g.id === id ? { ...g, status } : g)));
     try {
-      await supabase.from('income_records').update({ collection_status: status }).eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('income_records').update({ collection_status: status }).eq('id', id);
+      }
       fetchCloudData();
     } catch (e) {}
   };
@@ -586,8 +617,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteGider = async (id: string) => {
+    const target = giderler.find((g) => g.id === id);
+    setGiderler((prev) => prev.filter((i) => i.id !== id));
+
     try {
-      await supabase.from('expense_records').delete().eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('expense_records').delete().eq('id', id);
+      } else if (target) {
+        await supabase.from('expense_records').delete().eq('title', target.title);
+      }
       fetchCloudData();
     } catch (e) {}
   };
@@ -607,15 +645,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteTakvimPost = async (id: string) => {
+    const target = takvimPosts.find((t) => t.id === id);
+    setTakvimPosts((prev) => prev.filter((t) => t.id !== id));
+
     try {
-      await supabase.from('content_calendar').delete().eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('content_calendar').delete().eq('id', id);
+      } else if (target) {
+        await supabase.from('content_calendar').delete().eq('title', target.title);
+      }
       fetchCloudData();
     } catch (e) {}
   };
 
   const updateTakvimPostStatus = async (id: string, status: TakvimPost['status']) => {
+    setTakvimPosts((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     try {
-      await supabase.from('content_calendar').update({ status }).eq('id', id);
+      if (isUUID(id)) {
+        await supabase.from('content_calendar').update({ status }).eq('id', id);
+      }
       fetchCloudData();
     } catch (e) {}
   };
