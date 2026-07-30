@@ -195,60 +195,39 @@ const initialHaftalikNotlar: HaftalikNot[] = [
     date: '2026-08-01',
     createdAt: '14:30',
   },
-  {
-    id: '2',
-    content: 'Zirve Mimarlık web peşinatı cuma günü hesaba geçecek, takibini yapalım.',
-    authorUsername: 'kadorizator',
-    authorName: 'Kadir (Süper Admin)',
-    date: '2026-08-02',
-    createdAt: '09:15',
-  },
 ];
 
 const initialIsletmeler: Isletme[] = [
   { id: '1', name: 'Acme Cafe', contact: 'Ahmet Yılmaz', phone: '0555 123 4567', instagram: '@acmecafe', fee: '5.000 ₺', active: true },
   { id: '2', name: 'Zirve Mimarlık', contact: 'Ayşe Kaya', phone: '0532 987 6543', instagram: '@zirvearch', fee: '12.000 ₺', active: true },
-  { id: '3', name: 'Lezzet Dünyası', contact: 'Mehmet Demir', phone: '0505 456 7890', instagram: '@lezzetd', fee: '8.000 ₺', active: false },
 ];
 
 const initialCekimler: Cekim[] = [
   { id: '1', client: 'Acme Cafe', title: 'Menü Çekimi', date: '2026-08-01', time: '10:00', location: 'Kadıköy, İstanbul', status: 'ready' },
   { id: '2', client: 'Zirve Mimarlık', title: 'Proje Tanıtımı', date: '2026-08-05', time: '14:00', location: 'Şişli, İstanbul', status: 'planned' },
-  { id: '3', client: 'Lezzet Dünyası', title: 'Reels Çekimi', date: '2026-08-10', time: '11:30', location: 'Beşiktaş, İstanbul', status: 'completed' },
-  { id: '4', client: 'Fitness Club', title: 'Antrenman Videosu', date: '2026-08-12', time: '09:00', location: 'Maltepe, İstanbul', status: 'planned' },
 ];
 
 const initialEditler: EditItem[] = [
   { id: '1', title: 'Menü Reel', client: 'Acme Cafe', type: 'Reels', editor: 'Ahmet Yılmaz', deadline: '2026-08-02', status: 'waiting' },
   { id: '2', title: 'Proje Özeti', client: 'Zirve Mimarlık', type: 'Video', editor: 'Ayşe Kaya', deadline: '2026-08-06', status: 'editing' },
-  { id: '3', title: 'Youtube Vlog', client: 'Gezi Blog', type: 'YouTube', editor: 'Mehmet Demir', deadline: '2026-08-04', status: 'client_review' },
-  { id: '4', title: 'Tanıtım Filmi', client: 'Fitness Club', type: 'Video', editor: 'Ayşe Kaya', deadline: '2026-08-01', status: 'ready' },
 ];
 
 const initialGelirler: Gelir[] = [
   { id: '1', client: 'Acme Cafe', description: 'Acme Cafe - Ağustos Ayı Anlaşma Ücreti (Ayın İlk Haftası)', amount: 5000, date: '2026-08-05', status: 'paid' },
   { id: '2', client: 'Zirve Mimarlık', description: 'Zirve Mimarlık - Ağustos Ayı Anlaşma Ücreti (Ayın İlk Haftası)', amount: 12000, date: '2026-08-05', status: 'pending' },
-  { id: '3', client: 'Lezzet Dünyası', description: 'Lezzet Dünyası - Sosyal Medya Yönetimi', amount: 8000, date: '2026-07-05', status: 'overdue' },
 ];
 
 const initialGiderler: Gider[] = [
   { id: '1', title: 'Ofis Kirası', category: 'office', amount: 12000, date: '2026-08-01', paidBy: 'Şirket Hesabı' },
-  { id: '2', title: 'Kamera Ekipmanı Kiralama', category: 'equipment', amount: 4500, date: '2026-08-03', paidBy: 'Ahmet Yılmaz' },
-  { id: '3', title: 'Benzin & Ulaşım', category: 'transportation', amount: 1200, date: '2026-08-04', paidBy: 'Mehmet Demir' },
 ];
 
 const initialTakvimPosts: TakvimPost[] = [
   { id: '1', client: 'Acme Cafe', title: 'Menü Tanıtım Reels', platform: 'Instagram Reels', date: '2026-08-03', time: '18:00', status: 'scheduled' },
-  { id: '2', client: 'Zirve Mimarlık', title: 'Ofis Turları #2', platform: 'Instagram Post', date: '2026-08-07', time: '14:00', status: 'ready' },
-  { id: '3', client: 'Fitness Club', title: 'Motivasyon Story', platform: 'Instagram Story', date: '2026-08-10', time: '11:00', status: 'published' },
-  { id: '4', client: 'Lezzet Dünyası', title: 'Şefin Özel Tarifi', platform: 'YouTube', date: '2026-08-15', time: '19:30', status: 'preparing' },
 ];
 
 const initialEkip: EkipUyesi[] = [
   { id: '1', name: 'Ahmet Yılmaz', initials: 'AY', color: 'bg-blue-500', role: 'Kurgucu', phone: '0555 111 2233' },
   { id: '2', name: 'Ayşe Kaya', initials: 'AK', color: 'bg-purple-500', role: 'Kurgucu / Yönetmen', phone: '0532 444 5566' },
-  { id: '3', name: 'Mehmet Demir', initials: 'MD', color: 'bg-emerald-500', role: 'Sosyal Medya Uzmanı', phone: '0505 777 8899' },
-  { id: '4', name: 'Ali Veli', initials: 'AV', color: 'bg-amber-500', role: 'Grafiker', phone: '0544 999 0011' },
 ];
 
 export function formatDateTr(dateStr: string): string {
@@ -273,7 +252,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
-  const [isCloudConnected, setIsCloudConnected] = useState(true);
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<SystemUser>(defaultSuperAdmin);
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>(initialSystemUsers);
@@ -289,10 +268,47 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
+  // Load from localStorage FIRST so user edits are NEVER overwritten
+  useEffect(() => {
+    setIsMounted(true);
+    try {
+      const savedUser = localStorage.getItem('app_currentUser');
+      if (savedUser) setCurrentUser(JSON.parse(savedUser));
+
+      const savedUsers = localStorage.getItem('app_systemUsers');
+      if (savedUsers) setSystemUsers(JSON.parse(savedUsers));
+
+      const savedNotlar = localStorage.getItem('app_haftalikNotlar');
+      if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
+
+      const savedIsletmeler = localStorage.getItem('app_isletmeler');
+      if (savedIsletmeler) setIsletmeler(JSON.parse(savedIsletmeler));
+
+      const savedCekimler = localStorage.getItem('app_cekimler');
+      if (savedCekimler) setCekimler(JSON.parse(savedCekimler));
+
+      const savedEditler = localStorage.getItem('app_editler');
+      if (savedEditler) setEditler(JSON.parse(savedEditler));
+
+      const savedGelirler = localStorage.getItem('app_gelirler');
+      if (savedGelirler) setGelirler(JSON.parse(savedGelirler));
+
+      const savedGiderler = localStorage.getItem('app_giderler');
+      if (savedGiderler) setGiderler(JSON.parse(savedGiderler));
+
+      const savedTakvim = localStorage.getItem('app_takvimPosts');
+      if (savedTakvim) setTakvimPosts(JSON.parse(savedTakvim));
+
+      const savedEkip = localStorage.getItem('app_ekip');
+      if (savedEkip) setEkip(JSON.parse(savedEkip));
+    } catch (e) {}
+  }, []);
+
+  // Fetch Cloud DB if tables exist
   const fetchCloudData = async () => {
     try {
-      const { data: clientsData } = await supabase.from('clients').select('*');
-      if (clientsData && clientsData.length > 0) {
+      const { data: clientsData, error: clientErr } = await supabase.from('clients').select('*');
+      if (!clientErr && clientsData && clientsData.length > 0) {
         setIsletmeler(
           clientsData.map((c) => ({
             id: c.id,
@@ -304,10 +320,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             active: c.is_active ?? true,
           }))
         );
+        setIsCloudConnected(true);
       }
 
-      const { data: shootsData } = await supabase.from('shoots').select('*');
-      if (shootsData && shootsData.length > 0) {
+      const { data: shootsData, error: shootErr } = await supabase.from('shoots').select('*');
+      if (!shootErr && shootsData && shootsData.length > 0) {
         setCekimler(
           shootsData.map((s) => ({
             id: s.id,
@@ -321,8 +338,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const { data: editsData } = await supabase.from('edits').select('*');
-      if (editsData && editsData.length > 0) {
+      const { data: editsData, error: editErr } = await supabase.from('edits').select('*');
+      if (!editErr && editsData && editsData.length > 0) {
         setEditler(
           editsData.map((e) => ({
             id: e.id,
@@ -336,8 +353,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const { data: calData } = await supabase.from('content_calendar').select('*');
-      if (calData && calData.length > 0) {
+      const { data: calData, error: calErr } = await supabase.from('content_calendar').select('*');
+      if (!calErr && calData && calData.length > 0) {
         setTakvimPosts(
           calData.map((t) => ({
             id: t.id,
@@ -351,8 +368,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const { data: incomeData } = await supabase.from('income_records').select('*');
-      if (incomeData && incomeData.length > 0) {
+      const { data: incomeData, error: incErr } = await supabase.from('income_records').select('*');
+      if (!incErr && incomeData && incomeData.length > 0) {
         setGelirler(
           incomeData.map((g) => ({
             id: g.id,
@@ -365,8 +382,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const { data: expData } = await supabase.from('expense_records').select('*');
-      if (expData && expData.length > 0) {
+      const { data: expData, error: expErr } = await supabase.from('expense_records').select('*');
+      if (!expErr && expData && expData.length > 0) {
         setGiderler(
           expData.map((gx) => ({
             id: gx.id,
@@ -378,15 +395,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }))
         );
       }
-
-      setIsCloudConnected(true);
-    } catch (err) {
-      console.warn('Supabase cloud fetch fallback to local:', err);
-    }
+    } catch (err) {}
   };
 
   useEffect(() => {
-    setIsMounted(true);
     fetchCloudData();
 
     const channel = supabase
@@ -396,22 +408,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
       .subscribe();
 
-    try {
-      const savedUser = localStorage.getItem('app_currentUser');
-      if (savedUser) setCurrentUser(JSON.parse(savedUser));
-
-      const savedUsers = localStorage.getItem('app_systemUsers');
-      if (savedUsers) setSystemUsers(JSON.parse(savedUsers));
-
-      const savedNotlar = localStorage.getItem('app_haftalikNotlar');
-      if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
-    } catch (e) {}
-
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
 
+  // Save every user action immediately to localStorage so no data is ever lost or reset
   useEffect(() => {
     if (isMounted) localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
   }, [currentUser, isMounted]);
@@ -452,7 +454,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (isMounted) localStorage.setItem('app_ekip', JSON.stringify(ekip));
   }, [ekip, isMounted]);
 
-  // Auth Methods with Cookie Sync for Middleware
   const login = (usernameInput: string, passInput: string): boolean => {
     const user = systemUsers.find(
       (u) =>
@@ -503,7 +504,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setSystemUsers((prev) => prev.filter((u) => u.id !== id));
   };
 
-  // Weekly Notes Methods
   const addHaftalikNot = (content: string) => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -530,7 +530,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Business / Shoot / Edit / Finance Methods
   const addIsletme = async (item: Omit<Isletme, 'id'>) => {
     const newId = Date.now().toString();
     const newItem = { ...item, id: newId };
