@@ -169,65 +169,20 @@ const initialSystemUsers: SystemUser[] = [
       canManageUsers: false,
     },
   },
-  {
-    id: '3',
-    username: 'editor1',
-    password: '123456',
-    name: 'Ahmet Kurgu',
-    role: 'editor',
-    permissions: {
-      canManageFinance: false,
-      canManageShoots: true,
-      canManageEdits: true,
-      canManageTakvim: true,
-      canManageTeam: false,
-      canManageUsers: false,
-    },
-  },
 ];
 
-const initialHaftalikNotlar: HaftalikNot[] = [
-  {
-    id: '1',
-    content: 'Bu hafta Kadıköy çekimleri saat 10:00 yerine 11:30 başlayacak, ekip bilgilendirilsin.',
-    authorUsername: 'kadorizator',
-    authorName: 'Kadir (Süper Admin)',
-    date: '2026-08-01',
-    createdAt: '14:30',
-  },
-];
+const initialHaftalikNotlar: HaftalikNot[] = [];
 
-const initialIsletmeler: Isletme[] = [
-  { id: '1', name: 'Acme Cafe', contact: 'Ahmet Yılmaz', phone: '0555 123 4567', instagram: '@acmecafe', fee: '5.000 ₺', active: true },
-  { id: '2', name: 'Zirve Mimarlık', contact: 'Ayşe Kaya', phone: '0532 987 6543', instagram: '@zirvearch', fee: '12.000 ₺', active: true },
-];
-
-const initialCekimler: Cekim[] = [
-  { id: '1', client: 'Acme Cafe', title: 'Menü Çekimi', date: '2026-08-01', time: '10:00', location: 'Kadıköy, İstanbul', status: 'ready' },
-  { id: '2', client: 'Zirve Mimarlık', title: 'Proje Tanıtımı', date: '2026-08-05', time: '14:00', location: 'Şişli, İstanbul', status: 'planned' },
-];
-
-const initialEditler: EditItem[] = [
-  { id: '1', title: 'Menü Reel', client: 'Acme Cafe', type: 'Reels', editor: 'Ahmet Yılmaz', deadline: '2026-08-02', status: 'waiting' },
-  { id: '2', title: 'Proje Özeti', client: 'Zirve Mimarlık', type: 'Video', editor: 'Ayşe Kaya', deadline: '2026-08-06', status: 'editing' },
-];
-
-const initialGelirler: Gelir[] = [
-  { id: '1', client: 'Acme Cafe', description: 'Acme Cafe - Ağustos Ayı Anlaşma Ücreti (Ayın İlk Haftası)', amount: 5000, date: '2026-08-05', status: 'paid' },
-  { id: '2', client: 'Zirve Mimarlık', description: 'Zirve Mimarlık - Ağustos Ayı Anlaşma Ücreti (Ayın İlk Haftası)', amount: 12000, date: '2026-08-05', status: 'pending' },
-];
-
-const initialGiderler: Gider[] = [
-  { id: '1', title: 'Ofis Kirası', category: 'office', amount: 12000, date: '2026-08-01', paidBy: 'Şirket Hesabı' },
-];
-
-const initialTakvimPosts: TakvimPost[] = [
-  { id: '1', client: 'Acme Cafe', title: 'Menü Tanıtım Reels', platform: 'Instagram Reels', date: '2026-08-03', time: '18:00', status: 'scheduled' },
-];
+// Clean initial empty arrays (data is fetched directly from Supabase Cloud DB)
+const initialIsletmeler: Isletme[] = [];
+const initialCekimler: Cekim[] = [];
+const initialEditler: EditItem[] = [];
+const initialGelirler: Gelir[] = [];
+const initialGiderler: Gider[] = [];
+const initialTakvimPosts: TakvimPost[] = [];
 
 const initialEkip: EkipUyesi[] = [
-  { id: '1', name: 'Ahmet Yılmaz', initials: 'AY', color: 'bg-blue-500', role: 'Kurgucu', phone: '0555 111 2233' },
-  { id: '2', name: 'Ayşe Kaya', initials: 'AK', color: 'bg-purple-500', role: 'Kurgucu / Yönetmen', phone: '0532 444 5566' },
+  { id: '1', name: 'Kadir (Süper Admin)', initials: 'KS', color: 'bg-purple-500', role: 'Süper Admin', phone: '0555 000 0000' },
 ];
 
 export function formatDateTr(dateStr: string): string {
@@ -268,47 +223,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
-  // Load from localStorage FIRST so user edits are NEVER overwritten
-  useEffect(() => {
-    setIsMounted(true);
-    try {
-      const savedUser = localStorage.getItem('app_currentUser');
-      if (savedUser) setCurrentUser(JSON.parse(savedUser));
-
-      const savedUsers = localStorage.getItem('app_systemUsers');
-      if (savedUsers) setSystemUsers(JSON.parse(savedUsers));
-
-      const savedNotlar = localStorage.getItem('app_haftalikNotlar');
-      if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
-
-      const savedIsletmeler = localStorage.getItem('app_isletmeler');
-      if (savedIsletmeler) setIsletmeler(JSON.parse(savedIsletmeler));
-
-      const savedCekimler = localStorage.getItem('app_cekimler');
-      if (savedCekimler) setCekimler(JSON.parse(savedCekimler));
-
-      const savedEditler = localStorage.getItem('app_editler');
-      if (savedEditler) setEditler(JSON.parse(savedEditler));
-
-      const savedGelirler = localStorage.getItem('app_gelirler');
-      if (savedGelirler) setGelirler(JSON.parse(savedGelirler));
-
-      const savedGiderler = localStorage.getItem('app_giderler');
-      if (savedGiderler) setGiderler(JSON.parse(savedGiderler));
-
-      const savedTakvim = localStorage.getItem('app_takvimPosts');
-      if (savedTakvim) setTakvimPosts(JSON.parse(savedTakvim));
-
-      const savedEkip = localStorage.getItem('app_ekip');
-      if (savedEkip) setEkip(JSON.parse(savedEkip));
-    } catch (e) {}
-  }, []);
-
-  // Fetch Cloud DB if tables exist
+  // Fetch Cloud DB data from Supabase
   const fetchCloudData = async () => {
     try {
-      const { data: clientsData, error: clientErr } = await supabase.from('clients').select('*');
-      if (!clientErr && clientsData && clientsData.length > 0) {
+      // 1. Clients
+      const { data: clientsData } = await supabase.from('clients').select('*');
+      if (clientsData && clientsData.length > 0) {
         setIsletmeler(
           clientsData.map((c) => ({
             id: c.id,
@@ -323,8 +243,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setIsCloudConnected(true);
       }
 
-      const { data: shootsData, error: shootErr } = await supabase.from('shoots').select('*');
-      if (!shootErr && shootsData && shootsData.length > 0) {
+      // 2. Shoots
+      const { data: shootsData } = await supabase.from('shoots').select('*');
+      if (shootsData && shootsData.length > 0) {
         setCekimler(
           shootsData.map((s) => ({
             id: s.id,
@@ -338,8 +259,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const { data: editsData, error: editErr } = await supabase.from('edits').select('*');
-      if (!editErr && editsData && editsData.length > 0) {
+      // 3. Edits
+      const { data: editsData } = await supabase.from('edits').select('*');
+      if (editsData && editsData.length > 0) {
         setEditler(
           editsData.map((e) => ({
             id: e.id,
@@ -353,8 +275,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const { data: calData, error: calErr } = await supabase.from('content_calendar').select('*');
-      if (!calErr && calData && calData.length > 0) {
+      // 4. Calendar
+      const { data: calData } = await supabase.from('content_calendar').select('*');
+      if (calData && calData.length > 0) {
         setTakvimPosts(
           calData.map((t) => ({
             id: t.id,
@@ -368,8 +291,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const { data: incomeData, error: incErr } = await supabase.from('income_records').select('*');
-      if (!incErr && incomeData && incomeData.length > 0) {
+      // 5. Incomes
+      const { data: incomeData } = await supabase.from('income_records').select('*');
+      if (incomeData && incomeData.length > 0) {
         setGelirler(
           incomeData.map((g) => ({
             id: g.id,
@@ -382,8 +306,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      const { data: expData, error: expErr } = await supabase.from('expense_records').select('*');
-      if (!expErr && expData && expData.length > 0) {
+      // 6. Expenses
+      const { data: expData } = await supabase.from('expense_records').select('*');
+      if (expData && expData.length > 0) {
         setGiderler(
           expData.map((gx) => ({
             id: gx.id,
@@ -399,8 +324,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    setIsMounted(true);
     fetchCloudData();
 
+    // Realtime channel listener
     const channel = supabase
       .channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
@@ -408,51 +335,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       })
       .subscribe();
 
+    try {
+      const savedUser = localStorage.getItem('app_currentUser');
+      if (savedUser) setCurrentUser(JSON.parse(savedUser));
+    } catch (e) {}
+
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
 
-  // Save every user action immediately to localStorage so no data is ever lost or reset
   useEffect(() => {
     if (isMounted) localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
   }, [currentUser, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_systemUsers', JSON.stringify(systemUsers));
-  }, [systemUsers, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_haftalikNotlar', JSON.stringify(haftalikNotlar));
-  }, [haftalikNotlar, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_isletmeler', JSON.stringify(isletmeler));
-  }, [isletmeler, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_cekimler', JSON.stringify(cekimler));
-  }, [cekimler, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_editler', JSON.stringify(editler));
-  }, [editler, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_gelirler', JSON.stringify(gelirler));
-  }, [gelirler, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_giderler', JSON.stringify(giderler));
-  }, [giderler, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_takvimPosts', JSON.stringify(takvimPosts));
-  }, [takvimPosts, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_ekip', JSON.stringify(ekip));
-  }, [ekip, isMounted]);
 
   const login = (usernameInput: string, passInput: string): boolean => {
     const user = systemUsers.find(
@@ -531,25 +426,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addIsletme = async (item: Omit<Isletme, 'id'>) => {
-    const newId = Date.now().toString();
-    const newItem = { ...item, id: newId };
-    setIsletmeler((prev) => [newItem, ...prev]);
-
     const numFee = parseFloat(item.fee.replace(/[^0-9.]/g, '')) || 0;
-    if (numFee > 0 && item.active) {
-      const today = new Date();
-      const firstWeekDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-05`;
-
-      const newGelir: Gelir = {
-        id: (Date.now() + 1).toString(),
-        client: item.name,
-        description: `${item.name} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
-        amount: numFee,
-        date: firstWeekDate,
-        status: 'pending',
-      };
-      setGelirler((prev) => [newGelir, ...prev]);
-    }
 
     try {
       await supabase.from('clients').insert({
@@ -560,20 +437,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         monthly_fee: numFee,
         is_active: item.active,
       });
+
+      if (numFee > 0 && item.active) {
+        const today = new Date();
+        const firstWeekDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-05`;
+
+        await supabase.from('income_records').insert({
+          client_name: item.name,
+          description: `${item.name} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
+          amount: numFee,
+          due_date: firstWeekDate,
+          collection_status: 'pending',
+        });
+      }
+
+      fetchCloudData();
     } catch (e) {}
   };
 
   const deleteIsletme = async (id: string) => {
-    setIsletmeler((prev) => prev.filter((i) => i.id !== id));
     try {
       await supabase.from('clients').delete().eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
   const addCekim = async (item: Omit<Cekim, 'id'>) => {
-    const newItem = { ...item, id: Date.now().toString() };
-    setCekimler((prev) => [newItem, ...prev]);
-
     try {
       await supabase.from('shoots').insert({
         client_name: item.client,
@@ -583,20 +472,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         location: item.location,
         status: item.status,
       });
+      fetchCloudData();
     } catch (e) {}
   };
 
   const deleteCekim = async (id: string) => {
-    setCekimler((prev) => prev.filter((i) => i.id !== id));
     try {
       await supabase.from('shoots').delete().eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
   const addEdit = async (item: Omit<EditItem, 'id'>) => {
-    const newItem = { ...item, id: Date.now().toString() };
-    setEditler((prev) => [newItem, ...prev]);
-
     try {
       await supabase.from('edits').insert({
         client_name: item.client,
@@ -606,27 +493,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         deadline: item.deadline,
         status: item.status,
       });
+      fetchCloudData();
     } catch (e) {}
   };
 
   const deleteEdit = async (id: string) => {
-    setEditler((prev) => prev.filter((i) => i.id !== id));
     try {
       await supabase.from('edits').delete().eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
   const updateEditStatus = async (id: string, status: string) => {
-    setEditler((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
     try {
       await supabase.from('edits').update({ status }).eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
   const addGelir = async (item: Omit<Gelir, 'id'>) => {
-    const newItem = { ...item, id: Date.now().toString() };
-    setGelirler((prev) => [newItem, ...prev]);
-
     try {
       await supabase.from('income_records').insert({
         client_name: item.client,
@@ -635,20 +520,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         due_date: item.date,
         collection_status: item.status,
       });
+      fetchCloudData();
     } catch (e) {}
   };
 
   const deleteGelir = async (id: string) => {
-    setGelirler((prev) => prev.filter((i) => i.id !== id));
     try {
       await supabase.from('income_records').delete().eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
   const updateGelirStatus = async (id: string, status: string) => {
-    setGelirler((prev) => prev.map((g) => (g.id === id ? { ...g, status } : g)));
     try {
       await supabase.from('income_records').update({ collection_status: status }).eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
@@ -658,9 +544,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const dueDate = `${datePrefix}-05`;
 
     let count = 0;
-    const newItems: Gelir[] = [];
 
-    isletmeler.forEach((biz) => {
+    isletmeler.forEach(async (biz) => {
       if (!biz.active) return;
       const numFee = parseFloat(biz.fee.replace(/[^0-9.]/g, '')) || 0;
       if (numFee <= 0) return;
@@ -670,29 +555,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       );
 
       if (!exists) {
-        newItems.push({
-          id: (Date.now() + Math.random()).toString(),
-          client: biz.name,
-          description: `${biz.name} - Aylık Paket Tahsilatı (Ayın İlk Haftası)`,
-          amount: numFee,
-          date: dueDate,
-          status: 'pending',
-        });
-        count++;
+        try {
+          await supabase.from('income_records').insert({
+            client_name: biz.name,
+            description: `${biz.name} - Aylık Paket Tahsilatı (Ayın İlk Haftası)`,
+            amount: numFee,
+            due_date: dueDate,
+            collection_status: 'pending',
+          });
+          count++;
+        } catch (e) {}
       }
     });
 
-    if (newItems.length > 0) {
-      setGelirler((prev) => [...newItems, ...prev]);
-    }
-
+    fetchCloudData();
     return count;
   };
 
   const addGider = async (item: Omit<Gider, 'id'>) => {
-    const newItem = { ...item, id: Date.now().toString() };
-    setGiderler((prev) => [newItem, ...prev]);
-
     try {
       await supabase.from('expense_records').insert({
         title: item.title,
@@ -701,20 +581,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         expense_date: item.date,
         paid_by: item.paidBy,
       });
+      fetchCloudData();
     } catch (e) {}
   };
 
   const deleteGider = async (id: string) => {
-    setGiderler((prev) => prev.filter((i) => i.id !== id));
     try {
       await supabase.from('expense_records').delete().eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
   const addTakvimPost = async (item: Omit<TakvimPost, 'id'>) => {
-    const newItem = { ...item, id: Date.now().toString() };
-    setTakvimPosts((prev) => [newItem, ...prev]);
-
     try {
       await supabase.from('content_calendar').insert({
         client_name: item.client,
@@ -724,20 +602,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         publish_time: item.time,
         status: item.status,
       });
+      fetchCloudData();
     } catch (e) {}
   };
 
   const deleteTakvimPost = async (id: string) => {
-    setTakvimPosts((prev) => prev.filter((t) => t.id !== id));
     try {
       await supabase.from('content_calendar').delete().eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
   const updateTakvimPostStatus = async (id: string, status: TakvimPost['status']) => {
-    setTakvimPosts((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     try {
       await supabase.from('content_calendar').update({ status }).eq('id', id);
+      fetchCloudData();
     } catch (e) {}
   };
 
