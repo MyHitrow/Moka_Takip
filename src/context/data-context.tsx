@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 export interface Isletme {
   id: string;
@@ -19,17 +20,17 @@ export interface Cekim {
   date: string; // YYYY-MM-DD
   time: string;
   location: string;
-  status: string; // planned, ready, shot, completed, cancelled
+  status: string;
 }
 
 export interface EditItem {
   id: string;
   title: string;
   client: string;
-  type: string; // Reels, Video, Post, YouTube
+  type: string;
   editor: string;
-  deadline: string; // YYYY-MM-DD
-  status: string; // waiting, editing, client_review, ready
+  deadline: string;
+  status: string;
 }
 
 export interface Gelir {
@@ -37,8 +38,8 @@ export interface Gelir {
   client: string;
   description: string;
   amount: number;
-  date: string; // YYYY-MM-DD
-  status: string; // pending, paid, overdue
+  date: string;
+  status: string;
 }
 
 export interface Gider {
@@ -46,7 +47,7 @@ export interface Gider {
   title: string;
   category: string;
   amount: number;
-  date: string; // YYYY-MM-DD
+  date: string;
   paidBy: string;
 }
 
@@ -54,8 +55,8 @@ export interface TakvimPost {
   id: string;
   client: string;
   title: string;
-  platform: string; // Instagram Reels, Post, Story, YouTube, TikTok
-  date: string; // YYYY-MM-DD
+  platform: string;
+  date: string;
   time?: string;
   status: 'preparing' | 'ready' | 'scheduled' | 'published';
 }
@@ -107,6 +108,7 @@ interface DataContextType {
   systemUsers: SystemUser[];
   currentUser: SystemUser;
   haftalikNotlar: HaftalikNot[];
+  isCloudConnected: boolean;
   login: (username: string, pass: string) => boolean;
   logout: () => void;
   addIsletme: (item: Omit<Isletme, 'id'>) => void;
@@ -271,6 +273,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
+  const [isCloudConnected, setIsCloudConnected] = useState(true);
 
   const [currentUser, setCurrentUser] = useState<SystemUser>(defaultSuperAdmin);
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>(initialSystemUsers);
@@ -284,9 +287,127 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [takvimPosts, setTakvimPosts] = useState<TakvimPost[]>(initialTakvimPosts);
   const [ekip, setEkip] = useState<EkipUyesi[]>(initialEkip);
 
-  // Load state from localStorage ONLY after mounting in the browser (prevents SSR hydration error)
+  // Supabase Client
+  const supabase = createClient();
+
+  // Fetch initial data from Supabase Cloud DB & Subscribe to Realtime Changes
+  const fetchCloudData = async () => {
+    try {
+      // 1. Fetch Clients / İşletmeler
+      const { data: clientsData } = await supabase.from('clients').select('*');
+      if (clientsData && clientsData.length > 0) {
+        setIsletmeler(
+          clientsData.map((c) => ({
+            id: c.id,
+            name: c.name,
+            contact: c.contact_name || '-',
+            phone: c.phone || '-',
+            instagram: c.instagram || '@-',
+            fee: c.monthly_fee ? `${c.monthly_fee} ₺` : '0 ₺',
+            active: c.is_active ?? true,
+          }))
+        );
+      }
+
+      // 2. Fetch Shoots / Çekimler
+      const { data: shootsData } = await supabase.from('shoots').select('*');
+      if (shootsData && shootsData.length > 0) {
+        setCekimler(
+          shootsData.map((s) => ({
+            id: s.id,
+            client: s.client_name || 'İşletme',
+            title: s.title,
+            date: s.shoot_date || new Date().toISOString().split('T')[0],
+            time: s.start_time || '10:00',
+            location: s.location || 'Stüdyo',
+            status: s.status || 'planned',
+          }))
+        );
+      }
+
+      // 3. Fetch Edits / Editler
+      const { data: editsData } = await supabase.from('edits').select('*');
+      if (editsData && editsData.length > 0) {
+        setEditler(
+          editsData.map((e) => ({
+            id: e.id,
+            title: e.title,
+            client: e.client_name || 'İşletme',
+            type: e.content_type || 'Reels',
+            editor: e.editor_name || 'Atanmadı',
+            deadline: e.deadline || new Date().toISOString().split('T')[0],
+            status: e.status || 'waiting',
+          }))
+        );
+      }
+
+      // 4. Fetch Calendar Posts
+      const { data: calData } = await supabase.from('content_calendar').select('*');
+      if (calData && calData.length > 0) {
+        setTakvimPosts(
+          calData.map((t) => ({
+            id: t.id,
+            client: t.client_name || 'İşletme',
+            title: t.title,
+            platform: t.platform || 'Instagram Reels',
+            date: t.publish_date || new Date().toISOString().split('T')[0],
+            time: t.publish_time || '18:00',
+            status: t.status || 'scheduled',
+          }))
+        );
+      }
+
+      // 5. Fetch Income Records / Gelirler
+      const { data: incomeData } = await supabase.from('income_records').select('*');
+      if (incomeData && incomeData.length > 0) {
+        setGelirler(
+          incomeData.map((g) => ({
+            id: g.id,
+            client: g.client_name || 'Müşteri',
+            description: g.description,
+            amount: Number(g.amount) || 0,
+            date: g.due_date || new Date().toISOString().split('T')[0],
+            status: g.collection_status || 'pending',
+          }))
+        );
+      }
+
+      // 6. Fetch Expense Records / Giderler
+      const { data: expData } = await supabase.from('expense_records').select('*');
+      if (expData && expData.length > 0) {
+        setGiderler(
+          expData.map((gx) => ({
+            id: gx.id,
+            title: gx.title,
+            category: gx.category || 'office',
+            amount: Number(gx.amount) || 0,
+            date: gx.expense_date || new Date().toISOString().split('T')[0],
+            paidBy: gx.paid_by || 'Kredi Kartı',
+          }))
+        );
+      }
+
+      setIsCloudConnected(true);
+    } catch (err) {
+      console.warn('Supabase cloud fetch fallback to local:', err);
+    }
+  };
+
   useEffect(() => {
     setIsMounted(true);
+
+    // Initial Cloud Fetch
+    fetchCloudData();
+
+    // Supabase Realtime Channels Subscription
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchCloudData();
+      })
+      .subscribe();
+
+    // Local Storage backup load if available
     try {
       const savedUser = localStorage.getItem('app_currentUser');
       if (savedUser) setCurrentUser(JSON.parse(savedUser));
@@ -296,33 +417,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       const savedNotlar = localStorage.getItem('app_haftalikNotlar');
       if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
+    } catch (e) {}
 
-      const savedIsletmeler = localStorage.getItem('app_isletmeler');
-      if (savedIsletmeler) setIsletmeler(JSON.parse(savedIsletmeler));
-
-      const savedCekimler = localStorage.getItem('app_cekimler');
-      if (savedCekimler) setCekimler(JSON.parse(savedCekimler));
-
-      const savedEditler = localStorage.getItem('app_editler');
-      if (savedEditler) setEditler(JSON.parse(savedEditler));
-
-      const savedGelirler = localStorage.getItem('app_gelirler');
-      if (savedGelirler) setGelirler(JSON.parse(savedGelirler));
-
-      const savedGiderler = localStorage.getItem('app_giderler');
-      if (savedGiderler) setGiderler(JSON.parse(savedGiderler));
-
-      const savedTakvim = localStorage.getItem('app_takvimPosts');
-      if (savedTakvim) setTakvimPosts(JSON.parse(savedTakvim));
-
-      const savedEkip = localStorage.getItem('app_ekip');
-      if (savedEkip) setEkip(JSON.parse(savedEkip));
-    } catch (e) {
-      console.error('Failed to parse localStorage data', e);
-    }
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
-  // Sync to localStorage only after client component mounts
+  // Sync to localStorage as backup
   useEffect(() => {
     if (isMounted) localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
   }, [currentUser, isMounted]);
@@ -383,10 +485,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addSystemUser = (user: Omit<SystemUser, 'id'>): boolean => {
-    // Only super_admin can manage users
-    if (currentUser.role !== 'super_admin') {
-      return false;
-    }
+    if (currentUser.role !== 'super_admin') return false;
 
     const exists = systemUsers.some(
       (u) => u.username.toLowerCase() === user.username.toLowerCase()
@@ -404,7 +503,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteSystemUser = (id: string) => {
     if (currentUser.role !== 'super_admin') return;
-    // Don't allow deleting super_admin account 'kadorizator'
     const target = systemUsers.find((u) => u.id === id);
     if (target?.username === 'kadorizator') return;
 
@@ -433,15 +531,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const note = haftalikNotlar.find((n) => n.id === id);
     if (!note) return;
 
-    // Super admin can delete any note, users can delete their own notes
     if (currentUser.role === 'super_admin' || note.authorUsername === currentUser.username) {
       setHaftalikNotlar((prev) => prev.filter((n) => n.id !== id));
     }
   };
 
   // Business / Shoot / Edit / Finance Methods
-  const addIsletme = (item: Omit<Isletme, 'id'>) => {
-    const newItem = { ...item, id: Date.now().toString() };
+  const addIsletme = async (item: Omit<Isletme, 'id'>) => {
+    const newId = Date.now().toString();
+    const newItem = { ...item, id: newId };
     setIsletmeler((prev) => [newItem, ...prev]);
 
     const numFee = parseFloat(item.fee.replace(/[^0-9.]/g, '')) || 0;
@@ -459,45 +557,107 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       };
       setGelirler((prev) => [newGelir, ...prev]);
     }
+
+    // Sync to Supabase
+    try {
+      await supabase.from('clients').insert({
+        name: item.name,
+        contact_name: item.contact,
+        phone: item.phone,
+        instagram: item.instagram,
+        monthly_fee: numFee,
+        is_active: item.active,
+      });
+    } catch (e) {}
   };
 
-  const deleteIsletme = (id: string) => {
+  const deleteIsletme = async (id: string) => {
     setIsletmeler((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await supabase.from('clients').delete().eq('id', id);
+    } catch (e) {}
   };
 
-  const addCekim = (item: Omit<Cekim, 'id'>) => {
+  const addCekim = async (item: Omit<Cekim, 'id'>) => {
     const newItem = { ...item, id: Date.now().toString() };
     setCekimler((prev) => [newItem, ...prev]);
+
+    try {
+      await supabase.from('shoots').insert({
+        client_name: item.client,
+        title: item.title,
+        shoot_date: item.date,
+        start_time: item.time,
+        location: item.location,
+        status: item.status,
+      });
+    } catch (e) {}
   };
 
-  const deleteCekim = (id: string) => {
+  const deleteCekim = async (id: string) => {
     setCekimler((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await supabase.from('shoots').delete().eq('id', id);
+    } catch (e) {}
   };
 
-  const addEdit = (item: Omit<EditItem, 'id'>) => {
+  const addEdit = async (item: Omit<EditItem, 'id'>) => {
     const newItem = { ...item, id: Date.now().toString() };
     setEditler((prev) => [newItem, ...prev]);
+
+    try {
+      await supabase.from('edits').insert({
+        client_name: item.client,
+        title: item.title,
+        content_type: item.type,
+        editor_name: item.editor,
+        deadline: item.deadline,
+        status: item.status,
+      });
+    } catch (e) {}
   };
 
-  const deleteEdit = (id: string) => {
+  const deleteEdit = async (id: string) => {
     setEditler((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await supabase.from('edits').delete().eq('id', id);
+    } catch (e) {}
   };
 
-  const updateEditStatus = (id: string, status: string) => {
+  const updateEditStatus = async (id: string, status: string) => {
     setEditler((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
+    try {
+      await supabase.from('edits').update({ status }).eq('id', id);
+    } catch (e) {}
   };
 
-  const addGelir = (item: Omit<Gelir, 'id'>) => {
+  const addGelir = async (item: Omit<Gelir, 'id'>) => {
     const newItem = { ...item, id: Date.now().toString() };
     setGelirler((prev) => [newItem, ...prev]);
+
+    try {
+      await supabase.from('income_records').insert({
+        client_name: item.client,
+        description: item.description,
+        amount: item.amount,
+        due_date: item.date,
+        collection_status: item.status,
+      });
+    } catch (e) {}
   };
 
-  const deleteGelir = (id: string) => {
+  const deleteGelir = async (id: string) => {
     setGelirler((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await supabase.from('income_records').delete().eq('id', id);
+    } catch (e) {}
   };
 
-  const updateGelirStatus = (id: string, status: string) => {
+  const updateGelirStatus = async (id: string, status: string) => {
     setGelirler((prev) => prev.map((g) => (g.id === id ? { ...g, status } : g)));
+    try {
+      await supabase.from('income_records').update({ collection_status: status }).eq('id', id);
+    } catch (e) {}
   };
 
   const generateMonthlyIncomes = (targetMonthStr?: string) => {
@@ -537,26 +697,56 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return count;
   };
 
-  const addGider = (item: Omit<Gider, 'id'>) => {
+  const addGider = async (item: Omit<Gider, 'id'>) => {
     const newItem = { ...item, id: Date.now().toString() };
     setGiderler((prev) => [newItem, ...prev]);
+
+    try {
+      await supabase.from('expense_records').insert({
+        title: item.title,
+        category: item.category,
+        amount: item.amount,
+        expense_date: item.date,
+        paid_by: item.paidBy,
+      });
+    } catch (e) {}
   };
 
-  const deleteGider = (id: string) => {
+  const deleteGider = async (id: string) => {
     setGiderler((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await supabase.from('expense_records').delete().eq('id', id);
+    } catch (e) {}
   };
 
-  const addTakvimPost = (item: Omit<TakvimPost, 'id'>) => {
+  const addTakvimPost = async (item: Omit<TakvimPost, 'id'>) => {
     const newItem = { ...item, id: Date.now().toString() };
     setTakvimPosts((prev) => [newItem, ...prev]);
+
+    try {
+      await supabase.from('content_calendar').insert({
+        client_name: item.client,
+        title: item.title,
+        platform: item.platform,
+        publish_date: item.date,
+        publish_time: item.time,
+        status: item.status,
+      });
+    } catch (e) {}
   };
 
-  const deleteTakvimPost = (id: string) => {
+  const deleteTakvimPost = async (id: string) => {
     setTakvimPosts((prev) => prev.filter((t) => t.id !== id));
+    try {
+      await supabase.from('content_calendar').delete().eq('id', id);
+    } catch (e) {}
   };
 
-  const updateTakvimPostStatus = (id: string, status: TakvimPost['status']) => {
+  const updateTakvimPostStatus = async (id: string, status: TakvimPost['status']) => {
     setTakvimPosts((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
+    try {
+      await supabase.from('content_calendar').update({ status }).eq('id', id);
+    } catch (e) {}
   };
 
   const addEkipUyesi = (item: Omit<EkipUyesi, 'id' | 'initials'>) => {
@@ -590,6 +780,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         systemUsers,
         currentUser,
         haftalikNotlar,
+        isCloudConnected,
         login,
         logout,
         addIsletme,
