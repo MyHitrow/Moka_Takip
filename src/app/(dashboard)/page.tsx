@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { WeekShoots } from '@/components/dashboard/week-shoots';
 import { EditorWorkload } from '@/components/dashboard/editor-workload';
+import { HaftalikNotlar } from '@/components/dashboard/haftalik-notlar';
 import { useData } from '@/context/data-context';
 
 import {
@@ -16,11 +17,12 @@ import {
   CheckCircle,
   AlertCircle,
   Eye,
-  CalendarClock
+  CalendarClock,
+  UserCheck
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { cekimler, editler, gelirler, giderler } = useData();
+  const { cekimler, editler, gelirler, giderler, currentUser } = useData();
 
   const currentDate = new Date().toLocaleDateString('tr-TR', {
     weekday: 'long',
@@ -46,7 +48,7 @@ export default function DashboardPage() {
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
       <PageHeader
-        title="Dashboard"
+        title={`Dashboard — Hoşgeldiniz, ${currentUser.name}`}
         subtitle={currentDate}
       />
 
@@ -149,10 +151,15 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Bottom Grids */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-          <WeekShoots />
-          <EditorWorkload />
+        {/* Bottom Grids: Haftalık Notlar, Çekimler & Ekip Yükü */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+          <div className="lg:col-span-1">
+            <HaftalikNotlar />
+          </div>
+          <div className="lg:col-span-2 space-y-6">
+            <WeekShoots />
+            <EditorWorkload />
+          </div>
         </div>
       </div>
     </div>

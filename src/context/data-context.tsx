@@ -69,6 +69,33 @@ export interface EkipUyesi {
   initials: string;
 }
 
+export interface UserPermissions {
+  canManageFinance: boolean;
+  canManageShoots: boolean;
+  canManageEdits: boolean;
+  canManageTakvim: boolean;
+  canManageTeam: boolean;
+  canManageUsers: boolean;
+}
+
+export interface SystemUser {
+  id: string;
+  username: string;
+  password?: string;
+  name: string;
+  role: 'super_admin' | 'admin' | 'editor' | 'member';
+  permissions: UserPermissions;
+}
+
+export interface HaftalikNot {
+  id: string;
+  content: string;
+  authorUsername: string;
+  authorName: string;
+  date: string;
+  createdAt: string;
+}
+
 interface DataContextType {
   isletmeler: Isletme[];
   cekimler: Cekim[];
@@ -77,6 +104,11 @@ interface DataContextType {
   giderler: Gider[];
   takvimPosts: TakvimPost[];
   ekip: EkipUyesi[];
+  systemUsers: SystemUser[];
+  currentUser: SystemUser;
+  haftalikNotlar: HaftalikNot[];
+  login: (username: string, pass: string) => boolean;
+  logout: () => void;
   addIsletme: (item: Omit<Isletme, 'id'>) => void;
   deleteIsletme: (id: string) => void;
   addCekim: (item: Omit<Cekim, 'id'>) => void;
@@ -95,10 +127,82 @@ interface DataContextType {
   updateTakvimPostStatus: (id: string, status: TakvimPost['status']) => void;
   addEkipUyesi: (item: Omit<EkipUyesi, 'id' | 'initials'>) => void;
   deleteEkipUyesi: (id: string) => void;
+  addSystemUser: (user: Omit<SystemUser, 'id'>) => boolean;
+  deleteSystemUser: (id: string) => void;
+  addHaftalikNot: (content: string) => void;
+  deleteHaftalikNot: (id: string) => void;
   formatDateTr: (dateStr: string) => string;
 }
 
-// Clean standardized YYYY-MM-DD ISO initial sample data
+const defaultSuperAdmin: SystemUser = {
+  id: '1',
+  username: 'kadorizator',
+  password: 'Kc3543**',
+  name: 'Kadir (Süper Admin)',
+  role: 'super_admin',
+  permissions: {
+    canManageFinance: true,
+    canManageShoots: true,
+    canManageEdits: true,
+    canManageTakvim: true,
+    canManageTeam: true,
+    canManageUsers: true,
+  },
+};
+
+const initialSystemUsers: SystemUser[] = [
+  defaultSuperAdmin,
+  {
+    id: '2',
+    username: 'admin',
+    password: '123456',
+    name: 'Ajans Yöneticisi',
+    role: 'admin',
+    permissions: {
+      canManageFinance: true,
+      canManageShoots: true,
+      canManageEdits: true,
+      canManageTakvim: true,
+      canManageTeam: false,
+      canManageUsers: false,
+    },
+  },
+  {
+    id: '3',
+    username: 'editor1',
+    password: '123456',
+    name: 'Ahmet Kurgu',
+    role: 'editor',
+    permissions: {
+      canManageFinance: false,
+      canManageShoots: true,
+      canManageEdits: true,
+      canManageTakvim: true,
+      canManageTeam: false,
+      canManageUsers: false,
+    },
+  },
+];
+
+const initialHaftalikNotlar: HaftalikNot[] = [
+  {
+    id: '1',
+    content: 'Bu hafta Kadıköy çekimleri saat 10:00 yerine 11:30 başlayacak, ekip bilgilendirilsin.',
+    authorUsername: 'kadorizator',
+    authorName: 'Kadir (Süper Admin)',
+    date: '2026-08-01',
+    createdAt: '14:30',
+  },
+  {
+    id: '2',
+    content: 'Zirve Mimarlık web peşinatı cuma günü hesaba geçecek, takibini yapalım.',
+    authorUsername: 'kadorizator',
+    authorName: 'Kadir (Süper Admin)',
+    date: '2026-08-02',
+    createdAt: '09:15',
+  },
+];
+
 const initialIsletmeler: Isletme[] = [
   { id: '1', name: 'Acme Cafe', contact: 'Ahmet Yılmaz', phone: '0555 123 4567', instagram: '@acmecafe', fee: '5.000 ₺', active: true },
   { id: '2', name: 'Zirve Mimarlık', contact: 'Ayşe Kaya', phone: '0532 987 6543', instagram: '@zirvearch', fee: '12.000 ₺', active: true },
@@ -145,7 +249,6 @@ const initialEkip: EkipUyesi[] = [
   { id: '4', name: 'Ali Veli', initials: 'AV', color: 'bg-amber-500', role: 'Grafiker', phone: '0544 999 0011' },
 ];
 
-// Helper to format ISO date YYYY-MM-DD into Turkish readable format (e.g. 05 Ağustos 2026)
 export function formatDateTr(dateStr: string): string {
   if (!dateStr) return '-';
   const parts = dateStr.split('-');
@@ -169,6 +272,10 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
 
+  const [currentUser, setCurrentUser] = useState<SystemUser>(defaultSuperAdmin);
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>(initialSystemUsers);
+  const [haftalikNotlar, setHaftalikNotlar] = useState<HaftalikNot[]>(initialHaftalikNotlar);
+
   const [isletmeler, setIsletmeler] = useState<Isletme[]>(initialIsletmeler);
   const [cekimler, setCekimler] = useState<Cekim[]>(initialCekimler);
   const [editler, setEditler] = useState<EditItem[]>(initialEditler);
@@ -181,6 +288,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsMounted(true);
     try {
+      const savedUser = localStorage.getItem('app_currentUser');
+      if (savedUser) setCurrentUser(JSON.parse(savedUser));
+
+      const savedUsers = localStorage.getItem('app_systemUsers');
+      if (savedUsers) setSystemUsers(JSON.parse(savedUsers));
+
+      const savedNotlar = localStorage.getItem('app_haftalikNotlar');
+      if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
+
       const savedIsletmeler = localStorage.getItem('app_isletmeler');
       if (savedIsletmeler) setIsletmeler(JSON.parse(savedIsletmeler));
 
@@ -207,6 +323,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Sync to localStorage only after client component mounts
+  useEffect(() => {
+    if (isMounted) localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
+  }, [currentUser, isMounted]);
+
+  useEffect(() => {
+    if (isMounted) localStorage.setItem('app_systemUsers', JSON.stringify(systemUsers));
+  }, [systemUsers, isMounted]);
+
+  useEffect(() => {
+    if (isMounted) localStorage.setItem('app_haftalikNotlar', JSON.stringify(haftalikNotlar));
+  }, [haftalikNotlar, isMounted]);
+
   useEffect(() => {
     if (isMounted) localStorage.setItem('app_isletmeler', JSON.stringify(isletmeler));
   }, [isletmeler, isMounted]);
@@ -235,11 +363,87 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (isMounted) localStorage.setItem('app_ekip', JSON.stringify(ekip));
   }, [ekip, isMounted]);
 
+  // Auth Methods
+  const login = (usernameInput: string, passInput: string): boolean => {
+    const user = systemUsers.find(
+      (u) =>
+        u.username.toLowerCase() === usernameInput.trim().toLowerCase() &&
+        u.password === passInput
+    );
+
+    if (user) {
+      setCurrentUser(user);
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    setCurrentUser(defaultSuperAdmin);
+  };
+
+  const addSystemUser = (user: Omit<SystemUser, 'id'>): boolean => {
+    // Only super_admin can manage users
+    if (currentUser.role !== 'super_admin') {
+      return false;
+    }
+
+    const exists = systemUsers.some(
+      (u) => u.username.toLowerCase() === user.username.toLowerCase()
+    );
+    if (exists) return false;
+
+    const newUser: SystemUser = {
+      ...user,
+      id: Date.now().toString(),
+    };
+
+    setSystemUsers((prev) => [...prev, newUser]);
+    return true;
+  };
+
+  const deleteSystemUser = (id: string) => {
+    if (currentUser.role !== 'super_admin') return;
+    // Don't allow deleting super_admin account 'kadorizator'
+    const target = systemUsers.find((u) => u.id === id);
+    if (target?.username === 'kadorizator') return;
+
+    setSystemUsers((prev) => prev.filter((u) => u.id !== id));
+  };
+
+  // Weekly Notes Methods
+  const addHaftalikNot = (content: string) => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const newNot: HaftalikNot = {
+      id: Date.now().toString(),
+      content,
+      authorUsername: currentUser.username,
+      authorName: currentUser.name,
+      date: todayStr,
+      createdAt: timeStr,
+    };
+
+    setHaftalikNotlar((prev) => [newNot, ...prev]);
+  };
+
+  const deleteHaftalikNot = (id: string) => {
+    const note = haftalikNotlar.find((n) => n.id === id);
+    if (!note) return;
+
+    // Super admin can delete any note, users can delete their own notes
+    if (currentUser.role === 'super_admin' || note.authorUsername === currentUser.username) {
+      setHaftalikNotlar((prev) => prev.filter((n) => n.id !== id));
+    }
+  };
+
+  // Business / Shoot / Edit / Finance Methods
   const addIsletme = (item: Omit<Isletme, 'id'>) => {
     const newItem = { ...item, id: Date.now().toString() };
     setIsletmeler((prev) => [newItem, ...prev]);
 
-    // Otomatik olarak ayın ilk haftasına beklenen gelir kaydı oluştur (Ödemeler ayın ilk haftası alınır)
     const numFee = parseFloat(item.fee.replace(/[^0-9.]/g, '')) || 0;
     if (numFee > 0 && item.active) {
       const today = new Date();
@@ -296,7 +500,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setGelirler((prev) => prev.map((g) => (g.id === id ? { ...g, status } : g)));
   };
 
-  // Generate monthly retainer billing records for all active businesses for the current month
   const generateMonthlyIncomes = (targetMonthStr?: string) => {
     const today = new Date();
     const datePrefix = targetMonthStr || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -310,7 +513,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const numFee = parseFloat(biz.fee.replace(/[^0-9.]/g, '')) || 0;
       if (numFee <= 0) return;
 
-      // Check if already exists for this business in this month
       const exists = gelirler.some(
         (g) => g.client === biz.name && g.date.startsWith(datePrefix)
       );
@@ -385,6 +587,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         giderler,
         takvimPosts,
         ekip,
+        systemUsers,
+        currentUser,
+        haftalikNotlar,
+        login,
+        logout,
         addIsletme,
         deleteIsletme,
         addCekim,
@@ -403,6 +610,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updateTakvimPostStatus,
         addEkipUyesi,
         deleteEkipUyesi,
+        addSystemUser,
+        deleteSystemUser,
+        addHaftalikNot,
+        deleteHaftalikNot,
         formatDateTr,
       }}
     >
