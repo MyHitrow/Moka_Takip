@@ -24,16 +24,12 @@ export default function AyarlarPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<SystemUser['role']>('admin');
-  const [canManageFinance, setCanManageFinance] = useState(true);
-  const [canManageShoots, setCanManageShoots] = useState(true);
-  const [canManageEdits, setCanManageEdits] = useState(true);
-  const [canManageTakvim, setCanManageTakvim] = useState(true);
-  const [canManageTeam, setCanManageTeam] = useState(false);
 
   // Edit User state
   const [editName, setEditName] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editPassword, setEditPassword] = useState('');
+  const [editRole, setEditRole] = useState<SystemUser['role']>('admin');
 
   const isSuperAdmin = currentUser.role === 'super_admin';
 
@@ -48,11 +44,11 @@ export default function AyarlarPage() {
       name,
       role,
       permissions: {
-        canManageFinance,
-        canManageShoots,
-        canManageEdits,
-        canManageTakvim,
-        canManageTeam,
+        canManageFinance: role === 'admin' || role === 'super_admin',
+        canManageShoots: true,
+        canManageEdits: true,
+        canManageTakvim: true,
+        canManageTeam: role === 'admin' || role === 'super_admin',
         canManageUsers: role === 'super_admin',
       },
     });
@@ -73,6 +69,7 @@ export default function AyarlarPage() {
     setEditName(user.name);
     setEditUsername(user.username);
     setEditPassword(user.password || '');
+    setEditRole(user.role);
     setOpenEditModal(true);
   };
 
@@ -84,6 +81,7 @@ export default function AyarlarPage() {
       name: editName,
       username: editUsername.trim(),
       password: editPassword || editingUser.password,
+      role: editRole,
     });
 
     setOpenEditModal(false);
@@ -95,11 +93,11 @@ export default function AyarlarPage() {
       case 'super_admin':
         return <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 font-bold">Süper Admin</Badge>;
       case 'admin':
-        return <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">Admin</Badge>;
+        return <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 font-bold">Admin</Badge>;
       case 'editor':
-        return <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30">Editör</Badge>;
+        return <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 font-bold">Kurgucu / Editör</Badge>;
       default:
-        return <Badge variant="secondary">Ekip Üyesi</Badge>;
+        return <Badge variant="secondary" className="font-semibold">Ekip Üyesi</Badge>;
     }
   };
 
@@ -109,7 +107,7 @@ export default function AyarlarPage() {
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
           title="Ayarlar & Kullanıcı Yönetimi"
-          subtitle="Kullanıcı oluşturma, düzenleme ve yetki kontrolü"
+          subtitle="Kullanıcı oluşturma, rol değiştirme ve yetki kontrolü"
           icon={Settings}
         />
 
@@ -118,7 +116,7 @@ export default function AyarlarPage() {
           <Card className="p-6 bg-card border-border">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-bold border border-primary/20">
+                <div className="w-14 h-14 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xl font-bold border border-primary/30">
                   {currentUser.name.charAt(0)}
                 </div>
                 <div>
@@ -127,13 +125,13 @@ export default function AyarlarPage() {
                     {getRoleBadge(currentUser.role)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Kullanıcı Adı: <span className="text-foreground font-mono">@{currentUser.username}</span>
+                    Kullanıcı Adı: <span className="text-foreground font-mono font-bold">@{currentUser.username}</span>
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={logout} className="text-xs">
+                <Button variant="outline" size="sm" onClick={logout} className="text-xs font-semibold">
                   Oturumu Kapat
                 </Button>
               </div>
@@ -145,11 +143,11 @@ export default function AyarlarPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
               <div>
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-purple-400" />
-                  <h3 className="text-lg font-bold">Sistem Kullanıcıları & Şifre Yönetimi</h3>
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-bold">Sistem Kullanıcıları & Rol Yönetimi</h3>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Kullanıcı isimleri, kullanıcı adları ve şifreleri buradan düzenlenebilir.
+                  Kullanıcı isimleri, kullanıcı adları, şifreler ve kullanıcı rolleri buradan değiştirilebilir. Değişiklikler Ekip sayfasıyla anında eşzamanlanır.
                 </p>
               </div>
 
@@ -157,7 +155,7 @@ export default function AyarlarPage() {
                 <Dialog open={openUserModal} onOpenChange={setOpenUserModal}>
                   <DialogTrigger
                     render={
-                      <Button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
+                      <Button className="bg-primary hover:bg-primary/90 text-white font-bold">
                         <Plus className="w-4 h-4 mr-2" /> Yeni Kullanıcı Ekle
                       </Button>
                     }
@@ -210,7 +208,7 @@ export default function AyarlarPage() {
                           id="newRole"
                           value={role}
                           onChange={(e) => setRole(e.target.value as any)}
-                          className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
                         >
                           <option value="admin">Admin (Yönetici)</option>
                           <option value="editor">Editör / İçerik Üretici</option>
@@ -219,7 +217,7 @@ export default function AyarlarPage() {
                         </select>
                       </div>
 
-                      <Button type="submit" className="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white">
+                      <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold">
                         Kullanıcıyı Kaydet
                       </Button>
                     </form>
@@ -236,7 +234,7 @@ export default function AyarlarPage() {
                     <th className="px-4 py-3 rounded-l">Kullanıcı Adı</th>
                     <th className="px-4 py-3">Ad Soyad</th>
                     <th className="px-4 py-3">Şifre</th>
-                    <th className="px-4 py-3">Rol</th>
+                    <th className="px-4 py-3">Sistem Rolü</th>
                     <th className="px-4 py-3 text-right rounded-r">İşlem</th>
                   </tr>
                 </thead>
@@ -253,8 +251,8 @@ export default function AyarlarPage() {
                             <Badge className="bg-purple-500/20 text-purple-300 text-[10px] py-0 px-1">Ana Süper Admin</Badge>
                           )}
                         </td>
-                        <td className="px-4 py-3.5 text-muted-foreground">{user.name}</td>
-                        <td className="px-4 py-3.5 font-mono text-xs text-foreground">
+                        <td className="px-4 py-3.5 text-foreground font-medium">{user.name}</td>
+                        <td className="px-4 py-3.5 font-mono text-xs text-foreground font-semibold">
                           {user.password || '******'}
                         </td>
                         <td className="px-4 py-3.5">{getRoleBadge(user.role)}</td>
@@ -263,10 +261,10 @@ export default function AyarlarPage() {
                             {isSuperAdmin && (
                               <button
                                 onClick={() => handleStartEdit(user)}
-                                className="text-muted-foreground hover:text-primary transition-colors p-1"
-                                title="Kullanıcı Bilgilerini Düzenle"
+                                className="text-muted-foreground hover:text-primary transition-colors p-1 flex items-center gap-1 text-xs font-semibold"
+                                title="Kullanıcı Bilgilerini & Rolünü Düzenle"
                               >
-                                <Edit className="w-4 h-4" />
+                                <Edit className="w-4 h-4" /> Düzenle
                               </button>
                             )}
 
@@ -291,11 +289,11 @@ export default function AyarlarPage() {
         </div>
       </div>
 
-      {/* EDIT USER MODAL */}
+      {/* EDIT USER & ROLE MODAL */}
       <Dialog open={openEditModal} onOpenChange={setOpenEditModal}>
         <DialogContent className="sm:max-w-[425px] bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Kullanıcı Bilgilerini Düzenle</DialogTitle>
+            <DialogTitle>Kullanıcı Bilgilerini & Rolünü Düzenle</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSaveEdit} className="space-y-4 pt-2">
             <div className="space-y-2">
@@ -327,8 +325,23 @@ export default function AyarlarPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90">
-              Değişiklikleri Kaydet
+            <div className="space-y-2">
+              <Label htmlFor="editRoleSelect">Kullanıcı Rolü</Label>
+              <select
+                id="editRoleSelect"
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as any)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
+              >
+                <option value="admin">Admin (Yönetici)</option>
+                <option value="editor">Editör / İçerik Üretici</option>
+                <option value="member">Ekip Üyesi</option>
+                <option value="super_admin">Süper Admin</option>
+              </select>
+            </div>
+
+            <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold">
+              Değişiklikleri Kaydet & Ekiple Eşzamanla
             </Button>
           </form>
         </DialogContent>

@@ -186,7 +186,7 @@ export function formatDateTr(dateStr: string): string {
     const day = parts[2];
     const months = [
       'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      'Temmuz', 'Ağustos', 'Eylü', 'Ekim', 'Kasım', 'Aralık'
     ];
     if (months[monthIndex]) {
       return `${day} ${months[monthIndex]} ${year}`;
@@ -426,12 +426,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     const updatedUsers = [...systemUsers, newUser];
     setSystemUsers(updatedUsers);
-    syncSettingsToCloud(updatedUsers, ekip);
+
+    // Sync to Ekip
+    const roleLabel =
+      user.role === 'super_admin'
+        ? 'Süper Admin'
+        : user.role === 'admin'
+        ? 'Admin'
+        : user.role === 'editor'
+        ? 'Kurgucu / Editör'
+        : 'Ekip Üyesi';
+
+    const parts = user.name.trim().split(' ');
+    const initials = parts.length >= 2
+      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+      : user.name.substring(0, 2).toUpperCase();
+
+    const newMember: EkipUyesi = {
+      id: Date.now().toString(),
+      name: user.name,
+      role: roleLabel,
+      phone: '-',
+      color: 'bg-purple-500',
+      initials,
+      username: user.username,
+    };
+
+    const updatedEkip = [...ekip, newMember];
+    setEkip(updatedEkip);
+    syncSettingsToCloud(updatedUsers, updatedEkip);
     return true;
   };
 
   const updateSystemUser = (id: string, updatedFields: Partial<SystemUser>) => {
     if (currentUser.role !== 'super_admin') return;
+
+    const targetUser = systemUsers.find((u) => u.id === id);
 
     const updatedUsers = systemUsers.map((u) => {
       if (u.id === id) {
@@ -444,8 +474,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       return u;
     });
 
+    // Real-time sync with Ekip members!
+    const updatedEkip = ekip.map((member) => {
+      if (
+        (targetUser && member.username === targetUser.username) ||
+        (targetUser && member.name.toLowerCase() === targetUser.name.toLowerCase())
+      ) {
+        const newRole = updatedFields.role || targetUser?.role;
+        const roleLabel =
+          newRole === 'super_admin'
+            ? 'Süper Admin'
+            : newRole === 'admin'
+            ? 'Admin'
+            : newRole === 'editor'
+            ? 'Kurgucu / Editör'
+            : 'Ekip Üyesi';
+
+        return {
+          ...member,
+          name: updatedFields.name || member.name,
+          username: updatedFields.username || member.username,
+          role: roleLabel,
+        };
+      }
+      return member;
+    });
+
     setSystemUsers(updatedUsers);
-    syncSettingsToCloud(updatedUsers, ekip);
+    setEkip(updatedEkip);
+    syncSettingsToCloud(updatedUsers, updatedEkip);
   };
 
   const deleteSystemUser = (id: string) => {
@@ -454,8 +511,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (target?.username === 'kadorizator') return;
 
     const updatedUsers = systemUsers.filter((u) => u.id !== id);
+    const updatedEkip = ekip.filter((e) => e.username !== target?.username);
+
     setSystemUsers(updatedUsers);
-    syncSettingsToCloud(updatedUsers, ekip);
+    setEkip(updatedEkip);
+    syncSettingsToCloud(updatedUsers, updatedEkip);
   };
 
   const addHaftalikNot = (content: string) => {
