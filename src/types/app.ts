@@ -8,6 +8,9 @@ export interface Isletme {
   instagram: string;
   fee: string;
   active: boolean;
+  monthlyReelsTarget?: number; // e.g. 8 Reels/month (default)
+  monthlyPostTarget?: number;  // e.g. 4 Posts/month
+  monthlyShootTarget?: number; // e.g. 2 Shoots/month
 }
 
 export interface Cekim {

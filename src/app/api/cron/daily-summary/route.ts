@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/client';
+import { runAISentinelAudit } from '@/lib/ai-sentinel';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,12 +11,7 @@ export async function GET(request: Request) {
 
     if (!token || !chatId) {
       return NextResponse.json({
-        error: 'TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID .env.local / Vercel Environment Variables üzerinde tanımlanmamış!',
-        setup: {
-          step1: 'Telegram@BotFather uygulamasından bot oluşturun (TOKEN alın)',
-          step2: 'Botunuza mesaj atın ve Chat ID değerinizi öğrenin',
-          step3: 'Vercel / .env.local içine TELEGRAM_BOT_TOKEN ve TELEGRAM_CHAT_ID ekleyin.',
-        },
+        error: 'TELEGRAM_BOT_TOKEN veya TELEGRAM_CHAT_ID tanımlanmamış!',
       }, { status: 400 });
     }
 
@@ -29,47 +25,87 @@ export async function GET(request: Request) {
       day: 'numeric',
     });
 
-    // 1. Bugünkü Çekimler
-    const { data: shoots } = await supabase
-      .from('shoots')
-      .select('*')
-      .eq('shoot_date', todayStr);
+    // Supabase Sorguları
+    const { data: rawIsletmeler } = await supabase.from('clients').select('*');
+    const { data: rawShoots } = await supabase.from('shoots').select('*');
+    const { data: rawEdits } = await supabase.from('edits').select('*');
+    const { data: rawPosts } = await supabase.from('content_calendar').select('*');
+    const { data: rawIncome } = await supabase.from('income_records').select('*');
 
-    // 2. Bugün Teslim Edilmesi Gereken Editler (Bitenler hariç)
-    const { data: edits } = await supabase
-      .from('edits')
-      .select('*')
-      .lte('deadline', todayStr)
-      .not('status', 'in', '("ready","published")');
+    // Model Dönüştürmeleri
+    const isletmeler = (rawIsletmeler || []).map((b) => ({
+      id: b.id,
+      name: b.name || b.client_name,
+      contact: b.contact_person || '',
+      phone: b.phone || '',
+      instagram: b.instagram || '',
+      fee: b.monthly_fee || '',
+      active: b.status !== 'inactive',
+      monthlyReelsTarget: b.monthly_reels_target || 8,
+      monthlyShootTarget: b.monthly_shoot_target || 2,
+    }));
 
-    // 3. Bugünkü Paylaşımlar
-    const { data: posts } = await supabase
-      .from('content_calendar')
-      .select('*')
-      .eq('publish_date', todayStr);
+    const cekimler = (rawShoots || []).map((s) => ({
+      id: s.id,
+      client: s.client_name,
+      title: s.title,
+      date: s.shoot_date,
+      time: s.start_time || '10:00',
+      location: s.location || 'Stüdyo',
+      status: s.status,
+    }));
 
-    // 4. Gecikmiş Ödemeler
-    const { data: incomeData } = await supabase
-      .from('income_records')
-      .select('*')
-      .not('collection_status', 'eq', 'paid');
+    const editler = (rawEdits || []).map((e) => ({
+      id: e.id,
+      title: e.title,
+      client: e.client_name,
+      type: e.content_type || 'Reels',
+      editor: e.editor_name || 'Atanmadı',
+      deadline: e.deadline,
+      status: e.status,
+    }));
 
-    const overdueIncomes = (incomeData || []).filter((g) => {
-      if (!g.due_date) return false;
-      return g.due_date <= todayStr;
+    const takvimPosts = (rawPosts || []).map((p) => ({
+      id: p.id,
+      client: p.client_name,
+      title: p.title,
+      platform: p.platform || 'Instagram Reels',
+      date: p.publish_date,
+      time: p.publish_time,
+      status: p.status,
+    }));
+
+    // AI Sentinel Audit Çalıştır
+    const aiInsights = runAISentinelAudit({
+      isletmeler,
+      cekimler,
+      editler,
+      takvimPosts,
     });
+
+    // Bugünkü veriler
+    const todayShoots = cekimler.filter((s) => s.date === todayStr);
+    const todayEdits = editler.filter((e) => e.deadline <= todayStr && !['ready', 'published'].includes(e.status));
+    const todayPosts = takvimPosts.filter((p) => p.date === todayStr);
+    const overdueIncomes = (rawIncome || []).filter((g) => g.collection_status !== 'paid' && g.due_date && g.due_date <= todayStr);
 
     // Mesaj Başlığı
     let message = `☀️ <b>MOKA TAKİP — SABAH ÖZETİ</b>\n📅 <i>${dateFormatted}</i>\n\n`;
 
+    // AI DİREKTÖR BEKÇİSİ UYARILARI
+    if (aiInsights.length > 0) {
+      message += `🤖 <b>AI DİREKTÖR BEKÇİSİ UYARILARI (${aiInsights.length}):</b>\n`;
+      aiInsights.slice(0, 4).forEach((insight) => {
+        message += `• ${insight.title}\n`;
+      });
+      message += `\n`;
+    }
+
     // Çekimler Bölümü
-    message += `🎬 <b>BUGÜNKÜ ÇEKİMLER (${shoots?.length || 0}):</b>\n`;
-    if (shoots && shoots.length > 0) {
-      shoots.forEach((s) => {
-        const client = s.client_name || 'İşletme';
-        const time = s.start_time || '10:00';
-        const location = s.location || 'Stüdyo';
-        message += `• <b>${client}</b> — ${s.title} (⏰ ${time} @ ${location})\n`;
+    message += `🎬 <b>BUGÜNKÜ ÇEKİMLER (${todayShoots.length}):</b>\n`;
+    if (todayShoots.length > 0) {
+      todayShoots.forEach((s) => {
+        message += `• <b>${s.client}</b> — ${s.title} (⏰ ${s.time} @ ${s.location})\n`;
       });
     } else {
       message += `<i>Bugün için planlanan çekim yok.</i>\n`;
@@ -77,13 +113,11 @@ export async function GET(request: Request) {
     message += `\n`;
 
     // Editler Bölümü
-    message += `🎞️ <b>TESLİM EDİLECEK EDİTLER (${edits?.length || 0}):</b>\n`;
-    if (edits && edits.length > 0) {
-      edits.forEach((e) => {
-        const client = e.client_name || 'İşletme';
-        const editor = e.editor_name || 'Atanmadı';
+    message += `🎞️ <b>TESLİM EDİLECEK EDİTLER (${todayEdits.length}):</b>\n`;
+    if (todayEdits.length > 0) {
+      todayEdits.forEach((e) => {
         const isOverdue = e.deadline < todayStr;
-        message += `• <b>${client}</b> — ${e.title} [${editor}] ${isOverdue ? '⚠️ <i>Gecikti!</i>' : ''}\n`;
+        message += `• <b>${e.client}</b> — ${e.title} [${e.editor}] ${isOverdue ? '⚠️ <i>Gecikti!</i>' : ''}\n`;
       });
     } else {
       message += `<i>Bugün teslim edilecek bekleyen edit yok.</i>\n`;
@@ -91,13 +125,10 @@ export async function GET(request: Request) {
     message += `\n`;
 
     // Paylaşımlar Bölümü
-    message += `📱 <b>BUGÜNKÜ PAYLAŞIMLAR (${posts?.length || 0}):</b>\n`;
-    if (posts && posts.length > 0) {
-      posts.forEach((p) => {
-        const client = p.client_name || 'İşletme';
-        const platform = p.platform || p.content_type || 'Social Media';
-        const time = p.publish_time || '18:00';
-        message += `• <b>${client}</b> — ${p.title || 'İçerik'} (${platform} - ⏰ ${time})\n`;
+    message += `📱 <b>BUGÜNKÜ PAYLAŞIMLAR (${todayPosts.length}):</b>\n`;
+    if (todayPosts.length > 0) {
+      todayPosts.forEach((p) => {
+        message += `• <b>${p.client}</b> — ${p.title} (${p.platform} - ⏰ ${p.time || '18:00'})\n`;
       });
     } else {
       message += `<i>Bugün için planlanan paylaşım yok.</i>\n`;
@@ -135,7 +166,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Sabah özeti Telegram adresinize başarıyla gönderildi! 🎉',
+      message: 'Sabah özeti ve AI Direktör Raporu Telegram adresinize başarıyla gönderildi! 🎉',
       sentAt: new Date().toISOString(),
     });
   } catch (error: any) {

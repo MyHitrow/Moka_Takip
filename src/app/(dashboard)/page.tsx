@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { PageHeader } from '@/components/shared/page-header';
+import { AiSentinelWidget } from '@/components/dashboard/ai-sentinel-widget';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { WeekShoots } from '@/components/dashboard/week-shoots';
 import { EditorWorkload } from '@/components/dashboard/editor-workload';
@@ -194,6 +195,9 @@ export default function DashboardPage() {
         title={`Dashboard — Hoşgeldiniz, ${currentUser.name}`}
         subtitle={currentDate}
       />
+
+      {/* 🤖 AI DİREKTÖR BEKÇİSİ (SENTINEL) WIDGET */}
+      <AiSentinelWidget />
 
       <div className="space-y-8">
         {/* Çekimler Section */}
