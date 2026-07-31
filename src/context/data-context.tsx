@@ -704,9 +704,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   };
 
+  // GENERATE MONTHLY INCOMES WITH 27TH DAY AUTO NEXT-MONTH RULE
   const generateMonthlyIncomes = (targetMonthStr?: string) => {
     const today = new Date();
-    const datePrefix = targetMonthStr || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    let year = today.getFullYear();
+    let month = today.getMonth() + 1; // 1-12
+
+    // Rule: On the 27th day or later of the month, auto-generate NEXT month's collection receipts!
+    if (!targetMonthStr && today.getDate() >= 27) {
+      month += 1;
+      if (month > 12) {
+        month = 1;
+        year += 1;
+      }
+    }
+
+    const datePrefix = targetMonthStr || `${year}-${String(month).padStart(2, '0')}`;
     const dueDate = `${datePrefix}-05`;
 
     let count = 0;

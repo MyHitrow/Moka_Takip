@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TrendingUp, Wallet, ArrowUpRight, AlertCircle, Trash2, Plus, CheckCircle2, RefreshCw, Calendar } from 'lucide-react';
+import { TrendingUp, Wallet, ArrowUpRight, AlertCircle, Trash2, Plus, CheckCircle2, RefreshCw, Calendar, Clock } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
 const MONTHS_TR = [
@@ -21,7 +21,7 @@ const MONTHS_TR = [
   { key: '06', name: 'Haziran' },
   { key: '07', name: 'Temmuz' },
   { key: '08', name: 'Ağustos' },
-  { key: '09', name: 'Eylül' },
+  { key: '09', name: 'Eylü' },
   { key: '10', name: 'Ekim' },
   { key: '11', name: 'Kasım' },
   { key: '12', name: 'Aralık' },
@@ -31,10 +31,22 @@ export default function GelirlerPage() {
   const { gelirler, isletmeler, addGelir, deleteGelir, updateGelirStatus, generateMonthlyIncomes, formatDateTr } = useData();
 
   const now = new Date();
-  const currentMonthStr = String(now.getMonth() + 1).padStart(2, '0');
-  const currentYearStr = String(now.getFullYear());
+  let defaultMonthIndex = now.getMonth(); // 0-11
+  let defaultYear = now.getFullYear();
 
-  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
+  // Rule: Starting on the 27th day of the month, default view becomes NEXT MONTH!
+  if (now.getDate() >= 27) {
+    defaultMonthIndex += 1;
+    if (defaultMonthIndex > 11) {
+      defaultMonthIndex = 0;
+      defaultYear += 1;
+    }
+  }
+
+  const defaultMonthKey = String(defaultMonthIndex + 1).padStart(2, '0');
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonthKey);
+  const [selectedYear, setSelectedYear] = useState<string>(String(defaultYear));
   const [open, setOpen] = useState(false);
   const [generatedMsg, setGeneratedMsg] = useState('');
 
@@ -43,8 +55,6 @@ export default function GelirlerPage() {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [status, setStatus] = useState('pending');
-
-  const todayStr = now.toISOString().split('T')[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,9 +65,9 @@ export default function GelirlerPage() {
 
     addGelir({
       client,
-      description: description || `${monthName} Ayı Anlaşma Bedeli`,
+      description: description || `${monthName} Ayı Paket Ücreti`,
       amount: parseFloat(amount) || 0,
-      date: date || `${currentYearStr}-${selectedMonth}-05`,
+      date: date || `${selectedYear}-${selectedMonth}-05`,
       status,
     });
     setClient('');
@@ -69,21 +79,22 @@ export default function GelirlerPage() {
   };
 
   const handleGenerateMonthly = () => {
-    const targetMonthStr = `${currentYearStr}-${selectedMonth}`;
+    const targetMonthStr = `${selectedYear}-${selectedMonth}`;
     const count = generateMonthlyIncomes(targetMonthStr);
     const selectedMonthName = MONTHS_TR.find((m) => m.key === selectedMonth)?.name;
 
     if (count > 0) {
-      setGeneratedMsg(`${selectedMonthName} ayı için ${count} adet aktif işletmenin tahsilat fişi başarıyla oluşturuldu!`);
+      setGeneratedMsg(`${selectedMonthName} ${selectedYear} ayı için ${count} adet aktif işletmenin tahsilat fişi başarıyla oluşturuldu!`);
     } else {
-      setGeneratedMsg(`${selectedMonthName} ayı için aktif işletmelerin tahsilat fişleri zaten mevcut.`);
+      setGeneratedMsg(`${selectedMonthName} ${selectedYear} ayı için aktif işletmelerin tahsilat fişleri zaten mevcut.`);
     }
     setTimeout(() => setGeneratedMsg(''), 4000);
   };
 
-  // CALCULATE COLLECTION STATUS BASED ON USER'S BUSINESS RULES:
-  // 1st Week (Days 1 - 7): "Bekliyor (Ayın İlk Haftası Vadesi)"
-  // 2nd Week Onwards (Day 8+): Automatically switches to "Gecikti! (2. Haftadan İtibaren Gecikmede)"
+  // CALCULATE STATUS ACCORDING TO USER'S EXACT RULES:
+  // - Days 1 to 7: YELLOW "Bekliyor (Ayın İlk Haftası)"
+  // - Day 8 onwards (after 7th): RED "Gecikti! (Vadesi Geçti)"
+  // - Paid: GREEN "Tahsil Edildi (Ödendi)"
   const getItemStatus = (income: { status: string; date: string }) => {
     if (income.status === 'paid') return 'paid';
 
@@ -96,22 +107,22 @@ export default function GelirlerPage() {
       const currentMonthIndex = now.getMonth();
       const currentDay = now.getDate();
 
-      // Past months -> Always Gecikti!
+      // Past months -> Always RED Gecikti!
       if (year < currentYear || (year === currentYear && monthIndex < currentMonthIndex)) {
         return 'overdue';
       }
 
       // Current month:
       if (year === currentYear && monthIndex === currentMonthIndex) {
-        // Day 1 - 7: Bekliyor (Ayın İlk Haftası)
-        // Day 8+: Gecikti!
+        // Day 1 to 7: YELLOW Bekliyor
+        // Day 8+: RED Gecikti!
         if (currentDay > 7) {
           return 'overdue';
         }
         return 'pending';
       }
 
-      // Future month:
+      // Future month: YELLOW Bekliyor
       return 'pending';
     }
 
@@ -126,9 +137,20 @@ export default function GelirlerPage() {
   });
 
   const totalExpected = filteredGelirler.reduce((acc, curr) => acc + curr.amount, 0);
-  const totalPaid = filteredGelirler.filter((g) => g.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-  const totalOverdue = filteredGelirler
-    .filter((g) => getItemStatus(g) === 'overdue' || (g.status !== 'paid' && getItemStatus(g) === 'pending'))
+
+  // GREEN: Paid Incomes
+  const totalPaid = filteredGelirler
+    .filter((g) => g.status === 'paid')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  // YELLOW: Pending Incomes (1st Week - Days 1 to 7)
+  const totalPendingWeek1 = filteredGelirler
+    .filter((g) => g.status !== 'paid' && getItemStatus(g) === 'pending')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  // RED: Overdue Incomes (After Day 7 / Past months)
+  const totalOverdueWeek2 = filteredGelirler
+    .filter((g) => g.status !== 'paid' && getItemStatus(g) === 'overdue')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const formatCurrency = (val: number) =>
@@ -140,7 +162,7 @@ export default function GelirlerPage() {
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
           title="Gelirler & 12 Aylık Tahsilat Takvimi"
-          subtitle="Ayın ilk haftası tahsilatı (1-7. Günler Bekliyor, 8. Günden itibaren Gecikmede)"
+          subtitle="Her ayın 27'sinde sonraki ay listelenir (1-7. Günler Sarı Beklemede, 7. Günden Sonra Kırmızı Gecikmede)"
           icon={TrendingUp}
           action={
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
@@ -223,9 +245,9 @@ export default function GelirlerPage() {
                         onChange={(e) => setStatus(e.target.value)}
                         className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold"
                       >
-                        <option value="pending">🟡 Bekliyor (Ayın İlk Haftası)</option>
-                        <option value="paid">🟢 Ödendi (Tamamlandı)</option>
-                        <option value="overdue">🔴 Gecikti (2. Haftadan İtibaren)</option>
+                        <option value="pending">🟡 Bekliyor (Ayın 1-7. Günleri)</option>
+                        <option value="paid">🟢 Ödendi (Tahsil Edildi)</option>
+                        <option value="overdue">🔴 Gecikti (7. Günden Sonra)</option>
                       </select>
                     </div>
                     <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 font-bold">
@@ -242,7 +264,7 @@ export default function GelirlerPage() {
         <div className="mt-6">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-primary" /> 12 Aylık Tahsilat Takvimi ({currentYearStr})
+              <Calendar className="w-4 h-4 text-primary" /> 12 Aylık Tahsilat Takvimi (27'sinden Sonra Gelecek Ay Seçilir)
             </h3>
             <button
               onClick={() => setSelectedMonth('all')}
@@ -259,23 +281,23 @@ export default function GelirlerPage() {
           <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-12 gap-1.5 bg-card/60 p-2 rounded-2xl border border-border">
             {MONTHS_TR.map((m) => {
               const isSelected = selectedMonth === m.key;
-              const isCurrent = currentMonthStr === m.key;
+              const isDefaultMonth = defaultMonthKey === m.key;
 
               return (
                 <button
                   key={m.key}
                   onClick={() => setSelectedMonth(m.key)}
-                  className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center relative ${
+                  className={`py-2.5 px-2 rounded-xl text-xs font-extrabold transition-all flex flex-col items-center justify-center relative ${
                     isSelected
                       ? 'bg-primary text-white shadow-md red-glow'
-                      : isCurrent
-                      ? 'bg-primary/15 text-primary border border-primary/30'
+                      : isDefaultMonth
+                      ? 'bg-primary/20 text-primary border border-primary/40 font-black'
                       : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                   }`}
                 >
                   <span>{m.name}</span>
-                  {isCurrent && (
-                    <span className="text-[9px] opacity-80 font-mono font-normal">Bu Ay</span>
+                  {isDefaultMonth && (
+                    <span className="text-[9px] text-primary opacity-90 font-mono font-bold mt-0.5">Aktif Dönem</span>
                   )}
                 </button>
               );
@@ -290,35 +312,49 @@ export default function GelirlerPage() {
         )}
 
         <div className="mt-6 space-y-6">
-          {/* Summary Cards for Selected Month */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="p-4 sm:p-5 bg-card border-border flex items-center shadow-xs">
+          {/* STAT CARDS: GREEN (TAHSİL EDİLDİ), YELLOW (BEKLEYEN 1-7. GÜN), RED (GECİKEN 7. GÜNDEN SONRA) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* 1. Beklenen Toplam */}
+            <Card className="p-4 bg-card border border-border flex items-center shadow-xs">
               <div className="bg-blue-500/10 p-3 rounded-full mr-3 shrink-0 border border-blue-500/20">
-                <Wallet className="w-5 h-5 text-blue-500" />
+                <Wallet className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-semibold">
-                  {selectedMonth === 'all' ? 'Tüm Yıl Beklenen' : `${MONTHS_TR.find(m=>m.key===selectedMonth)?.name} Beklenen`}
-                </p>
-                <h3 className="text-xl sm:text-2xl font-extrabold text-foreground">{formatCurrency(totalExpected)}</h3>
+                <p className="text-xs text-muted-foreground font-semibold">Toplam Beklenen</p>
+                <h3 className="text-xl font-extrabold text-foreground">{formatCurrency(totalExpected)}</h3>
               </div>
             </Card>
-            <Card className="p-4 sm:p-5 bg-card border-border flex items-center shadow-xs">
-              <div className="bg-emerald-500/10 p-3 rounded-full mr-3 shrink-0 border border-emerald-500/20">
-                <ArrowUpRight className="w-5 h-5 text-emerald-500" />
+
+            {/* 2. Tahsil Edildi (YEŞİL) */}
+            <Card className="p-4 bg-card border border-emerald-500/30 bg-emerald-500/5 flex items-center shadow-xs">
+              <div className="bg-emerald-500/20 p-3 rounded-full mr-3 shrink-0 border border-emerald-500/40">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-semibold">Tahsil Edilen (Ödendi)</p>
-                <h3 className="text-xl sm:text-2xl font-extrabold text-emerald-400">{formatCurrency(totalPaid)}</h3>
+                <p className="text-xs text-emerald-300 font-bold">🟢 Tahsil Edildi (Ödendi)</p>
+                <h3 className="text-xl font-extrabold text-emerald-400">{formatCurrency(totalPaid)}</h3>
               </div>
             </Card>
-            <Card className="p-4 sm:p-5 bg-card border-border flex items-center shadow-xs">
-              <div className="bg-red-500/10 p-3 rounded-full mr-3 shrink-0 border border-red-500/20">
-                <AlertCircle className="w-5 h-5 text-red-500" />
+
+            {/* 3. Beklemede (SARI - 1-7. GÜNLER) */}
+            <Card className="p-4 bg-card border border-amber-500/30 bg-amber-500/5 flex items-center shadow-xs">
+              <div className="bg-amber-500/20 p-3 rounded-full mr-3 shrink-0 border border-amber-500/40">
+                <Clock className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-semibold">Kalan / Geciken Tutarlar</p>
-                <h3 className="text-xl sm:text-2xl font-extrabold text-amber-400">{formatCurrency(totalOverdue)}</h3>
+                <p className="text-xs text-amber-300 font-bold">🟡 Bekleyen Ödemeler (1-7. Gün)</p>
+                <h3 className="text-xl font-extrabold text-amber-400">{formatCurrency(totalPendingWeek1)}</h3>
+              </div>
+            </Card>
+
+            {/* 4. Gecikmede (KIRMIZI - 7. GÜNDEN SONRA) */}
+            <Card className="p-4 bg-card border border-red-500/30 bg-red-500/5 flex items-center shadow-xs">
+              <div className="bg-red-500/20 p-3 rounded-full mr-3 shrink-0 border border-red-500/40">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-xs text-red-300 font-bold">🔴 Geciken Ödemeler (7. Gün Sonrası)</p>
+                <h3 className="text-xl font-extrabold text-red-400">{formatCurrency(totalOverdueWeek2)}</h3>
               </div>
             </Card>
           </div>
@@ -339,27 +375,28 @@ export default function GelirlerPage() {
                 {filteredGelirler.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                      Bu ay için herhangi bir tahsilat kaydı bulunmuyor. *"Seçili Ay İçin Fişleri Oluştur"* butonuna basarak otomatik ekleyebilirsiniz.
+                      Bu ay için henüz tahsilat kaydı bulunmuyor. *"Seçili Ay İçin Fişleri Oluştur"* butonuna basarak otomatik ekleyebilirsiniz.
                     </td>
                   </tr>
                 ) : (
                   filteredGelirler.map((income) => {
                     const calculatedStatus = getItemStatus(income);
                     const isOverdue = calculatedStatus === 'overdue';
+                    const isPaid = calculatedStatus === 'paid';
 
                     return (
                       <tr
                         key={income.id}
                         className={`border-b border-border transition-colors ${
-                          isOverdue
+                          isPaid
+                            ? 'bg-emerald-500/10 hover:bg-emerald-500/15'
+                            : isOverdue
                             ? 'bg-red-500/10 hover:bg-red-500/15'
-                            : income.status === 'paid'
-                            ? 'bg-emerald-500/5 hover:bg-emerald-500/10'
-                            : 'bg-card hover:bg-muted/30'
+                            : 'bg-amber-500/10 hover:bg-amber-500/15'
                         }`}
                       >
                         <td className="px-6 py-4">
-                          <div className={`font-extrabold text-base ${isOverdue ? 'text-red-300' : 'text-foreground'}`}>
+                          <div className={`font-extrabold text-base ${isPaid ? 'text-emerald-300' : isOverdue ? 'text-red-300' : 'text-amber-300'}`}>
                             {income.client}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">{income.description}</div>
@@ -371,12 +408,12 @@ export default function GelirlerPage() {
                           {formatDateTr(income.date)}
                           {isOverdue && (
                             <span className="block text-[10px] text-red-400 font-extrabold mt-0.5">
-                              ⚠️ 2. Haftadan İtibaren Gecikmede!
+                              🔴 7. Günden Sonra Gecikmede!
                             </span>
                           )}
-                          {!isOverdue && calculatedStatus === 'pending' && (
-                            <span className="block text-[10px] text-amber-400 font-semibold mt-0.5">
-                              🟡 Ayın 1. Haftası Beklemede
+                          {!isOverdue && !isPaid && (
+                            <span className="block text-[10px] text-amber-400 font-bold mt-0.5">
+                              🟡 Ayın 1-7. Günleri Beklemede
                             </span>
                           )}
                         </td>
@@ -386,24 +423,24 @@ export default function GelirlerPage() {
                               value={calculatedStatus}
                               onChange={(e) => updateGelirStatus(income.id, e.target.value)}
                               className={`text-xs font-extrabold rounded-lg px-2.5 py-1.5 border cursor-pointer outline-none transition-colors ${
-                                calculatedStatus === 'paid'
-                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                isPaid
+                                  ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
                                   : isOverdue
-                                  ? 'bg-red-500/20 text-red-300 border-red-500/50 font-bold'
-                                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                  ? 'bg-red-500/25 text-red-300 border-red-500/50'
+                                  : 'bg-amber-500/25 text-amber-300 border-amber-500/50'
                               }`}
                             >
-                              <option value="pending" className="bg-card text-foreground">🟡 Bekliyor (Ayın İlk Haftası)</option>
-                              <option value="paid" className="bg-card text-foreground">🟢 Ödendi (Tamamlandı)</option>
-                              <option value="overdue" className="bg-card text-foreground">🔴 Gecikti! (2. Haftadan İtibaren)</option>
+                              <option value="pending" className="bg-card text-foreground">🟡 Bekliyor (Ayın 1-7. Günleri)</option>
+                              <option value="paid" className="bg-card text-foreground">🟢 Ödendi (Tahsil Edildi)</option>
+                              <option value="overdue" className="bg-card text-foreground">🔴 Gecikti! (7. Günden Sonra)</option>
                             </select>
 
-                            {calculatedStatus !== 'paid' && (
+                            {!isPaid && (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateGelirStatus(income.id, 'paid')}
-                                className="h-8 text-xs bg-emerald-500/15 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 font-bold"
+                                className="h-8 text-xs bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 font-bold"
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Ödendi İşaretle
                               </Button>
@@ -437,21 +474,22 @@ export default function GelirlerPage() {
               filteredGelirler.map((income) => {
                 const calculatedStatus = getItemStatus(income);
                 const isOverdue = calculatedStatus === 'overdue';
+                const isPaid = calculatedStatus === 'paid';
 
                 return (
                   <Card
                     key={income.id}
                     className={`p-4 border ${
-                      isOverdue
+                      isPaid
+                        ? 'bg-emerald-500/10 border-emerald-500/40'
+                        : isOverdue
                         ? 'bg-red-500/10 border-red-500/40'
-                        : income.status === 'paid'
-                        ? 'bg-emerald-500/5 border-emerald-500/30'
-                        : 'bg-card border-border'
+                        : 'bg-amber-500/10 border-amber-500/40'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h4 className={`font-extrabold text-base ${isOverdue ? 'text-red-300' : 'text-foreground'}`}>
+                        <h4 className={`font-extrabold text-base ${isPaid ? 'text-emerald-300' : isOverdue ? 'text-red-300' : 'text-amber-300'}`}>
                           {income.client}
                         </h4>
                         <p className="text-xs text-muted-foreground">{income.description}</p>
@@ -483,13 +521,13 @@ export default function GelirlerPage() {
                           onChange={(e) => updateGelirStatus(income.id, e.target.value)}
                           className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground font-bold outline-none"
                         >
-                          <option value="pending">🟡 Bekliyor (Ayın İlk Haftası)</option>
-                          <option value="paid">🟢 Ödendi (Tamamlandı)</option>
-                          <option value="overdue">🔴 Gecikti! (2. Haftadan İtibaren)</option>
+                          <option value="pending">🟡 Bekliyor (Ayın 1-7. Günleri)</option>
+                          <option value="paid">🟢 Ödendi (Tahsil Edildi)</option>
+                          <option value="overdue">🔴 Gecikti! (7. Günden Sonra)</option>
                         </select>
                       </div>
 
-                      {calculatedStatus !== 'paid' && (
+                      {!isPaid && (
                         <Button
                           size="sm"
                           onClick={() => updateGelirStatus(income.id, 'paid')}
