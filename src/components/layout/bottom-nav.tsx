@@ -12,7 +12,7 @@ export function BottomNav({ onMenuOpen }: BottomNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 pb-safe items-center justify-around bg-sidebar/95 backdrop-blur-2xl border-t border-border/80 md:hidden shadow-2xl">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-[calc(3.75rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] items-center justify-around bg-sidebar/95 backdrop-blur-2xl border-t border-border/80 md:hidden shadow-2xl">
       {BOTTOM_NAV_ITEMS.map((item) => {
         const isActive = pathname === item.href || (item.href !== '/' && item.href !== '#menu' && pathname.startsWith(`${item.href}`));
         const Icon = item.icon;

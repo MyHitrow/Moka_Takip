@@ -31,7 +31,7 @@ export default function DashboardLayout({
       <Sidebar />
 
       <div className="flex-1 flex flex-col h-full md:pl-[280px] relative z-10">
-        <main className="flex-1 overflow-y-auto pb-28 md:pb-8">
+        <main className="flex-1 overflow-y-auto pb-[max(7rem,calc(5rem+env(safe-area-inset-bottom)))] md:pb-8">
           {children}
         </main>
       </div>
