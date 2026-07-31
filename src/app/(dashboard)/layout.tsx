@@ -15,14 +15,14 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden relative">
-      {/* 🦏 RHINO HEAD BACKGROUND WATERMARK WITH %40 OPACITY - ALIGNED TO RIGHT OF SIDEBAR MENU */}
+      {/* 🦏 RHINO HEAD BACKGROUND WATERMARK WITH %40 OPACITY - ALIGNED STARTING FROM THE SIDEBAR MENU EDGE */}
       <div className="fixed top-0 bottom-0 left-0 md:left-[280px] right-0 pointer-events-none z-0 overflow-hidden select-none opacity-40">
         <div
-          className="absolute -top-12 right-0 w-[550px] sm:w-[750px] lg:w-[950px] h-[550px] sm:h-[750px] lg:h-[950px] filter invert contrast-200"
+          className="absolute -top-8 left-0 w-[550px] sm:w-[750px] lg:w-[900px] h-[550px] sm:h-[750px] lg:h-[900px] filter invert contrast-200"
           style={{
             backgroundImage: `url('/moka-logo.png')`,
             backgroundSize: '210%',
-            backgroundPosition: '100% 0%',
+            backgroundPosition: '0% 0%',
             backgroundRepeat: 'no-repeat',
           }}
         />
