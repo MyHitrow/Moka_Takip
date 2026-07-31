@@ -104,6 +104,7 @@ export interface SystemUser {
 export interface HaftalikNot {
   id: string;
   content: string;
+  client?: string;
   authorUsername: string;
   authorName: string;
   date: string;
@@ -146,7 +147,7 @@ interface DataContextType {
   addSystemUser: (user: Omit<SystemUser, 'id'>) => boolean;
   updateSystemUser: (id: string, updatedFields: Partial<SystemUser>) => void;
   deleteSystemUser: (id: string) => void;
-  addHaftalikNot: (content: string) => void;
+  addHaftalikNot: (content: string, client?: string) => void;
   deleteHaftalikNot: (id: string) => void;
   formatDateTr: (dateStr: string) => string;
 }
@@ -277,10 +278,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
-  // Helper to persist system config (SystemUsers & Ekip) into Supabase Cloud DB via contact_name column
-  const syncSettingsToCloud = async (updatedUsers: SystemUser[], updatedEkip: EkipUyesi[]) => {
+  // Helper to persist system config (SystemUsers, Ekip, HaftalikNotlar) into Supabase Cloud DB via contact_name column
+  const syncSettingsToCloud = async (updatedUsers?: SystemUser[], updatedEkip?: EkipUyesi[], updatedNotlar?: HaftalikNot[]) => {
     try {
-      const payload = JSON.stringify({ systemUsers: updatedUsers, ekip: updatedEkip });
+      const payload = JSON.stringify({
+        systemUsers: updatedUsers || systemUsers,
+        ekip: updatedEkip || ekip,
+        haftalikNotlar: updatedNotlar || haftalikNotlar,
+      });
       const { data: existing } = await supabase
         .from('clients')
         .select('id')
@@ -346,6 +351,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }
           if (parsed.ekip && Array.isArray(parsed.ekip)) {
             setEkip(parsed.ekip);
+          }
+          if (parsed.haftalikNotlar && Array.isArray(parsed.haftalikNotlar)) {
+            setHaftalikNotlar(parsed.haftalikNotlar);
           }
         } catch (e) {}
       }
@@ -1103,7 +1111,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     syncSettingsToCloud(updatedUsers, updatedEkip);
   };
 
-  const addHaftalikNot = (content: string) => {
+  const addHaftalikNot = (content: string, client?: string) => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -1111,13 +1119,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const newNot: HaftalikNot = {
       id: Date.now().toString(),
       content,
+      client: client || undefined,
       authorUsername: currentUser.username,
       authorName: currentUser.name,
       date: todayStr,
       createdAt: timeStr,
     };
 
-    setHaftalikNotlar((prev) => [newNot, ...prev]);
+    const updatedNotlar = [newNot, ...haftalikNotlar];
+    setHaftalikNotlar(updatedNotlar);
+    syncSettingsToCloud(undefined, undefined, updatedNotlar);
   };
 
   const deleteHaftalikNot = (id: string) => {
@@ -1125,7 +1136,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!note) return;
 
     if (currentUser.role === 'super_admin' || note.authorUsername === currentUser.username) {
-      setHaftalikNotlar((prev) => prev.filter((n) => n.id !== id));
+      const updatedNotlar = haftalikNotlar.filter((n) => n.id !== id);
+      setHaftalikNotlar(updatedNotlar);
+      syncSettingsToCloud(undefined, undefined, updatedNotlar);
     }
   };
 
