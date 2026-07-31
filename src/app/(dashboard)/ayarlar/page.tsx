@@ -157,6 +157,40 @@ export default function AyarlarPage() {
           </div>
         </Card>
 
+        {/* Telegram Bot Notification Section */}
+        <Card className="p-5 md:p-6 bg-card border-border">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">✈️</span>
+                <h3 className="text-base md:text-lg font-bold text-foreground">Her Sabah 08:00 Telegram Özeti</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Her sabah saat 08:00'de o günün çekimleri, teslim edilecek editleri ve paylaşımları otomatik olarak Telegram adresinize gönderilir.
+              </p>
+            </div>
+
+            <Button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/cron/daily-summary');
+                  const data = await res.json();
+                  if (res.ok && data.success) {
+                    alert('🎉 Telegram test mesajı başarıyla gönderildi!');
+                  } else {
+                    alert(`⚠️ ${data.error || 'Telegram ayarları eksik!'}`);
+                  }
+                } catch (e) {
+                  alert('Hata oluştu!');
+                }
+              }}
+              className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs shrink-0 w-full sm:w-auto"
+            >
+              🚀 Telegram Test Mesajı Gönder
+            </Button>
+          </div>
+        </Card>
+
         {/* User Management Section */}
         <Card className="p-4 md:p-6 bg-card border-border">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
