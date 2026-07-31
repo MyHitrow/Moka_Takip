@@ -37,6 +37,9 @@ export function createIsletmelerActions({
         instagram: item.instagram,
         monthly_fee: numFee,
         is_active: item.active,
+        max_days_between_posts: item.maxDaysBetweenPosts || 3,
+        monthly_reels_target: item.monthlyReelsTarget || 10,
+        monthly_shoot_target: item.monthlyShootTarget || 2,
       });
 
       if (numFee > 0 && item.active) {
@@ -100,6 +103,9 @@ export function createIsletmelerActions({
       if (updatedFields.instagram !== undefined) updateData.instagram = updatedFields.instagram;
       if (numFee !== undefined) updateData.monthly_fee = numFee;
       if (updatedFields.active !== undefined) updateData.is_active = updatedFields.active;
+      if (updatedFields.maxDaysBetweenPosts !== undefined) updateData.max_days_between_posts = updatedFields.maxDaysBetweenPosts;
+      if (updatedFields.monthlyReelsTarget !== undefined) updateData.monthly_reels_target = updatedFields.monthlyReelsTarget;
+      if (updatedFields.monthlyShootTarget !== undefined) updateData.monthly_shoot_target = updatedFields.monthlyShootTarget;
 
       if (isUUID(id)) {
         await supabase.from('clients').update(updateData).eq('id', id);

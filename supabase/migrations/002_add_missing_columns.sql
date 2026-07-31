@@ -100,3 +100,12 @@ CREATE INDEX IF NOT EXISTS idx_shoots_client_name ON public.shoots(client_name);
 CREATE INDEX IF NOT EXISTS idx_edits_client_name ON public.edits(client_name);
 CREATE INDEX IF NOT EXISTS idx_income_client_name ON public.income_records(client_name);
 CREATE INDEX IF NOT EXISTS idx_content_cal_client_name ON public.content_calendar(client_name);
+
+-- ==========================================
+-- clients tablosu (AI Eğitim / Paket Kolonları)
+-- ==========================================
+ALTER TABLE public.clients
+  ADD COLUMN IF NOT EXISTS max_days_between_posts INTEGER DEFAULT 3,
+  ADD COLUMN IF NOT EXISTS monthly_reels_target INTEGER DEFAULT 10,
+  ADD COLUMN IF NOT EXISTS monthly_shoot_target INTEGER DEFAULT 2;
+

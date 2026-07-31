@@ -180,6 +180,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           instagram: c.instagram || '@-',
           fee: c.monthly_fee ? `${c.monthly_fee} ₺` : '0 ₺',
           active: c.is_active ?? true,
+          maxDaysBetweenPosts: c.max_days_between_posts || 3,
+          monthlyReelsTarget: c.monthly_reels_target || 10,
+          monthlyShootTarget: c.monthly_shoot_target || 2,
         }));
         setIsletmeler(currentClientsList);
       }
