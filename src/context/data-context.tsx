@@ -228,6 +228,35 @@ export function formatRoleLabel(roleKey: string): string {
   }
 }
 
+// String Normalizer & Intelligent Fuzzy Matcher for Clients
+export function normalizeClientName(str: string): string {
+  if (!str) return '';
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ş/g, 's')
+    .replace(/ü/g, 'u');
+}
+
+export function isClientMatch(nameA: string, nameB: string): boolean {
+  const normA = normalizeClientName(nameA);
+  const normB = normalizeClientName(nameB);
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+  if (normA.includes(normB) || normB.includes(normA)) return true;
+
+  const tokensA = normA.split(/\s+/).filter((t) => t.length > 2);
+  const tokensB = normB.split(/\s+/).filter((t) => t.length > 2);
+  const common = tokensA.filter((t) => tokensB.includes(t));
+
+  return common.length > 0;
+}
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
@@ -322,20 +351,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 2. Fetch clients
+      let currentClientsList: Isletme[] = [];
       const { data: clientsData } = await supabase.from('clients').select('*');
       if (clientsData && clientsData.length > 0) {
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
-        setIsletmeler(
-          realClients.map((c) => ({
-            id: c.id,
-            name: c.name,
-            contact: c.contact_name || '-',
-            phone: c.phone || '-',
-            instagram: c.instagram || '@-',
-            fee: c.monthly_fee ? `${c.monthly_fee} ₺` : '0 ₺',
-            active: c.is_active ?? true,
-          }))
-        );
+        currentClientsList = realClients.map((c) => ({
+          id: c.id,
+          name: c.name.trim(),
+          contact: c.contact_name || '-',
+          phone: c.phone || '-',
+          instagram: c.instagram || '@-',
+          fee: c.monthly_fee ? `${c.monthly_fee} ₺` : '0 ₺',
+          active: c.is_active ?? true,
+        }));
+        setIsletmeler(currentClientsList);
         setIsCloudConnected(true);
       }
 
@@ -345,7 +374,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setCekimler(
           shootsData.map((s) => ({
             id: s.id,
-            client: s.client_name || 'İşletme',
+            client: (s.client_name || 'İşletme').trim(),
             title: s.title,
             date: s.shoot_date || new Date().toISOString().split('T')[0],
             time: s.start_time || '10:00',
@@ -362,7 +391,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           editsData.map((e) => ({
             id: e.id,
             title: e.title,
-            client: e.client_name || 'İşletme',
+            client: (e.client_name || 'İşletme').trim(),
             type: e.content_type || 'Reels',
             editor: e.editor_name || 'Atanmadı',
             deadline: e.deadline || new Date().toISOString().split('T')[0],
@@ -377,7 +406,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setTakvimPosts(
           calData.map((t) => ({
             id: t.id,
-            client: t.client_name || 'İşletme',
+            client: (t.client_name || 'İşletme').trim(),
             title: t.title,
             platform: t.platform || 'Instagram Reels',
             date: t.publish_date || new Date().toISOString().split('T')[0],
@@ -387,34 +416,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 6. Fetch Income Records
+      // 6. Fetch Income Records and automatically harmonize names and fees with Isletmeler!
       const { data: incomeData } = await supabase.from('income_records').select('*');
       if (incomeData && incomeData.length > 0) {
-        setGelirler(
-          incomeData.map((g) => ({
+        const mappedGelirler: Gelir[] = incomeData.map((g) => {
+          const rawClient = (g.client_name || 'Müşteri').trim();
+          // Find matching business
+          const matchedBiz = currentClientsList.find((biz) => isClientMatch(biz.name, rawClient));
+          const clientName = matchedBiz ? matchedBiz.name : rawClient;
+          const numFee = matchedBiz ? parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount) : Number(g.amount);
+          const finalAmount = g.collection_status !== 'paid' && matchedBiz && numFee > 0 ? numFee : Number(g.amount);
+
+          return {
             id: g.id,
-            client: g.client_name || 'Müşteri',
-            description: g.description,
-            amount: Number(g.amount) || 0,
+            client: clientName,
+            description: `${clientName} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
+            amount: finalAmount,
             date: g.due_date || new Date().toISOString().split('T')[0],
             status: g.collection_status || 'pending',
-          }))
-        );
-      }
+          };
+        });
 
-      // 7. Fetch Expense Records
-      const { data: expData } = await supabase.from('expense_records').select('*');
-      if (expData && expData.length > 0) {
-        setGiderler(
-          expData.map((gx) => ({
-            id: gx.id,
-            title: gx.title,
-            category: gx.category || 'office',
-            amount: Number(gx.amount) || 0,
-            date: gx.expense_date || new Date().toISOString().split('T')[0],
-            paidBy: gx.paid_by || 'Kredi Kartı',
-          }))
-        );
+        setGelirler(mappedGelirler);
       }
     } catch (err) {}
   };
@@ -451,7 +474,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await supabase.from('clients').insert({
-        name: item.name,
+        name: item.name.trim(),
         contact_name: item.contact,
         phone: item.phone,
         instagram: item.instagram,
@@ -464,8 +487,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const firstWeekDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-05`;
 
         await supabase.from('income_records').insert({
-          client_name: item.name,
-          description: `${item.name} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
+          client_name: item.name.trim(),
+          description: `${item.name.trim()} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
           amount: numFee,
           due_date: firstWeekDate,
           collection_status: 'pending',
@@ -484,24 +507,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       ? parseFloat(updatedFields.fee.replace(/[^0-9.]/g, '')) || 0
       : undefined;
 
-    const newName = updatedFields.name || oldName;
+    const newName = (updatedFields.name || oldName || '').trim();
 
     // 1. Update Isletmeler local state
     setIsletmeler((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updatedFields } : item))
+      prev.map((item) => (item.id === id ? { ...item, ...updatedFields, name: newName } : item))
     );
 
-    // 2. Update Gelirler (Income Records) local state IMMEDIATELY!
-    if (oldName && newName) {
+    // 2. Update Gelirler (Income Records) local state IMMEDIATELY using fuzzy match!
+    if (oldName || newName) {
       setGelirler((prev) =>
         prev.map((g) => {
-          if (g.client === oldName || g.client === newName) {
+          if (isClientMatch(g.client, oldName || '') || isClientMatch(g.client, newName)) {
             return {
               ...g,
               client: newName,
-              description: g.description.includes('Aylık Paket')
-                ? `${newName} - Aylık Paket Ücreti (Ayın İlk Haftası)`
-                : g.description,
+              description: `${newName} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
               amount: numFee !== undefined && g.status !== 'paid' ? numFee : g.amount,
             };
           }
@@ -511,13 +532,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // Sync local state for Cekimler, Editler, TakvimPosts too!
       setCekimler((prev) =>
-        prev.map((c) => (c.client === oldName ? { ...c, client: newName } : c))
+        prev.map((c) => (isClientMatch(c.client, oldName || '') ? { ...c, client: newName } : c))
       );
       setEditler((prev) =>
-        prev.map((e) => (e.client === oldName ? { ...e, client: newName } : e))
+        prev.map((e) => (isClientMatch(e.client, oldName || '') ? { ...e, client: newName } : e))
       );
       setTakvimPosts((prev) =>
-        prev.map((t) => (t.client === oldName ? { ...t, client: newName } : t))
+        prev.map((t) => (isClientMatch(t.client, oldName || '') ? { ...t, client: newName } : t))
       );
     }
 
@@ -525,7 +546,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // 3. Update Supabase clients table
       if (isUUID(id)) {
         const updateData: any = {};
-        if (updatedFields.name !== undefined) updateData.name = updatedFields.name;
+        if (updatedFields.name !== undefined) updateData.name = newName;
         if (updatedFields.contact !== undefined) updateData.contact_name = updatedFields.contact;
         if (updatedFields.phone !== undefined) updateData.phone = updatedFields.phone;
         if (updatedFields.instagram !== undefined) updateData.instagram = updatedFields.instagram;
@@ -535,7 +556,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         await supabase.from('clients').update(updateData).eq('id', id);
       } else if (target) {
         const updateData: any = {};
-        if (updatedFields.name !== undefined) updateData.name = updatedFields.name;
+        if (updatedFields.name !== undefined) updateData.name = newName;
         if (updatedFields.contact !== undefined) updateData.contact_name = updatedFields.contact;
         if (updatedFields.phone !== undefined) updateData.phone = updatedFields.phone;
         if (updatedFields.instagram !== undefined) updateData.instagram = updatedFields.instagram;
@@ -545,29 +566,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         await supabase.from('clients').update(updateData).eq('name', target.name);
       }
 
-      // 4. REAL-TIME SYNC TO SUPABASE DB FOR ALL RELATED TABLES!
-      if (oldName && newName) {
-        if (oldName !== newName) {
-          await supabase
-            .from('income_records')
-            .update({
+      // 4. REAL-TIME SYNC TO SUPABASE DB FOR ALL INCOME RECORDS MATCHING OLD NAME OR NEW NAME
+      const { data: allIncomes } = await supabase.from('income_records').select('*');
+      if (allIncomes) {
+        for (const inc of allIncomes) {
+          if (isClientMatch(inc.client_name, oldName || '') || isClientMatch(inc.client_name, newName)) {
+            const updateInc: any = {
               client_name: newName,
               description: `${newName} - Aylık Paket Ücreti (Ayın İlk Haftası)`
-            })
-            .eq('client_name', oldName);
-
-          await supabase.from('shoots').update({ client_name: newName }).eq('client_name', oldName);
-          await supabase.from('edits').update({ client_name: newName }).eq('client_name', oldName);
-          await supabase.from('content_calendar').update({ client_name: newName }).eq('client_name', oldName);
-        }
-
-        // Update fee for ALL unpaid income records (both pending AND overdue!)
-        if (numFee !== undefined && numFee >= 0) {
-          await supabase
-            .from('income_records')
-            .update({ amount: numFee })
-            .eq('client_name', newName)
-            .neq('collection_status', 'paid');
+            };
+            if (numFee !== undefined && inc.collection_status !== 'paid') {
+              updateInc.amount = numFee;
+            }
+            await supabase.from('income_records').update(updateInc).eq('id', inc.id);
+          }
         }
       }
 
@@ -592,7 +604,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const addCekim = async (item: Omit<Cekim, 'id'>) => {
     try {
       await supabase.from('shoots').insert({
-        client_name: item.client,
+        client_name: item.client.trim(),
         title: item.title,
         shoot_date: item.date,
         start_time: item.time,
@@ -620,7 +632,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const addEdit = async (item: Omit<EditItem, 'id'>) => {
     try {
       await supabase.from('edits').insert({
-        client_name: item.client,
+        client_name: item.client.trim(),
         title: item.title,
         content_type: item.type,
         editor_name: item.editor,
@@ -658,7 +670,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const addGelir = async (item: Omit<Gelir, 'id'>) => {
     try {
       await supabase.from('income_records').insert({
-        client_name: item.client,
+        client_name: item.client.trim(),
         description: item.description,
         amount: item.amount,
         due_date: item.date,
@@ -705,14 +717,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (numFee <= 0) return;
 
       const exists = gelirler.some(
-        (g) => g.client === biz.name && g.date.startsWith(datePrefix)
+        (g) => isClientMatch(g.client, biz.name) && g.date.startsWith(datePrefix)
       );
 
       if (!exists) {
         try {
           await supabase.from('income_records').insert({
-            client_name: biz.name,
-            description: `${biz.name} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
+            client_name: biz.name.trim(),
+            description: `${biz.name.trim()} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
             amount: numFee,
             due_date: dueDate,
             collection_status: 'pending',
@@ -756,7 +768,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const addTakvimPost = async (item: Omit<TakvimPost, 'id'>) => {
     try {
       await supabase.from('content_calendar').insert({
-        client_name: item.client,
+        client_name: item.client.trim(),
         title: item.title,
         platform: item.platform,
         publish_date: item.date,
