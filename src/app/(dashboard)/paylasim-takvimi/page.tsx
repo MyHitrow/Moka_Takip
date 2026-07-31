@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Header } from '@/components/layout/header';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,17 @@ export default function PaylasimTakvimiPage() {
   const [selectedDay, setSelectedDay] = useState<number>(3); // Selected day on mobile carousel
   const [mobileView, setMobileView] = useState<'carousel' | 'list'>('carousel');
   const [open, setOpen] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (carouselRef.current) {
+      const selectedEl = carouselRef.current.querySelector('[data-selected="true"]');
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [selectedDay, currentDate]);
+
 
   const [client, setClient] = useState('');
   const [title, setTitle] = useState('');
@@ -267,43 +278,48 @@ export default function PaylasimTakvimiPage() {
               {/* iPhone Carousel Day Selector */}
               {mobileView === 'carousel' && (
                 <>
-                  <div className="overflow-x-auto flex gap-2 py-2 snap-x snap-mandatory scrollbar-none max-w-full">
-                {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
-                  const dStr = `${year}-${selectedMonthStr}-${String(d).padStart(2, '0')}`;
-                  const isSelected = d === selectedDay;
-                  const isToday = dStr === todayStr;
-                  const postCount = takvimPosts.filter((p) => p.date === dStr).length;
+                  <div
+                    ref={carouselRef}
+                    className="overflow-x-auto flex gap-2 py-2 snap-x snap-mandatory touch-pan-x scrollbar-none w-full"
+                    style={{ WebkitOverflowScrolling: 'touch' }}
+                  >
+                    {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
+                      const dStr = `${year}-${selectedMonthStr}-${String(d).padStart(2, '0')}`;
+                      const isSelected = d === selectedDay;
+                      const isToday = dStr === todayStr;
+                      const postCount = takvimPosts.filter((p) => p.date === dStr).length;
 
-                  const dayOfWeekIndex = new Date(year, month, d).getDay();
-                  const dayName = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'][dayOfWeekIndex];
+                      const dayOfWeekIndex = new Date(year, month, d).getDay();
+                      const dayName = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'][dayOfWeekIndex];
 
-                  return (
-                    <button
-                      key={d}
-                      onClick={() => setSelectedDay(d)}
-                      className={`flex flex-col items-center justify-center min-w-[56px] h-16 rounded-xl border transition-all shrink-0 ${
-                        isSelected
-                          ? 'bg-primary text-primary-foreground border-primary font-bold shadow-md scale-105'
-                          : isToday
-                          ? 'bg-primary/10 border-primary/40 text-foreground font-semibold'
-                          : 'bg-card border-border text-muted-foreground hover:bg-accent'
-                      }`}
-                    >
-                      <span className="text-[10px] uppercase font-mono">{dayName}</span>
-                      <span className="text-lg font-extrabold leading-none mt-0.5">{d}</span>
-                      {postCount > 0 && (
-                        <span
-                          className={`text-[9px] px-1.5 rounded-full mt-1 ${
-                            isSelected ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary'
+                      return (
+                        <button
+                          key={d}
+                          data-selected={isSelected}
+                          onClick={() => setSelectedDay(d)}
+                          className={`flex flex-col items-center justify-center min-w-[58px] h-16 rounded-xl border transition-all shrink-0 snap-center ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground border-primary font-bold shadow-md scale-105'
+                              : isToday
+                              ? 'bg-primary/10 border-primary/40 text-foreground font-semibold'
+                              : 'bg-card border-border text-muted-foreground hover:bg-accent'
                           }`}
                         >
-                          {postCount} Gönderi
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                          <span className="text-[10px] uppercase font-mono">{dayName}</span>
+                          <span className="text-lg font-extrabold leading-none mt-0.5">{d}</span>
+                          {postCount > 0 && (
+                            <span
+                              className={`text-[9px] px-1.5 rounded-full mt-1 ${
+                                isSelected ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary'
+                              }`}
+                            >
+                              {postCount} Gönderi
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
 
               {/* Selected Day Header & Large Mobile Cards */}
               <div className="pt-2">

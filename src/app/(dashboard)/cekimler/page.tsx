@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Header } from '@/components/layout/header';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,17 @@ export default function CekimlerPage() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // Default Aug 2026
   const [selectedDay, setSelectedDay] = useState<number>(5);
   const [open, setOpen] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (carouselRef.current) {
+      const selectedEl = carouselRef.current.querySelector('[data-selected="true"]');
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [selectedDay, currentDate]);
+
 
   const [client, setClient] = useState('');
   const [title, setTitle] = useState('');
@@ -266,7 +277,11 @@ export default function CekimlerPage() {
               </div>
 
               {/* Day Pills Carousel */}
-              <div className="overflow-x-auto flex gap-2 py-2 snap-x snap-mandatory scrollbar-none max-w-full">
+              <div
+                ref={carouselRef}
+                className="overflow-x-auto flex gap-2 py-2 snap-x snap-mandatory touch-pan-x scrollbar-none w-full"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
                   const dStr = `${year}-${selectedMonthStr}-${String(d).padStart(2, '0')}`;
                   const isSelected = d === selectedDay;
@@ -279,8 +294,9 @@ export default function CekimlerPage() {
                   return (
                     <button
                       key={d}
+                      data-selected={isSelected}
                       onClick={() => setSelectedDay(d)}
-                      className={`flex flex-col items-center justify-center min-w-[56px] h-16 rounded-xl border transition-all shrink-0 ${
+                      className={`flex flex-col items-center justify-center min-w-[58px] h-16 rounded-xl border transition-all shrink-0 snap-center ${
                         isSelected
                           ? 'bg-primary text-primary-foreground border-primary font-bold shadow-md scale-105'
                           : isToday
