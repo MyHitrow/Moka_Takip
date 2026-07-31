@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Header } from '@/components/layout/header';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { WeekShoots } from '@/components/dashboard/week-shoots';
@@ -162,7 +163,9 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-0 md:pt-6">
+      <Header title="Dashboard" subtitle="Genel bakış ve bugünün görevleri" />
+
       {/* HIGH PRIORITY EXCLAMATION ALERT BANNER FOR EDITS DUE TODAY */}
       {dueTodayEdits.length > 0 && (
         <div className="p-4 bg-red-500/15 border-2 border-red-500/50 text-red-300 rounded-2xl red-glow animate-pulse flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
