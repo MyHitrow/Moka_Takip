@@ -17,7 +17,7 @@ export function Header({ title, subtitle }: HeaderProps) {
     : 'MK';
 
   return (
-    <header className="sticky top-0 z-30 flex w-full items-center justify-between bg-sidebar/95 backdrop-blur-2xl md:bg-transparent pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 px-4 md:py-6 lg:px-8 border-b md:border-b-0 border-border/40">
+    <header className="sticky top-0 z-30 flex w-full items-center justify-between bg-sidebar/95 backdrop-blur-2xl md:bg-transparent pt-[max(2.75rem,calc(env(safe-area-inset-top)+1.25rem))] md:pt-6 pb-3 px-4 md:py-6 lg:px-8 border-b md:border-b-0 border-border/40">
       {/* Mobile view: Logo + Brand */}
       <div className="flex items-center gap-2.5 md:hidden">
         <div className="relative w-8 h-8 shrink-0">
