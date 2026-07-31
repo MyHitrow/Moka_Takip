@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Film, Calendar, User, Trash2, Plus, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { Film, Calendar, User, Trash2, Plus, CheckCircle2, Clock, AlertTriangle, Video, Eye, Send } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
 export default function EditlerPage() {
@@ -22,7 +22,7 @@ export default function EditlerPage() {
   const [type, setType] = useState('Reels');
   const [editor, setEditor] = useState('');
   const [deadline, setDeadline] = useState('');
-  const [status, setStatus] = useState('waiting');
+  const [status, setStatus] = useState('editing');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +40,7 @@ export default function EditlerPage() {
     setType('Reels');
     setEditor('');
     setDeadline('');
-    setStatus('waiting');
+    setStatus('editing');
     setOpen(false);
   };
 
@@ -55,14 +55,18 @@ export default function EditlerPage() {
   const pendingEdits = editler.filter((e) => e.status !== 'ready' && e.status !== 'published');
   const completedEdits = editler.filter((e) => e.status === 'ready' || e.status === 'published');
 
+  // "Yapılması Gereken Editler" split into exactly 2 columns: 1. Kurguda, 2. Onayda
   const columnsPending = [
-    { key: 'waiting', title: 'Kurgu Bekliyor', cards: editler.filter((e) => e.status === 'waiting') },
-    { key: 'editing', title: 'Kurguda / Yapılıyor', cards: editler.filter((e) => e.status === 'editing') },
-    { key: 'client_review', title: 'Müşteri Onayında', cards: editler.filter((e) => e.status === 'client_review') },
-  ];
-
-  const columnsCompleted = [
-    { key: 'ready', title: 'Tamamlandı / Yayına Hazır', cards: completedEdits },
+    {
+      key: 'editing',
+      title: '🎬 1. Kurguda / Yapılıyor',
+      cards: editler.filter((e) => e.status === 'editing' || e.status === 'waiting'),
+    },
+    {
+      key: 'client_review',
+      title: '👀 2. Müşteri Onayında',
+      cards: editler.filter((e) => e.status === 'client_review'),
+    },
   ];
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -73,7 +77,7 @@ export default function EditlerPage() {
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
           title="Editler & Kurgu Yönetimi"
-          subtitle="Yapılması gereken ve tamamlanan edit görevleri"
+          subtitle="Kurguda, onayda ve paylaşıma hazır içerik süreci"
           icon={Film}
           action={
             <Dialog open={open} onOpenChange={setOpen}>
@@ -157,21 +161,20 @@ export default function EditlerPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="status">Durum</Label>
+                    <Label htmlFor="status">Başlangıç Aşaması</Label>
                     <select
                       id="status"
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold"
                     >
-                      <option value="waiting">Kurgu Bekliyor</option>
-                      <option value="editing">Kurguda (Yapılıyor)</option>
-                      <option value="client_review">Müşteri Onayında</option>
-                      <option value="ready">Tamamlandı / Yayına Hazır</option>
+                      <option value="editing">🎬 Kurguda (Yapılıyor)</option>
+                      <option value="client_review">👀 Müşteri Onayında</option>
+                      <option value="ready">🚀 Onaylandı (Paylaşıma Hazır)</option>
                     </select>
                   </div>
 
-                  <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90">
+                  <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 font-bold">
                     Kaydet ve Görevlendir
                   </Button>
                 </form>
@@ -181,7 +184,7 @@ export default function EditlerPage() {
         />
 
         {/* Category Split Tabs: Yapılması Gerekenler vs Bitenler */}
-        <div className="mt-6 flex items-center gap-2 bg-card border border-border p-1.5 rounded-xl max-w-md">
+        <div className="mt-6 flex items-center gap-2 bg-card border border-border p-1.5 rounded-xl max-w-lg">
           <button
             onClick={() => setMainCategory('pending')}
             className={`flex-1 py-2.5 px-4 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
@@ -200,27 +203,28 @@ export default function EditlerPage() {
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent'
             }`}
           >
-            <CheckCircle2 className="w-4 h-4" /> Biten Editler ({completedEdits.length})
+            <Send className="w-4 h-4" /> Paylaşıma Hazır / Bitenler ({completedEdits.length})
           </button>
         </div>
 
-        {/* View Mode 1: Yapılması Gereken Editler */}
+        {/* View Mode 1: Yapılması Gereken Editler (Kurguda vs Onayda) */}
         {mainCategory === 'pending' && (
           <div className="mt-6 overflow-x-auto pb-6">
-            <div className="flex gap-4 min-w-full md:min-w-max">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-full">
               {columnsPending.map((col) => (
                 <div
                   key={col.key}
-                  className="w-full md:w-80 min-w-[280px] bg-card/60 rounded-xl p-3 flex flex-col min-h-[420px] border border-border shadow-xs"
+                  className="bg-card/70 rounded-2xl p-4 flex flex-col min-h-[460px] border border-border shadow-xs"
                 >
-                  <div className="flex items-center justify-between mb-3 px-1">
-                    <h3 className="text-sm font-bold text-foreground">{col.title}</h3>
-                    <Badge variant="secondary" className="text-xs font-mono font-bold">{col.cards.length}</Badge>
+                  <div className="flex items-center justify-between mb-4 px-1 pb-3 border-b border-border">
+                    <h3 className="text-base font-extrabold text-foreground">{col.title}</h3>
+                    <Badge variant="secondary" className="text-xs font-mono font-extrabold px-2.5 py-0.5">{col.cards.length} İş</Badge>
                   </div>
-                  <div className="flex-1 space-y-3 overflow-y-auto pr-0.5">
+                  <div className="flex-1 space-y-3.5 overflow-y-auto pr-0.5">
                     {col.cards.length === 0 ? (
-                      <div className="p-8 text-center text-xs text-muted-foreground bg-muted/20 rounded-lg border border-dashed border-border">
-                        Bu aşamada edit bulunmuyor.
+                      <div className="p-10 text-center text-xs text-muted-foreground bg-muted/20 rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2">
+                        {col.key === 'editing' ? <Video className="w-8 h-8 opacity-40" /> : <Eye className="w-8 h-8 opacity-40" />}
+                        <span>Bu aşamada edit bulunmuyor.</span>
                       </div>
                     ) : (
                       col.cards.map((card) => {
@@ -232,14 +236,14 @@ export default function EditlerPage() {
                             key={card.id}
                             className={`p-4 bg-card border transition-colors shadow-xs ${
                               isDueToday || isOverdue
-                                ? 'border-primary/60 red-border-left bg-primary/5'
+                                ? 'border-primary/70 red-border-left bg-primary/5'
                                 : 'border-border hover:border-primary/50'
                             }`}
                           >
                             <div className="flex justify-between items-start mb-2">
-                              <span className="text-xs font-bold text-primary">{card.client}</span>
+                              <span className="text-xs font-extrabold text-primary">{card.client}</span>
                               <div className="flex items-center gap-1.5">
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">{card.type}</Badge>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-bold">{card.type}</Badge>
                                 <button
                                   onClick={() => deleteEdit(card.id)}
                                   className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
@@ -249,34 +253,33 @@ export default function EditlerPage() {
                                 </button>
                               </div>
                             </div>
-                            <h4 className="font-extrabold text-sm mb-3 text-foreground">{card.title}</h4>
+                            <h4 className="font-extrabold text-base mb-3 text-foreground">{card.title}</h4>
 
                             {(isDueToday || isOverdue) && (
-                              <div className="mb-2 p-1.5 bg-red-500/10 border border-red-500/30 text-red-400 text-[11px] font-bold rounded-lg flex items-center gap-1">
-                                <AlertTriangle className="w-3.5 h-3.5" />
+                              <div className="mb-3 p-2 bg-red-500/10 border border-red-500/30 text-red-400 text-[11px] font-bold rounded-lg flex items-center gap-1.5">
+                                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                                 <span>{isDueToday ? 'Bugün Yapılması Gerekiyor!' : 'Teslim Tarihi Gecikti!'}</span>
                               </div>
                             )}
 
                             <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-                              <div className="flex items-center font-semibold text-foreground">
+                              <div className="flex items-center font-bold text-foreground">
                                 <User className="w-3.5 h-3.5 mr-1 text-primary" /> {card.editor}
                               </div>
-                              <div className="flex items-center font-mono">
+                              <div className="flex items-center font-mono font-semibold">
                                 <Calendar className="w-3.5 h-3.5 mr-1 text-muted-foreground" /> {formatDateTr(card.deadline)}
                               </div>
                             </div>
-                            <div className="pt-2 border-t border-border flex justify-between items-center text-xs">
-                              <span className="text-[10px] text-muted-foreground font-semibold">Durumu:</span>
+                            <div className="pt-3 border-t border-border flex justify-between items-center text-xs">
+                              <span className="text-[11px] text-muted-foreground font-bold">Aşama Değiştir:</span>
                               <select
                                 value={card.status}
                                 onChange={(e) => updateEditStatus(card.id, e.target.value)}
-                                className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground font-bold outline-none cursor-pointer"
+                                className="text-xs bg-background border border-input rounded-md px-2 py-1.5 text-foreground font-extrabold outline-none cursor-pointer"
                               >
-                                <option value="waiting">Kurgu Bekliyor</option>
-                                <option value="editing">Kurguda (Yapılıyor)</option>
-                                <option value="client_review">Müşteri Onayında</option>
-                                <option value="ready">Bitti (Tamamlandı)</option>
+                                <option value="editing">🎬 Kurguda (Yapılıyor)</option>
+                                <option value="client_review">👀 Müşteri Onayında</option>
+                                <option value="ready">🚀 Onaylandı ➔ (Paylaşıma Hazır'a Gönder)</option>
                               </select>
                             </div>
                           </Card>
@@ -290,33 +293,65 @@ export default function EditlerPage() {
           </div>
         )}
 
-        {/* View Mode 2: Biten Editler */}
+        {/* View Mode 2: Biten Editler (Paylaşıma Hazır) */}
         {mainCategory === 'completed' && (
-          <div className="mt-6 space-y-3">
+          <div className="mt-6 space-y-4">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-xl flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              <div>
+                <h4 className="font-extrabold text-sm text-white">Müşteri Onayından Geçen & Paylaşıma Hazır İçerikler</h4>
+                <p className="text-xs text-emerald-200/80">Buradaki editler yayına girmeye hazır durumdadır.</p>
+              </div>
+            </div>
+
             {completedEdits.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground border-dashed">
-                Henüz tamamlanmış bir edit bulunmuyor.
+              <Card className="p-12 text-center text-muted-foreground border-dashed rounded-xl">
+                Henüz onaylanıp paylaşıma hazır hale getirilen bir edit bulunmuyor.
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {completedEdits.map((card) => (
-                  <Card key={card.id} className="p-4 bg-card border border-emerald-500/30 bg-emerald-500/5 shadow-xs">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
+                  <Card key={card.id} className="p-4 bg-card border border-emerald-500/40 bg-emerald-500/5 shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
                         <span className="text-xs font-bold text-emerald-400">{card.client}</span>
-                        <h4 className="font-extrabold text-base text-foreground mt-0.5">{card.title}</h4>
+                        <div className="flex items-center gap-1.5">
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-extrabold">
+                            🚀 Paylaşıma Hazır
+                          </Badge>
+                          <button
+                            onClick={() => deleteEdit(card.id)}
+                            className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
+                            title="Sil"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
-                        Tamamlandı
-                      </Badge>
+                      <h4 className="font-extrabold text-base text-foreground mt-1 mb-2">{card.title}</h4>
                     </div>
 
-                    <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center text-foreground font-semibold">
-                        <User className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Yapan: {card.editor}
+                    <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center text-foreground font-semibold">
+                          <User className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Editör: {card.editor}
+                        </div>
+                        <div className="flex items-center font-mono">
+                          <Calendar className="w-3.5 h-3.5 mr-1" /> {formatDateTr(card.deadline)}
+                        </div>
                       </div>
-                      <div className="flex items-center font-mono">
-                        <Calendar className="w-3.5 h-3.5 mr-1" /> {formatDateTr(card.deadline)}
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="text-[10px] text-muted-foreground font-semibold">Revize İsteği Varsa:</span>
+                        <select
+                          value={card.status}
+                          onChange={(e) => updateEditStatus(card.id, e.target.value)}
+                          className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground font-medium outline-none cursor-pointer"
+                        >
+                          <option value="ready">🚀 Paylaşıma Hazır</option>
+                          <option value="client_review">👀 Tekrar Onaya Gönder</option>
+                          <option value="editing">🎬 Tekrar Kurguya Al</option>
+                        </select>
                       </div>
                     </div>
                   </Card>
