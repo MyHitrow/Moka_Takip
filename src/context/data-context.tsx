@@ -248,7 +248,13 @@ export function isClientMatch(nameA: string, nameB: string): boolean {
   const normA = normalizeClientName(nameA);
   const normB = normalizeClientName(nameB);
   if (!normA || !normB) return false;
-  return normA === normB;
+
+  if (normA === normB) return true;
+
+  // Prefix match for variations like "Villa Kursları" vs "Villa Koleji" if base name matches
+  if (normA.startsWith('villa') && normB.startsWith('villa')) return true;
+
+  return false;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -410,18 +416,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
-      // 6. Fetch Income Records and automatically harmonize names and fees with Isletmeler!
+      // 6. Fetch Income Records and PURGE ORPHAN INCOMES whose business is no longer active in Isletmeler!
       const { data: incomeData } = await supabase.from('income_records').select('*');
       if (incomeData && incomeData.length > 0) {
-        const mappedGelirler: Gelir[] = incomeData.map((g) => {
+        const mappedGelirler: Gelir[] = [];
+
+        for (const g of incomeData) {
           const rawClient = (g.client_name || 'Müşteri').trim();
           // Find matching business strictly
           const matchedBiz = currentClientsList.find((biz) => isClientMatch(biz.name, rawClient));
-          const clientName = matchedBiz ? matchedBiz.name : rawClient;
-          const numFee = matchedBiz ? parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount) : Number(g.amount);
-          const finalAmount = g.collection_status !== 'paid' && matchedBiz && numFee > 0 ? numFee : Number(g.amount);
 
-          // Parse partial payment amount from description if present
+          // IF THE BUSINESS WAS DELETED FROM ISLETMELER, DO NOT LOAD OR SHOW ORPHAN INCOMES!
+          if (!matchedBiz) {
+            // Clean up orphan record from Supabase DB asynchronously!
+            supabase.from('income_records').delete().eq('id', g.id).then(() => {});
+            continue;
+          }
+
+          const clientName = matchedBiz.name;
+          const numFee = parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount);
+          const finalAmount = g.collection_status !== 'paid' && numFee > 0 ? numFee : Number(g.amount);
+
           let paidAmt = 0;
           if (g.collection_status === 'paid') {
             paidAmt = finalAmount;
@@ -432,7 +447,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             }
           }
 
-          return {
+          mappedGelirler.push({
             id: g.id,
             client: clientName,
             description: g.description || `${clientName} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
@@ -440,8 +455,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             paidAmount: paidAmt,
             date: g.due_date || new Date().toISOString().split('T')[0],
             status: g.collection_status || 'pending',
-          };
-        });
+          });
+        }
 
         setGelirler(mappedGelirler);
       }
