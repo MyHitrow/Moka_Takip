@@ -215,7 +215,30 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
-  // Load persisted local data on mount
+  // Helper to persist system config (SystemUsers & Ekip) to Supabase Cloud DB
+  const syncSettingsToCloud = async (updatedUsers: SystemUser[], updatedEkip: EkipUyesi[]) => {
+    try {
+      const payload = JSON.stringify({ systemUsers: updatedUsers, ekip: updatedEkip });
+      const { data: existing } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('name', '__SYSTEM_SETTINGS__')
+        .maybeSingle();
+
+      if (existing) {
+        await supabase.from('clients').update({ notes: payload }).eq('id', existing.id);
+      } else {
+        await supabase.from('clients').insert({
+          name: '__SYSTEM_SETTINGS__',
+          contact_name: 'System Config',
+          notes: payload,
+          is_active: false,
+        });
+      }
+    } catch (e) {}
+  };
+
+  // Load persistent data from LocalStorage AND Supabase Cloud DB
   useEffect(() => {
     setIsMounted(true);
 
@@ -247,7 +270,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Save persistent states to localStorage on change
+  // Sync to LocalStorage on change
   useEffect(() => {
     if (isMounted) {
       localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
@@ -261,8 +284,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: clientsData } = await supabase.from('clients').select('*');
       if (clientsData && clientsData.length > 0) {
+        // Filter out system config record from business list
+        const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
         setIsletmeler(
-          clientsData.map((c) => ({
+          realClients.map((c) => ({
             id: c.id,
             name: c.name,
             contact: c.contact_name || '-',
@@ -273,6 +298,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }))
         );
         setIsCloudConnected(true);
+
+        // Parse system settings (users & team members) stored in Cloud DB!
+        const sysRecord = clientsData.find((c) => c.name === '__SYSTEM_SETTINGS__');
+        if (sysRecord && sysRecord.notes) {
+          try {
+            const parsed = JSON.parse(sysRecord.notes);
+            if (parsed.systemUsers && parsed.systemUsers.length > 0) {
+              setSystemUsers(parsed.systemUsers);
+            }
+            if (parsed.ekip && parsed.ekip.length > 0) {
+              setEkip(parsed.ekip);
+            }
+          } catch (e) {}
+        }
       }
 
       const { data: shootsData } = await supabase.from('shoots').select('*');
@@ -388,25 +427,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       id: Date.now().toString(),
     };
 
-    setSystemUsers((prev) => [...prev, newUser]);
+    const updatedUsers = [...systemUsers, newUser];
+    setSystemUsers(updatedUsers);
+    syncSettingsToCloud(updatedUsers, ekip);
     return true;
   };
 
   const updateSystemUser = (id: string, updatedFields: Partial<SystemUser>) => {
     if (currentUser.role !== 'super_admin') return;
 
-    setSystemUsers((prev) =>
-      prev.map((u) => {
-        if (u.id === id) {
-          const updated = { ...u, ...updatedFields };
-          if (currentUser.id === id) {
-            setCurrentUser(updated);
-          }
-          return updated;
+    const updatedUsers = systemUsers.map((u) => {
+      if (u.id === id) {
+        const updated = { ...u, ...updatedFields };
+        if (currentUser.id === id) {
+          setCurrentUser(updated);
         }
-        return u;
-      })
-    );
+        return updated;
+      }
+      return u;
+    });
+
+    setSystemUsers(updatedUsers);
+    syncSettingsToCloud(updatedUsers, ekip);
   };
 
   const deleteSystemUser = (id: string) => {
@@ -414,7 +456,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const target = systemUsers.find((u) => u.id === id);
     if (target?.username === 'kadorizator') return;
 
-    setSystemUsers((prev) => prev.filter((u) => u.id !== id));
+    const updatedUsers = systemUsers.filter((u) => u.id !== id);
+    setSystemUsers(updatedUsers);
+    syncSettingsToCloud(updatedUsers, ekip);
   };
 
   const addHaftalikNot = (content: string) => {
@@ -712,7 +756,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       username: autoUsername,
     };
 
-    setEkip((prev) => [...prev, newItem]);
+    const updatedEkip = [...ekip, newItem];
+    setEkip(updatedEkip);
 
     const userRole: SystemUser['role'] = item.role.toLowerCase().includes('admin')
       ? 'admin'
@@ -736,19 +781,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       },
     };
 
-    setSystemUsers((prev) => {
-      const exists = prev.some((u) => u.username === autoUsername);
-      if (exists) return prev;
-      return [...prev, newSysUser];
-    });
+    let updatedUsers = systemUsers;
+    const exists = systemUsers.some((u) => u.username === autoUsername);
+    if (!exists) {
+      updatedUsers = [...systemUsers, newSysUser];
+      setSystemUsers(updatedUsers);
+    }
+
+    syncSettingsToCloud(updatedUsers, updatedEkip);
   };
 
   const deleteEkipUyesi = (id: string) => {
     const member = ekip.find((e) => e.id === id);
-    setEkip((prev) => prev.filter((e) => e.id !== id));
+    const updatedEkip = ekip.filter((e) => e.id !== id);
+    setEkip(updatedEkip);
+
+    let updatedUsers = systemUsers;
     if (member?.username) {
-      setSystemUsers((prev) => prev.filter((u) => u.username !== member.username));
+      updatedUsers = systemUsers.filter((u) => u.username !== member.username);
+      setSystemUsers(updatedUsers);
     }
+
+    syncSettingsToCloud(updatedUsers, updatedEkip);
   };
 
   return (
