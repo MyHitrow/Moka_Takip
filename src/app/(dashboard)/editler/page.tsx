@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
-const CARDS_PER_SLIDE = 3;
+const CARDS_PER_PAGE = 4; // 2x2 compact grid per page
 
 export default function EditlerPage() {
   const { editler, ekip, systemUsers, isletmeler, addEdit, deleteEdit, updateEditStatus, formatDateTr } = useData();
@@ -42,7 +42,7 @@ export default function EditlerPage() {
   const [deadline, setDeadline] = useState('');
   const [status, setStatus] = useState('editing');
 
-  // Carousel slide indexes
+  // Carousel slide indexes (4 cards per page = 2x2 grid)
   const [editingSlide, setEditingSlide] = useState(0);
   const [reviewSlide, setReviewSlide] = useState(0);
   const [completedSlide, setCompletedSlide] = useState(0);
@@ -70,7 +70,6 @@ export default function EditlerPage() {
     setOpen(false);
   };
 
-  // Combine team members and system users for dropdown assignment
   const availableEditors = Array.from(
     new Set([
       ...ekip.map((m) => m.name),
@@ -89,13 +88,12 @@ export default function EditlerPage() {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Helper for slicing carousel cards (3 cards per slide)
   const getSlideItems = <T,>(items: T[], slideIndex: number): T[] => {
-    const start = slideIndex * CARDS_PER_SLIDE;
-    return items.slice(start, start + CARDS_PER_SLIDE);
+    const start = slideIndex * CARDS_PER_PAGE;
+    return items.slice(start, start + CARDS_PER_PAGE);
   };
 
-  const getSlideCount = (totalItems: number) => Math.max(1, Math.ceil(totalItems / CARDS_PER_SLIDE));
+  const getSlideCount = (totalItems: number) => Math.max(1, Math.ceil(totalItems / CARDS_PER_PAGE));
 
   return (
     <div>
@@ -149,7 +147,6 @@ export default function EditlerPage() {
                       <option value="__CUSTOM__">✍️ Harici / Diğer İşletme (Manuel Yaz)</option>
                     </select>
 
-                    {/* Manual Client Input if __CUSTOM__ selected */}
                     {selectedClient === '__CUSTOM__' && (
                       <Input
                         value={customClient}
@@ -241,7 +238,7 @@ export default function EditlerPage() {
           }
         />
 
-        {/* Category Split Tabs: Yapılması Gerekenler vs Bitenler */}
+        {/* Category Split Tabs */}
         <div className="mt-6 flex items-center gap-2 bg-card border border-border p-1.5 rounded-xl max-w-lg">
           <button
             onClick={() => setMainCategory('pending')}
@@ -265,249 +262,241 @@ export default function EditlerPage() {
           </button>
         </div>
 
-        {/* VIEW 1: Yapılması Gereken Editler (🎬 Kurguda & 👀 Müşteri Onayında) — 3'lü Carousel Slider */}
+        {/* VIEW 1: Yapılması Gereken Editler (Kurguda vs Onayda) — 2 Side-by-Side Columns */}
         {mainCategory === 'pending' && (
-          <div className="mt-6 space-y-8">
-            {/* Section 1: 🎬 Kurguda / Yapılıyor */}
-            <div className="bg-card/60 rounded-2xl p-5 border border-border shadow-xs">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <div className="bg-primary/10 p-2 rounded-xl">
-                    <Video className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-extrabold text-foreground">1. Kurguda / Yapılıyor</h3>
-                    <p className="text-xs text-muted-foreground">Kurgu ve montaj aşamasındaki içerikler</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-xs font-mono font-extrabold px-2.5 py-1">
-                    {editingEdits.length} Edit
-                  </Badge>
-                  {getSlideCount(editingEdits.length) > 1 && (
-                    <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-xl">
-                      <button
-                        onClick={() => setEditingSlide((p) => Math.max(0, p - 1))}
-                        disabled={editingSlide === 0}
-                        className="p-1 rounded-lg hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title="Önceki 3 Edit"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <span className="text-xs font-bold font-mono px-2 text-muted-foreground">
-                        {editingSlide + 1} / {getSlideCount(editingEdits.length)}
-                      </span>
-                      <button
-                        onClick={() =>
-                          setEditingSlide((p) => Math.min(getSlideCount(editingEdits.length) - 1, p + 1))
-                        }
-                        disabled={editingSlide >= getSlideCount(editingEdits.length) - 1}
-                        className="p-1 rounded-lg hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title="Sonraki 3 Edit"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            {/* Column 1: 🎬 1. Kurguda / Yapılıyor */}
+            <div className="bg-card/70 rounded-2xl p-4 border border-border shadow-xs flex flex-col justify-between min-h-[420px]">
+              <div>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-primary/10 p-1.5 rounded-lg">
+                      <Video className="w-4 h-4 text-primary" />
                     </div>
-                  )}
+                    <h3 className="text-sm sm:text-base font-extrabold text-foreground">1. Kurguda / Yapılıyor</h3>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs font-mono font-extrabold px-2 py-0.5">
+                      {editingEdits.length} İş
+                    </Badge>
+                    {getSlideCount(editingEdits.length) > 1 && (
+                      <div className="flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-lg border border-border">
+                        <button
+                          onClick={() => setEditingSlide((p) => Math.max(0, p - 1))}
+                          disabled={editingSlide === 0}
+                          className="p-0.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-[11px] font-bold font-mono text-muted-foreground">
+                          {editingSlide + 1}/{getSlideCount(editingEdits.length)}
+                        </span>
+                        <button
+                          onClick={() =>
+                            setEditingSlide((p) => Math.min(getSlideCount(editingEdits.length) - 1, p + 1))
+                          }
+                          disabled={editingSlide >= getSlideCount(editingEdits.length) - 1}
+                          className="p-0.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* 3-Card Grid Slide */}
-              {editingEdits.length === 0 ? (
-                <div className="p-8 text-center text-xs text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2">
-                  <Video className="w-8 h-8 opacity-40" />
-                  <span>Kurguda olan edit bulunmuyor.</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {getSlideItems(editingEdits, editingSlide).map((card) => {
-                    const isDueToday = card.deadline === todayStr;
-                    const isOverdue = card.deadline < todayStr;
+                {/* 2'li Yan Yana Kutu (Grid 2-cols compact cards) */}
+                {editingEdits.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2">
+                    <Video className="w-6 h-6 opacity-40" />
+                    <span>Kurguda olan edit bulunmuyor.</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {getSlideItems(editingEdits, editingSlide).map((card) => {
+                      const isDueToday = card.deadline === todayStr;
+                      const isOverdue = card.deadline < todayStr;
 
-                    return (
-                      <Card
-                        key={card.id}
-                        className={`p-4 bg-card border transition-all shadow-xs flex flex-col justify-between ${
-                          isDueToday || isOverdue
-                            ? 'border-primary/70 red-border-left bg-primary/5'
-                            : 'border-border hover:border-primary/40'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-xs font-extrabold text-primary flex items-center gap-1">
-                              <Building2 className="w-3 h-3" /> {card.client}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-bold">{card.type}</Badge>
-                              <button
-                                onClick={() => deleteEdit(card.id)}
-                                className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
-                                title="Sil"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                      return (
+                        <Card
+                          key={card.id}
+                          className={`p-3.5 bg-card border rounded-xl transition-all shadow-xs flex flex-col justify-between aspect-square ${
+                            isDueToday || isOverdue
+                              ? 'border-primary/70 red-border-left bg-primary/5'
+                              : 'border-border hover:border-primary/40'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex justify-between items-start gap-1 mb-1.5">
+                              <span className="text-xs font-extrabold text-primary truncate max-w-[110px]" title={card.client}>
+                                {card.client}
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 font-bold">{card.type}</Badge>
+                                <button
+                                  onClick={() => deleteEdit(card.id)}
+                                  className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
+                                  title="Sil"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          <h4 className="font-extrabold text-base mb-2 text-foreground line-clamp-2">{card.title}</h4>
+                            <h4 className="font-extrabold text-sm text-foreground line-clamp-2 leading-snug mb-2" title={card.title}>
+                              {card.title}
+                            </h4>
 
-                          {(isDueToday || isOverdue) && (
-                            <div className="mb-3 p-2 bg-red-500/10 border border-red-500/30 text-red-400 text-[11px] font-bold rounded-lg flex items-center gap-1.5">
-                              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                              <span>{isDueToday ? 'Bugün Yapılması Gerekiyor!' : 'Teslim Tarihi Gecikti!'}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mt-4 pt-3 border-t border-border space-y-2">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <div className="flex items-center font-bold text-foreground">
-                              <User className="w-3.5 h-3.5 mr-1 text-primary" /> {card.editor}
-                            </div>
-                            <div className="flex items-center font-mono font-semibold">
-                              <Calendar className="w-3.5 h-3.5 mr-1 text-muted-foreground" /> {formatDateTr(card.deadline)}
-                            </div>
+                            {(isDueToday || isOverdue) && (
+                              <div className="mb-2 p-1.5 bg-red-500/10 border border-red-500/30 text-red-400 text-[10px] font-bold rounded-md flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{isDueToday ? 'Bugün Teslim!' : 'Teslim Gecikti!'}</span>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="flex items-center justify-between text-xs pt-1">
-                            <span className="text-[11px] text-muted-foreground font-bold">Aşama:</span>
+                          <div className="space-y-2 pt-2 border-t border-border/60">
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                              <div className="flex items-center font-bold text-foreground truncate max-w-[90px]">
+                                <User className="w-3 h-3 mr-1 text-primary shrink-0" /> <span className="truncate">{card.editor}</span>
+                              </div>
+                              <div className="flex items-center font-mono font-semibold shrink-0">
+                                <Calendar className="w-3 h-3 mr-1 text-muted-foreground" /> {formatDateTr(card.deadline)}
+                              </div>
+                            </div>
+
                             <select
                               value={card.status}
                               onChange={(e) => updateEditStatus(card.id, e.target.value)}
-                              className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground font-extrabold outline-none cursor-pointer"
+                              className="w-full text-[11px] h-7 bg-background border border-input rounded-md px-1.5 text-foreground font-extrabold outline-none cursor-pointer truncate"
                             >
                               <option value="editing">🎬 Kurguda (Yapılıyor)</option>
                               <option value="client_review">👀 Müşteri Onayında</option>
-                              <option value="ready">🚀 Onaylandı ➔ (Paylaşıma Hazır'a Gönder)</option>
+                              <option value="ready">🚀 Onaylandı ➔ (Bitenler)</option>
                             </select>
                           </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Section 2: 👀 Müşteri Onayında */}
-            <div className="bg-card/60 rounded-2xl p-5 border border-border shadow-xs">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <div className="bg-amber-500/10 p-2 rounded-xl">
-                    <Eye className="w-5 h-5 text-amber-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-extrabold text-foreground">2. Müşteri Onayında</h3>
-                    <p className="text-xs text-muted-foreground">Müşteriye gönderilmiş onay bekleyen editler</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-xs font-mono font-extrabold px-2.5 py-1">
-                    {reviewEdits.length} Edit
-                  </Badge>
-                  {getSlideCount(reviewEdits.length) > 1 && (
-                    <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-xl">
-                      <button
-                        onClick={() => setReviewSlide((p) => Math.max(0, p - 1))}
-                        disabled={reviewSlide === 0}
-                        className="p-1 rounded-lg hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title="Önceki 3 Edit"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <span className="text-xs font-bold font-mono px-2 text-muted-foreground">
-                        {reviewSlide + 1} / {getSlideCount(reviewEdits.length)}
-                      </span>
-                      <button
-                        onClick={() =>
-                          setReviewSlide((p) => Math.min(getSlideCount(reviewEdits.length) - 1, p + 1))
-                        }
-                        disabled={reviewSlide >= getSlideCount(reviewEdits.length) - 1}
-                        className="p-1 rounded-lg hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        title="Sonraki 3 Edit"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+            {/* Column 2: 👀 2. Müşteri Onayında */}
+            <div className="bg-card/70 rounded-2xl p-4 border border-border shadow-xs flex flex-col justify-between min-h-[420px]">
+              <div>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-amber-500/10 p-1.5 rounded-lg">
+                      <Eye className="w-4 h-4 text-amber-500" />
                     </div>
-                  )}
+                    <h3 className="text-sm sm:text-base font-extrabold text-foreground">2. Müşteri Onayında</h3>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs font-mono font-extrabold px-2 py-0.5">
+                      {reviewEdits.length} İş
+                    </Badge>
+                    {getSlideCount(reviewEdits.length) > 1 && (
+                      <div className="flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-lg border border-border">
+                        <button
+                          onClick={() => setReviewSlide((p) => Math.max(0, p - 1))}
+                          disabled={reviewSlide === 0}
+                          className="p-0.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-[11px] font-bold font-mono text-muted-foreground">
+                          {reviewSlide + 1}/{getSlideCount(reviewEdits.length)}
+                        </span>
+                        <button
+                          onClick={() =>
+                            setReviewSlide((p) => Math.min(getSlideCount(reviewEdits.length) - 1, p + 1))
+                          }
+                          disabled={reviewSlide >= getSlideCount(reviewEdits.length) - 1}
+                          className="p-0.5 rounded hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* 3-Card Grid Slide */}
-              {reviewEdits.length === 0 ? (
-                <div className="p-8 text-center text-xs text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2">
-                  <Eye className="w-8 h-8 opacity-40" />
-                  <span>Müşteri onayında olan edit bulunmuyor.</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {getSlideItems(reviewEdits, reviewSlide).map((card) => {
-                    const isDueToday = card.deadline === todayStr;
-                    const isOverdue = card.deadline < todayStr;
+                {/* 2'li Yan Yana Kutu (Grid 2-cols compact cards) */}
+                {reviewEdits.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border flex flex-col items-center justify-center gap-2">
+                    <Eye className="w-6 h-6 opacity-40" />
+                    <span>Müşteri onayında olan edit bulunmuyor.</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {getSlideItems(reviewEdits, reviewSlide).map((card) => {
+                      const isDueToday = card.deadline === todayStr;
+                      const isOverdue = card.deadline < todayStr;
 
-                    return (
-                      <Card
-                        key={card.id}
-                        className={`p-4 bg-card border transition-all shadow-xs flex flex-col justify-between ${
-                          isDueToday || isOverdue
-                            ? 'border-amber-500/70 bg-amber-500/5'
-                            : 'border-border hover:border-amber-500/40'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-xs font-extrabold text-amber-500 flex items-center gap-1">
-                              <Building2 className="w-3 h-3" /> {card.client}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-bold">{card.type}</Badge>
-                              <button
-                                onClick={() => deleteEdit(card.id)}
-                                className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
-                                title="Sil"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                      return (
+                        <Card
+                          key={card.id}
+                          className={`p-3.5 bg-card border rounded-xl transition-all shadow-xs flex flex-col justify-between aspect-square ${
+                            isDueToday || isOverdue
+                              ? 'border-amber-500/70 bg-amber-500/5'
+                              : 'border-border hover:border-amber-500/40'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex justify-between items-start gap-1 mb-1.5">
+                              <span className="text-xs font-extrabold text-amber-500 truncate max-w-[110px]" title={card.client}>
+                                {card.client}
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 font-bold">{card.type}</Badge>
+                                <button
+                                  onClick={() => deleteEdit(card.id)}
+                                  className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
+                                  title="Sil"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          <h4 className="font-extrabold text-base mb-2 text-foreground line-clamp-2">{card.title}</h4>
-                        </div>
-
-                        <div className="mt-4 pt-3 border-t border-border space-y-2">
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <div className="flex items-center font-bold text-foreground">
-                              <User className="w-3.5 h-3.5 mr-1 text-amber-500" /> {card.editor}
-                            </div>
-                            <div className="flex items-center font-mono font-semibold">
-                              <Calendar className="w-3.5 h-3.5 mr-1 text-muted-foreground" /> {formatDateTr(card.deadline)}
-                            </div>
+                            <h4 className="font-extrabold text-sm text-foreground line-clamp-2 leading-snug mb-2" title={card.title}>
+                              {card.title}
+                            </h4>
                           </div>
 
-                          <div className="flex items-center justify-between text-xs pt-1">
-                            <span className="text-[11px] text-muted-foreground font-bold">Aşama:</span>
+                          <div className="space-y-2 pt-2 border-t border-border/60">
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                              <div className="flex items-center font-bold text-foreground truncate max-w-[90px]">
+                                <User className="w-3 h-3 mr-1 text-amber-500 shrink-0" /> <span className="truncate">{card.editor}</span>
+                              </div>
+                              <div className="flex items-center font-mono font-semibold shrink-0">
+                                <Calendar className="w-3 h-3 mr-1 text-muted-foreground" /> {formatDateTr(card.deadline)}
+                              </div>
+                            </div>
+
                             <select
                               value={card.status}
                               onChange={(e) => updateEditStatus(card.id, e.target.value)}
-                              className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground font-extrabold outline-none cursor-pointer"
+                              className="w-full text-[11px] h-7 bg-background border border-input rounded-md px-1.5 text-foreground font-extrabold outline-none cursor-pointer truncate"
                             >
                               <option value="client_review">👀 Müşteri Onayında</option>
                               <option value="editing">🎬 Kurguya Geri Al</option>
-                              <option value="ready">🚀 Onaylandı ➔ (Paylaşıma Hazır'a Gönder)</option>
+                              <option value="ready">🚀 Onaylandı ➔ (Bitenler)</option>
                             </select>
                           </div>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* VIEW 2: Biten Editler (Paylaşıma Hazır) — 3'lü Carousel Slider */}
+        {/* VIEW 2: Biten Editler (Paylaşıma Hazır) — Compact Grid */}
         {mainCategory === 'completed' && (
           <div className="mt-6 space-y-4">
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 rounded-xl flex items-center justify-between">
@@ -551,52 +540,51 @@ export default function EditlerPage() {
                 Henüz onaylanıp paylaşıma hazır hale getirilen bir edit bulunmuyor.
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {getSlideItems(completedEdits, completedSlide).map((card) => (
-                  <Card key={card.id} className="p-4 bg-card border border-emerald-500/40 bg-emerald-500/5 shadow-xs flex flex-col justify-between">
+                  <Card key={card.id} className="p-3.5 bg-card border border-emerald-500/40 bg-emerald-500/5 shadow-xs flex flex-col justify-between aspect-square rounded-xl">
                     <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                          <Building2 className="w-3 h-3" /> {card.client}
+                      <div className="flex justify-between items-start gap-1 mb-1.5">
+                        <span className="text-xs font-bold text-emerald-400 truncate max-w-[110px]" title={card.client}>
+                          {card.client}
                         </span>
-                        <div className="flex items-center gap-1.5">
-                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-extrabold">
-                            🚀 Paylaşıma Hazır
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-[9px] font-extrabold px-1 py-0">
+                            🚀 Hazır
                           </Badge>
                           <button
                             onClick={() => deleteEdit(card.id)}
                             className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
                             title="Sil"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
                       </div>
-                      <h4 className="font-extrabold text-base text-foreground mt-1 mb-2 line-clamp-2">{card.title}</h4>
+                      <h4 className="font-extrabold text-sm text-foreground line-clamp-2 leading-snug mb-2" title={card.title}>
+                        {card.title}
+                      </h4>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-border/50 flex flex-col gap-2">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center text-foreground font-semibold">
-                          <User className="w-3.5 h-3.5 mr-1 text-emerald-400" /> Editör: {card.editor}
+                    <div className="space-y-2 pt-2 border-t border-border/50">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <div className="flex items-center font-semibold text-foreground truncate max-w-[90px]">
+                          <User className="w-3 h-3 mr-1 text-emerald-400 shrink-0" /> <span className="truncate">{card.editor}</span>
                         </div>
-                        <div className="flex items-center font-mono">
-                          <Calendar className="w-3.5 h-3.5 mr-1" /> {formatDateTr(card.deadline)}
+                        <div className="flex items-center font-mono shrink-0">
+                          <Calendar className="w-3 h-3 mr-1" /> {formatDateTr(card.deadline)}
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-xs pt-1">
-                        <span className="text-[10px] text-muted-foreground font-semibold">Revize İsteği Varsa:</span>
-                        <select
-                          value={card.status}
-                          onChange={(e) => updateEditStatus(card.id, e.target.value)}
-                          className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground font-medium outline-none cursor-pointer"
-                        >
-                          <option value="ready">🚀 Paylaşıma Hazır</option>
-                          <option value="client_review">👀 Tekrar Onaya Gönder</option>
-                          <option value="editing">🎬 Tekrar Kurguya Al</option>
-                        </select>
-                      </div>
+                      <select
+                        value={card.status}
+                        onChange={(e) => updateEditStatus(card.id, e.target.value)}
+                        className="w-full text-[11px] h-7 bg-background border border-input rounded-md px-1.5 text-foreground font-medium outline-none cursor-pointer truncate"
+                      >
+                        <option value="ready">🚀 Paylaşıma Hazır</option>
+                        <option value="client_review">👀 Tekrar Onaya Gönder</option>
+                        <option value="editing">🎬 Tekrar Kurguya Al</option>
+                      </select>
                     </div>
                   </Card>
                 ))}
