@@ -135,7 +135,7 @@ interface DataContextType {
   addGelir: (item: Omit<Gelir, 'id'>) => void;
   deleteGelir: (id: string) => void;
   updateGelirStatus: (id: string, status: string, paidAmount?: number) => void;
-  generateMonthlyIncomes: (targetMonthStr?: string) => number;
+  generateMonthlyIncomes: (targetMonthStr?: string) => Promise<number>;
   addGider: (item: Omit<Gider, 'id'>) => void;
   deleteGider: (id: string) => void;
   addTakvimPost: (item: Omit<TakvimPost, 'id'>) => void;
@@ -741,8 +741,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   };
 
-  // GENERATE MONTHLY INCOMES WITH 27TH DAY AUTO NEXT-MONTH RULE
-  const generateMonthlyIncomes = (targetMonthStr?: string) => {
+  // GENERATE MONTHLY INCOMES WITH STRICT SUPABASE DATABASE DEDUPLICATION CHECK!
+  const generateMonthlyIncomes = async (targetMonthStr?: string): Promise<number> => {
     const today = new Date();
     let year = today.getFullYear();
     let month = today.getMonth() + 1; // 1-12
@@ -759,18 +759,23 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const datePrefix = targetMonthStr || `${year}-${String(month).padStart(2, '0')}`;
     const dueDate = `${datePrefix}-05`;
 
+    // Direct Database Query to PREVENT DUPLICATES!
+    const { data: existingDbRecords } = await supabase
+      .from('income_records')
+      .select('client_name')
+      .like('due_date', `${datePrefix}%`);
+
     let count = 0;
 
-    isletmeler.forEach(async (biz) => {
-      if (!biz.active) return;
+    for (const biz of isletmeler) {
+      if (!biz.active) continue;
       const numFee = parseFloat(biz.fee.replace(/[^0-9.]/g, '')) || 0;
-      if (numFee <= 0) return;
+      if (numFee <= 0) continue;
 
-      const exists = gelirler.some(
-        (g) => isClientMatch(g.client, biz.name) && g.date.startsWith(datePrefix)
-      );
+      const existsInDb = existingDbRecords?.some((rec) => isClientMatch(rec.client_name, biz.name));
+      const existsInState = gelirler.some((g) => isClientMatch(g.client, biz.name) && g.date.startsWith(datePrefix));
 
-      if (!exists) {
+      if (!existsInDb && !existsInState) {
         try {
           await supabase.from('income_records').insert({
             client_name: biz.name.trim(),
@@ -782,7 +787,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           count++;
         } catch (e) {}
       }
-    });
+    }
 
     fetchCloudData();
     return count;

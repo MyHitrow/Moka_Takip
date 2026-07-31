@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Header } from '@/components/layout/header';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -61,18 +61,6 @@ export default function GelirlerPage() {
   const [date, setDate] = useState('');
   const [status, setStatus] = useState('pending');
 
-  // Auto-generate active period receipts if none exist yet for the selected month!
-  useEffect(() => {
-    if (selectedMonth !== 'all' && isletmeler.length > 0) {
-      const targetPrefix = `${selectedYear}-${selectedMonth}`;
-      const hasRecords = gelirler.some((g) => g.date.startsWith(targetPrefix));
-
-      if (!hasRecords) {
-        generateMonthlyIncomes(targetPrefix);
-      }
-    }
-  }, [selectedMonth, selectedYear, isletmeler, gelirler.length]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!client || !amount) return;
@@ -95,15 +83,15 @@ export default function GelirlerPage() {
     setOpen(false);
   };
 
-  const handleGenerateMonthly = () => {
+  const handleGenerateMonthly = async () => {
     const targetMonthStr = `${selectedYear}-${selectedMonth}`;
-    const count = generateMonthlyIncomes(targetMonthStr);
+    const count = await generateMonthlyIncomes(targetMonthStr);
     const selectedMonthName = MONTHS_TR.find((m) => m.key === selectedMonth)?.name;
 
     if (count > 0) {
       setGeneratedMsg(`${selectedMonthName} ${selectedYear} ayı için ${count} adet aktif işletmenin tahsilat fişi başarıyla oluşturuldu!`);
     } else {
-      setGeneratedMsg(`${selectedMonthName} ${selectedYear} ayı için aktif işletmelerin tahsilat fişleri zaten mevcut.`);
+      setGeneratedMsg(`${selectedMonthName} ${selectedYear} ayı için tüm aktif işletmelerin tahsilat fişleri zaten mevcut.`);
     }
     setTimeout(() => setGeneratedMsg(''), 4000);
   };
@@ -220,7 +208,7 @@ export default function GelirlerPage() {
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
           title="Gelirler & 12 Aylık Tahsilat Takvimi"
-          subtitle="Kısmi ödeme takibi (Turuncu Kısmi Ödeme, Sarı 1-7. Günler, Kırmızı 7. Günden Sonra)"
+          subtitle="Tek işletmeden tek ayda 1 defa tahsilat yazılır (Çakışma ve mükerrer kayıt engellendi)"
           icon={TrendingUp}
           action={
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
@@ -446,7 +434,7 @@ export default function GelirlerPage() {
                 {filteredGelirler.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground font-semibold">
-                      Bu ay için henüz tahsilat kaydı bulunmuyor. *"Seçili Ay İçin Fişleri Oluştur"* butonuna basarak otomatik ekleyebilirsiniz.
+                      Bu ay için henüz tahsilat kaydı bulunmuyor. *"Seçili Ay İçin Fişleri Oluştur"* butonuna basarak ekleyebilirsiniz.
                     </td>
                   </tr>
                 ) : (
