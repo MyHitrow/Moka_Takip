@@ -22,17 +22,6 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "MOKA Takip",
   },
-  icons: {
-    icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
-    ],
-    shortcut: "/apple-touch-icon.png",
-  },
 };
 
 export const viewport: Viewport = {
@@ -51,6 +40,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" className={`${inter.variable} h-full dark`}>
+      <head>
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=3" />
+        <link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png?v=3" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=3" />
+        <link rel="shortcut icon" href="/apple-touch-icon.png?v=3" />
+        <meta name="apple-mobile-web-app-title" content="MOKA Takip" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+      </head>
       <body className="min-h-full bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary">
         <DataProvider>
           <TooltipProvider>{children}</TooltipProvider>
