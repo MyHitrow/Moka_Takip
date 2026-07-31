@@ -251,7 +251,7 @@ export default function EditlerPage() {
           <div className="mt-6 space-y-6">
             {/* Section 1: 🎬 1. Kurguda / Yapılıyor */}
             <div className="bg-card/70 rounded-2xl p-4 border border-border shadow-xs">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
                 <div className="flex items-center gap-2">
                   <div className="bg-primary/10 p-1.5 rounded-lg">
                     <Video className="w-4 h-4 text-primary" />
@@ -278,14 +278,14 @@ export default function EditlerPage() {
                     return (
                       <Card
                         key={card.id}
-                        className={`p-3 bg-card border rounded-xl transition-all shadow-xs flex flex-col justify-between aspect-square ${
+                        className={`p-3 bg-card border rounded-xl transition-all shadow-xs flex flex-col justify-between h-full ${
                           isDueToday || isOverdue
                             ? 'border-primary/70 red-border-left bg-primary/5'
                             : 'border-border hover:border-primary/40'
                         }`}
                       >
-                        <div>
-                          <div className="flex justify-between items-start gap-1 mb-1">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-start gap-1">
                             <span className="text-[11px] font-extrabold text-primary truncate max-w-[100px]" title={card.client}>
                               {card.client}
                             </span>
@@ -300,19 +300,20 @@ export default function EditlerPage() {
                               </button>
                             </div>
                           </div>
-                          <h4 className="font-extrabold text-xs sm:text-sm text-foreground line-clamp-2 leading-snug mb-1" title={card.title}>
+
+                          <h4 className="font-extrabold text-xs sm:text-sm text-foreground line-clamp-2 leading-snug" title={card.title}>
                             {card.title}
                           </h4>
 
                           {(isDueToday || isOverdue) && (
-                            <div className="mb-1 p-1 bg-red-500/10 border border-red-500/30 text-red-400 text-[9px] font-bold rounded flex items-center gap-1">
+                            <div className="p-1 bg-red-500/10 border border-red-500/30 text-red-400 text-[9px] font-bold rounded flex items-center gap-1">
                               <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
                               <span className="truncate">{isDueToday ? 'Bugün Teslim!' : 'Gecikti!'}</span>
                             </div>
                           )}
                         </div>
 
-                        <div className="space-y-1.5 pt-1.5 border-t border-border/60">
+                        <div className="space-y-1.5 pt-2 mt-2 border-t border-border/60">
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <div className="flex items-center font-bold text-foreground truncate max-w-[80px]">
                               <User className="w-2.5 h-2.5 mr-0.5 text-primary shrink-0" /> <span className="truncate">{card.editor}</span>
@@ -341,7 +342,7 @@ export default function EditlerPage() {
 
             {/* Section 2: 👀 2. Müşteri Onayında */}
             <div className="bg-card/70 rounded-2xl p-4 border border-border shadow-xs">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
                 <div className="flex items-center gap-2">
                   <div className="bg-amber-500/10 p-1.5 rounded-lg">
                     <Eye className="w-4 h-4 text-amber-500" />
@@ -368,14 +369,14 @@ export default function EditlerPage() {
                     return (
                       <Card
                         key={card.id}
-                        className={`p-3 bg-card border rounded-xl transition-all shadow-xs flex flex-col justify-between aspect-square ${
+                        className={`p-3 bg-card border rounded-xl transition-all shadow-xs flex flex-col justify-between h-full ${
                           isDueToday || isOverdue
                             ? 'border-amber-500/70 bg-amber-500/5'
                             : 'border-border hover:border-amber-500/40'
                         }`}
                       >
-                        <div>
-                          <div className="flex justify-between items-start gap-1 mb-1">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-start gap-1">
                             <span className="text-[11px] font-extrabold text-amber-500 truncate max-w-[100px]" title={card.client}>
                               {card.client}
                             </span>
@@ -390,12 +391,13 @@ export default function EditlerPage() {
                               </button>
                             </div>
                           </div>
-                          <h4 className="font-extrabold text-xs sm:text-sm text-foreground line-clamp-2 leading-snug mb-1" title={card.title}>
+
+                          <h4 className="font-extrabold text-xs sm:text-sm text-foreground line-clamp-2 leading-snug" title={card.title}>
                             {card.title}
                           </h4>
                         </div>
 
-                        <div className="space-y-1.5 pt-1.5 border-t border-border/60">
+                        <div className="space-y-1.5 pt-2 mt-2 border-t border-border/60">
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <div className="flex items-center font-bold text-foreground truncate max-w-[80px]">
                               <User className="w-2.5 h-2.5 mr-0.5 text-amber-500 shrink-0" /> <span className="truncate">{card.editor}</span>
@@ -444,9 +446,9 @@ export default function EditlerPage() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                 {completedEdits.map((card) => (
-                  <Card key={card.id} className="p-3 bg-card border border-emerald-500/40 bg-emerald-500/5 shadow-xs flex flex-col justify-between aspect-square rounded-xl">
-                    <div>
-                      <div className="flex justify-between items-start gap-1 mb-1">
+                  <Card key={card.id} className="p-3 bg-card border border-emerald-500/40 bg-emerald-500/5 shadow-xs flex flex-col justify-between h-full rounded-xl">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-start gap-1">
                         <span className="text-[11px] font-bold text-emerald-400 truncate max-w-[100px]" title={card.client}>
                           {card.client}
                         </span>
@@ -463,12 +465,12 @@ export default function EditlerPage() {
                           </button>
                         </div>
                       </div>
-                      <h4 className="font-extrabold text-xs sm:text-sm text-foreground line-clamp-2 leading-snug mb-1" title={card.title}>
+                      <h4 className="font-extrabold text-xs sm:text-sm text-foreground line-clamp-2 leading-snug" title={card.title}>
                         {card.title}
                       </h4>
                     </div>
 
-                    <div className="space-y-1.5 pt-1.5 border-t border-border/50">
+                    <div className="space-y-1.5 pt-2 mt-2 border-t border-border/50">
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                         <div className="flex items-center font-semibold text-foreground truncate max-w-[80px]">
                           <User className="w-2.5 h-2.5 mr-0.5 text-emerald-400 shrink-0" /> <span className="truncate">{card.editor}</span>
