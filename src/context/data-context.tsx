@@ -124,6 +124,7 @@ interface DataContextType {
   login: (username: string, pass: string) => boolean;
   logout: () => void;
   addIsletme: (item: Omit<Isletme, 'id'>) => void;
+  updateIsletme: (id: string, updatedFields: Partial<Isletme>) => void;
   deleteIsletme: (id: string) => void;
   addCekim: (item: Omit<Cekim, 'id'>) => void;
   deleteCekim: (id: string) => void;
@@ -197,7 +198,7 @@ export function formatDateTr(dateStr: string): string {
     const day = parts[2];
     const months = [
       'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylü', 'Ekim', 'Kasım', 'Aralık'
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
     ];
     if (months[monthIndex]) {
       return `${day} ${months[monthIndex]} ${year}`;
@@ -443,125 +444,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addSystemUser = (user: Omit<SystemUser, 'id'>): boolean => {
-    if (currentUser.role !== 'super_admin') return false;
-
-    const exists = systemUsers.some(
-      (u) => u.username.toLowerCase() === user.username.toLowerCase()
-    );
-    if (exists) return false;
-
-    const newUser: SystemUser = {
-      ...user,
-      id: Date.now().toString(),
-    };
-
-    const updatedUsers = [...systemUsers, newUser];
-    setSystemUsers(updatedUsers);
-
-    // Sync to Ekip
-    const roleLabel = formatRoleLabel(user.role);
-
-    const parts = user.name.trim().split(' ');
-    const initials = parts.length >= 2
-      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-      : user.name.substring(0, 2).toUpperCase();
-
-    const newMember: EkipUyesi = {
-      id: Date.now().toString(),
-      name: user.name,
-      role: roleLabel,
-      phone: '-',
-      color: 'bg-purple-500',
-      initials,
-      username: user.username,
-    };
-
-    const updatedEkip = [...ekip, newMember];
-    setEkip(updatedEkip);
-    syncSettingsToCloud(updatedUsers, updatedEkip);
-    return true;
-  };
-
-  const updateSystemUser = (id: string, updatedFields: Partial<SystemUser>) => {
-    if (currentUser.role !== 'super_admin') return;
-
-    const targetUser = systemUsers.find((u) => u.id === id);
-
-    const updatedUsers = systemUsers.map((u) => {
-      if (u.id === id) {
-        const updated = { ...u, ...updatedFields };
-        if (currentUser.id === id) {
-          setCurrentUser(updated);
-        }
-        return updated;
-      }
-      return u;
-    });
-
-    // Real-time sync with Ekip members!
-    const updatedEkip = ekip.map((member) => {
-      if (
-        (targetUser && member.username === targetUser.username) ||
-        (targetUser && member.name.toLowerCase() === targetUser.name.toLowerCase())
-      ) {
-        const newRole = updatedFields.role || targetUser?.role || 'member';
-        const roleLabel = formatRoleLabel(newRole);
-
-        return {
-          ...member,
-          name: updatedFields.name || member.name,
-          username: updatedFields.username || member.username,
-          role: roleLabel,
-        };
-      }
-      return member;
-    });
-
-    setSystemUsers(updatedUsers);
-    setEkip(updatedEkip);
-    syncSettingsToCloud(updatedUsers, updatedEkip);
-  };
-
-  const deleteSystemUser = (id: string) => {
-    if (currentUser.role !== 'super_admin') return;
-    const target = systemUsers.find((u) => u.id === id);
-    if (target?.username === 'kadorizator') return;
-
-    const updatedUsers = systemUsers.filter((u) => u.id !== id);
-    const updatedEkip = ekip.filter((e) => e.username !== target?.username);
-
-    setSystemUsers(updatedUsers);
-    setEkip(updatedEkip);
-    syncSettingsToCloud(updatedUsers, updatedEkip);
-  };
-
-  const addHaftalikNot = (content: string) => {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-    const newNot: HaftalikNot = {
-      id: Date.now().toString(),
-      content,
-      authorUsername: currentUser.username,
-      authorName: currentUser.name,
-      date: todayStr,
-      createdAt: timeStr,
-    };
-
-    setHaftalikNotlar((prev) => [newNot, ...prev]);
-  };
-
-  const deleteHaftalikNot = (id: string) => {
-    const note = haftalikNotlar.find((n) => n.id === id);
-    if (!note) return;
-
-    if (currentUser.role === 'super_admin' || note.authorUsername === currentUser.username) {
-      setHaftalikNotlar((prev) => prev.filter((n) => n.id !== id));
-    }
-  };
-
   const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
   const addIsletme = async (item: Omit<Isletme, 'id'>) => {
@@ -590,6 +472,42 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
+      fetchCloudData();
+    } catch (e) {}
+  };
+
+  const updateIsletme = async (id: string, updatedFields: Partial<Isletme>) => {
+    const target = isletmeler.find((i) => i.id === id);
+    setIsletmeler((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updatedFields } : item))
+    );
+
+    const numFee = updatedFields.fee
+      ? parseFloat(updatedFields.fee.replace(/[^0-9.]/g, '')) || 0
+      : undefined;
+
+    try {
+      if (isUUID(id)) {
+        const updateData: any = {};
+        if (updatedFields.name !== undefined) updateData.name = updatedFields.name;
+        if (updatedFields.contact !== undefined) updateData.contact_name = updatedFields.contact;
+        if (updatedFields.phone !== undefined) updateData.phone = updatedFields.phone;
+        if (updatedFields.instagram !== undefined) updateData.instagram = updatedFields.instagram;
+        if (numFee !== undefined) updateData.monthly_fee = numFee;
+        if (updatedFields.active !== undefined) updateData.is_active = updatedFields.active;
+
+        await supabase.from('clients').update(updateData).eq('id', id);
+      } else if (target) {
+        const updateData: any = {};
+        if (updatedFields.name !== undefined) updateData.name = updatedFields.name;
+        if (updatedFields.contact !== undefined) updateData.contact_name = updatedFields.contact;
+        if (updatedFields.phone !== undefined) updateData.phone = updatedFields.phone;
+        if (updatedFields.instagram !== undefined) updateData.instagram = updatedFields.instagram;
+        if (numFee !== undefined) updateData.monthly_fee = numFee;
+        if (updatedFields.active !== undefined) updateData.is_active = updatedFields.active;
+
+        await supabase.from('clients').update(updateData).eq('name', target.name);
+      }
       fetchCloudData();
     } catch (e) {}
   };
@@ -876,6 +794,125 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     syncSettingsToCloud(updatedUsers, updatedEkip);
   };
 
+  const addSystemUser = (user: Omit<SystemUser, 'id'>): boolean => {
+    if (currentUser.role !== 'super_admin') return false;
+
+    const exists = systemUsers.some(
+      (u) => u.username.toLowerCase() === user.username.toLowerCase()
+    );
+    if (exists) return false;
+
+    const newUser: SystemUser = {
+      ...user,
+      id: Date.now().toString(),
+    };
+
+    const updatedUsers = [...systemUsers, newUser];
+    setSystemUsers(updatedUsers);
+
+    // Sync to Ekip
+    const roleLabel = formatRoleLabel(user.role);
+
+    const parts = user.name.trim().split(' ');
+    const initials = parts.length >= 2
+      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+      : user.name.substring(0, 2).toUpperCase();
+
+    const newMember: EkipUyesi = {
+      id: Date.now().toString(),
+      name: user.name,
+      role: roleLabel,
+      phone: '-',
+      color: 'bg-purple-500',
+      initials,
+      username: user.username,
+    };
+
+    const updatedEkip = [...ekip, newMember];
+    setEkip(updatedEkip);
+    syncSettingsToCloud(updatedUsers, updatedEkip);
+    return true;
+  };
+
+  const updateSystemUser = (id: string, updatedFields: Partial<SystemUser>) => {
+    if (currentUser.role !== 'super_admin') return;
+
+    const targetUser = systemUsers.find((u) => u.id === id);
+
+    const updatedUsers = systemUsers.map((u) => {
+      if (u.id === id) {
+        const updated = { ...u, ...updatedFields };
+        if (currentUser.id === id) {
+          setCurrentUser(updated);
+        }
+        return updated;
+      }
+      return u;
+    });
+
+    // Real-time sync with Ekip members!
+    const updatedEkip = ekip.map((member) => {
+      if (
+        (targetUser && member.username === targetUser.username) ||
+        (targetUser && member.name.toLowerCase() === targetUser.name.toLowerCase())
+      ) {
+        const newRole = updatedFields.role || targetUser?.role || 'member';
+        const roleLabel = formatRoleLabel(newRole);
+
+        return {
+          ...member,
+          name: updatedFields.name || member.name,
+          username: updatedFields.username || member.username,
+          role: roleLabel,
+        };
+      }
+      return member;
+    });
+
+    setSystemUsers(updatedUsers);
+    setEkip(updatedEkip);
+    syncSettingsToCloud(updatedUsers, updatedEkip);
+  };
+
+  const deleteSystemUser = (id: string) => {
+    if (currentUser.role !== 'super_admin') return;
+    const target = systemUsers.find((u) => u.id === id);
+    if (target?.username === 'kadorizator') return;
+
+    const updatedUsers = systemUsers.filter((u) => u.id !== id);
+    const updatedEkip = ekip.filter((e) => e.username !== target?.username);
+
+    setSystemUsers(updatedUsers);
+    setEkip(updatedEkip);
+    syncSettingsToCloud(updatedUsers, updatedEkip);
+  };
+
+  const addHaftalikNot = (content: string) => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const newNot: HaftalikNot = {
+      id: Date.now().toString(),
+      content,
+      authorUsername: currentUser.username,
+      authorName: currentUser.name,
+      date: todayStr,
+      createdAt: timeStr,
+    };
+
+    setHaftalikNotlar((prev) => [newNot, ...prev]);
+  };
+
+  const deleteHaftalikNot = (id: string) => {
+    const note = haftalikNotlar.find((n) => n.id === id);
+    if (!note) return;
+
+    if (currentUser.role === 'super_admin' || note.authorUsername === currentUser.username) {
+      setHaftalikNotlar((prev) => prev.filter((n) => n.id !== id));
+    }
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -893,6 +930,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         addIsletme,
+        updateIsletme,
         deleteIsletme,
         addCekim,
         deleteCekim,
