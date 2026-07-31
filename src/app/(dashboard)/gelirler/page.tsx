@@ -334,17 +334,25 @@ export default function GelirlerPage() {
                 <button
                   key={m.key}
                   onClick={() => setSelectedMonth(m.key)}
-                  className={`py-2.5 px-2 rounded-xl text-xs font-extrabold transition-all flex flex-col items-center justify-center relative ${
+                  className={`py-2 px-1.5 rounded-xl text-xs font-extrabold transition-all flex flex-col items-center justify-center min-h-[50px] relative ${
                     isSelected
-                      ? 'bg-primary text-white shadow-md red-glow'
+                      ? 'bg-primary text-white shadow-md red-glow ring-2 ring-primary/50 font-black'
                       : isDefaultMonth
-                      ? 'bg-primary/20 text-primary border border-primary/40 font-black'
-                      : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      ? 'bg-primary/15 text-foreground border border-primary/40 font-bold hover:bg-primary/25'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground border border-transparent'
                   }`}
                 >
-                  <span>{m.name}</span>
+                  <span className="leading-none">{m.name}</span>
                   {isDefaultMonth && (
-                    <span className="text-[9px] text-primary opacity-90 font-mono font-bold mt-0.5">Aktif Dönem</span>
+                    <span
+                      className={`text-[9px] leading-none mt-1 px-1.5 py-0.5 rounded-md font-mono font-bold tracking-tight shrink-0 ${
+                        isSelected
+                          ? 'bg-white/25 text-white shadow-xs'
+                          : 'bg-primary/20 text-primary border border-primary/30'
+                      }`}
+                    >
+                      Aktif Dönem
+                    </span>
                   )}
                 </button>
               );
