@@ -478,15 +478,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const updateIsletme = async (id: string, updatedFields: Partial<Isletme>) => {
     const target = isletmeler.find((i) => i.id === id);
+    const oldName = target?.name;
+
     setIsletmeler((prev) =>
       prev.map((item) => (item.id === id ? { ...item, ...updatedFields } : item))
     );
 
-    const numFee = updatedFields.fee
+    const numFee = updatedFields.fee !== undefined
       ? parseFloat(updatedFields.fee.replace(/[^0-9.]/g, '')) || 0
       : undefined;
 
+    const newName = updatedFields.name || oldName;
+
     try {
+      // 1. Update clients table
       if (isUUID(id)) {
         const updateData: any = {};
         if (updatedFields.name !== undefined) updateData.name = updatedFields.name;
@@ -508,6 +513,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         await supabase.from('clients').update(updateData).eq('name', target.name);
       }
+
+      // 2. REAL-TIME SYNC TO GELİRLER (INCOME RECORDS)!
+      if (oldName && newName) {
+        // If client name changed, update all income records for this client
+        if (oldName !== newName) {
+          await supabase
+            .from('income_records')
+            .update({
+              client_name: newName,
+              description: `${newName} - Aylık Paket Ücreti (Ayın İlk Haftası)`
+            })
+            .eq('client_name', oldName);
+
+          // Sync shoots, edits, content_calendar client names too!
+          await supabase.from('shoots').update({ client_name: newName }).eq('client_name', oldName);
+          await supabase.from('edits').update({ client_name: newName }).eq('client_name', oldName);
+          await supabase.from('content_calendar').update({ client_name: newName }).eq('client_name', oldName);
+        }
+
+        // If monthly fee changed, update all pending income records for this client
+        if (numFee !== undefined && numFee >= 0) {
+          await supabase
+            .from('income_records')
+            .update({ amount: numFee })
+            .eq('client_name', newName)
+            .eq('collection_status', 'pending');
+        }
+      }
+
       fetchCloudData();
     } catch (e) {}
   };
