@@ -173,15 +173,6 @@ const initialSystemUsers: SystemUser[] = [
   },
 ];
 
-const initialHaftalikNotlar: HaftalikNot[] = [];
-
-const initialIsletmeler: Isletme[] = [];
-const initialCekimler: Cekim[] = [];
-const initialEditler: EditItem[] = [];
-const initialGelirler: Gelir[] = [];
-const initialGiderler: Gider[] = [];
-const initialTakvimPosts: TakvimPost[] = [];
-
 const initialEkip: EkipUyesi[] = [
   { id: '1', name: 'Kadir (Süper Admin)', initials: 'KS', color: 'bg-purple-500', role: 'Süper Admin', phone: '0555 000 0000', username: 'kadorizator' },
 ];
@@ -195,7 +186,7 @@ export function formatDateTr(dateStr: string): string {
     const day = parts[2];
     const months = [
       'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylü', 'Ekim', 'Kasım', 'Aralık'
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
     ];
     if (months[monthIndex]) {
       return `${day} ${months[monthIndex]} ${year}`;
@@ -212,17 +203,59 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const [currentUser, setCurrentUser] = useState<SystemUser>(defaultSuperAdmin);
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>(initialSystemUsers);
-  const [haftalikNotlar, setHaftalikNotlar] = useState<HaftalikNot[]>(initialHaftalikNotlar);
+  const [haftalikNotlar, setHaftalikNotlar] = useState<HaftalikNot[]>([]);
 
-  const [isletmeler, setIsletmeler] = useState<Isletme[]>(initialIsletmeler);
-  const [cekimler, setCekimler] = useState<Cekim[]>(initialCekimler);
-  const [editler, setEditler] = useState<EditItem[]>(initialEditler);
-  const [gelirler, setGelirler] = useState<Gelir[]>(initialGelirler);
-  const [giderler, setGiderler] = useState<Gider[]>(initialGiderler);
-  const [takvimPosts, setTakvimPosts] = useState<TakvimPost[]>(initialTakvimPosts);
+  const [isletmeler, setIsletmeler] = useState<Isletme[]>([]);
+  const [cekimler, setCekimler] = useState<Cekim[]>([]);
+  const [editler, setEditler] = useState<EditItem[]>([]);
+  const [gelirler, setGelirler] = useState<Gelir[]>([]);
+  const [giderler, setGiderler] = useState<Gider[]>([]);
+  const [takvimPosts, setTakvimPosts] = useState<TakvimPost[]>([]);
   const [ekip, setEkip] = useState<EkipUyesi[]>(initialEkip);
 
   const supabase = createClient();
+
+  // Load persisted local data on mount
+  useEffect(() => {
+    setIsMounted(true);
+
+    try {
+      const savedUser = localStorage.getItem('app_currentUser');
+      if (savedUser) setCurrentUser(JSON.parse(savedUser));
+
+      const savedSystemUsers = localStorage.getItem('app_systemUsers');
+      if (savedSystemUsers) setSystemUsers(JSON.parse(savedSystemUsers));
+
+      const savedEkip = localStorage.getItem('app_ekip');
+      if (savedEkip) setEkip(JSON.parse(savedEkip));
+
+      const savedNotlar = localStorage.getItem('app_haftalikNotlar');
+      if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
+    } catch (e) {}
+
+    fetchCloudData();
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchCloudData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Save persistent states to localStorage on change
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
+      localStorage.setItem('app_systemUsers', JSON.stringify(systemUsers));
+      localStorage.setItem('app_ekip', JSON.stringify(ekip));
+      localStorage.setItem('app_haftalikNotlar', JSON.stringify(haftalikNotlar));
+    }
+  }, [currentUser, systemUsers, ekip, haftalikNotlar, isMounted]);
 
   const fetchCloudData = async () => {
     try {
@@ -317,31 +350,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {}
   };
 
-  useEffect(() => {
-    setIsMounted(true);
-    fetchCloudData();
-
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-        fetchCloudData();
-      })
-      .subscribe();
-
-    try {
-      const savedUser = localStorage.getItem('app_currentUser');
-      if (savedUser) setCurrentUser(JSON.parse(savedUser));
-    } catch (e) {}
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
-  }, [currentUser, isMounted]);
-
   const login = (usernameInput: string, passInput: string): boolean => {
     const user = systemUsers.find(
       (u) =>
@@ -391,7 +399,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       prev.map((u) => {
         if (u.id === id) {
           const updated = { ...u, ...updatedFields };
-          // If current logged in user is being updated, update current user state too
           if (currentUser.id === id) {
             setCurrentUser(updated);
           }
@@ -684,7 +691,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   };
 
-  // UNIFIED Team Member & System User Account Creation
   const addEkipUyesi = (
     item: Omit<EkipUyesi, 'id' | 'initials'>,
     customUsername?: string,
@@ -708,7 +714,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     setEkip((prev) => [...prev, newItem]);
 
-    // Automatically create matching System User account!
     const userRole: SystemUser['role'] = item.role.toLowerCase().includes('admin')
       ? 'admin'
       : item.role.toLowerCase().includes('kurgu') || item.role.toLowerCase().includes('edit')
