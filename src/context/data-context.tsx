@@ -229,7 +229,7 @@ export function formatRoleLabel(roleKey: string): string {
   }
 }
 
-// String Normalizer & Intelligent Fuzzy Matcher for Clients
+// String Normalizer & Strict Client Name Matcher (No False Overlap!)
 export function normalizeClientName(str: string): string {
   if (!str) return '';
   return str
@@ -248,14 +248,7 @@ export function isClientMatch(nameA: string, nameB: string): boolean {
   const normA = normalizeClientName(nameA);
   const normB = normalizeClientName(nameB);
   if (!normA || !normB) return false;
-  if (normA === normB) return true;
-  if (normA.includes(normB) || normB.includes(normA)) return true;
-
-  const tokensA = normA.split(/\s+/).filter((t) => t.length > 2);
-  const tokensB = normB.split(/\s+/).filter((t) => t.length > 2);
-  const common = tokensA.filter((t) => tokensB.includes(t));
-
-  return common.length > 0;
+  return normA === normB;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -422,7 +415,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (incomeData && incomeData.length > 0) {
         const mappedGelirler: Gelir[] = incomeData.map((g) => {
           const rawClient = (g.client_name || 'Müşteri').trim();
-          // Find matching business
+          // Find matching business strictly
           const matchedBiz = currentClientsList.find((biz) => isClientMatch(biz.name, rawClient));
           const clientName = matchedBiz ? matchedBiz.name : rawClient;
           const numFee = matchedBiz ? parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount) : Number(g.amount);
@@ -527,7 +520,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       prev.map((item) => (item.id === id ? { ...item, ...updatedFields, name: newName } : item))
     );
 
-    // 2. Update Gelirler (Income Records) local state IMMEDIATELY using fuzzy match!
+    // 2. Update Gelirler (Income Records) local state IMMEDIATELY!
     if (oldName || newName) {
       setGelirler((prev) =>
         prev.map((g) => {
