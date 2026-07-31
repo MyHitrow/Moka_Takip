@@ -238,22 +238,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   };
 
-  // Load persistent data from LocalStorage AND Supabase Cloud DB
+  // Mount effect - Fetch cloud data FIRST!
   useEffect(() => {
     setIsMounted(true);
 
     try {
       const savedUser = localStorage.getItem('app_currentUser');
       if (savedUser) setCurrentUser(JSON.parse(savedUser));
-
-      const savedSystemUsers = localStorage.getItem('app_systemUsers');
-      if (savedSystemUsers) setSystemUsers(JSON.parse(savedSystemUsers));
-
-      const savedEkip = localStorage.getItem('app_ekip');
-      if (savedEkip) setEkip(JSON.parse(savedEkip));
-
-      const savedNotlar = localStorage.getItem('app_haftalikNotlar');
-      if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
     } catch (e) {}
 
     fetchCloudData();
@@ -270,21 +261,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Sync to LocalStorage on change
+  // Save current active logged in user to LocalStorage
   useEffect(() => {
     if (isMounted) {
       localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
-      localStorage.setItem('app_systemUsers', JSON.stringify(systemUsers));
-      localStorage.setItem('app_ekip', JSON.stringify(ekip));
-      localStorage.setItem('app_haftalikNotlar', JSON.stringify(haftalikNotlar));
     }
-  }, [currentUser, systemUsers, ekip, haftalikNotlar, isMounted]);
+  }, [currentUser, isMounted]);
 
   const fetchCloudData = async () => {
     try {
+      // 1. Fetch system users & team members from Supabase Cloud DB record
+      const { data: sysRecord } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('name', '__SYSTEM_SETTINGS__')
+        .maybeSingle();
+
+      if (sysRecord && sysRecord.notes) {
+        try {
+          const parsed = JSON.parse(sysRecord.notes);
+          if (parsed.systemUsers && parsed.systemUsers.length > 0) {
+            setSystemUsers(parsed.systemUsers);
+          }
+          if (parsed.ekip && parsed.ekip.length > 0) {
+            setEkip(parsed.ekip);
+          }
+        } catch (e) {}
+      }
+
+      // 2. Fetch clients
       const { data: clientsData } = await supabase.from('clients').select('*');
       if (clientsData && clientsData.length > 0) {
-        // Filter out system config record from business list
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
         setIsletmeler(
           realClients.map((c) => ({
@@ -298,22 +305,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }))
         );
         setIsCloudConnected(true);
-
-        // Parse system settings (users & team members) stored in Cloud DB!
-        const sysRecord = clientsData.find((c) => c.name === '__SYSTEM_SETTINGS__');
-        if (sysRecord && sysRecord.notes) {
-          try {
-            const parsed = JSON.parse(sysRecord.notes);
-            if (parsed.systemUsers && parsed.systemUsers.length > 0) {
-              setSystemUsers(parsed.systemUsers);
-            }
-            if (parsed.ekip && parsed.ekip.length > 0) {
-              setEkip(parsed.ekip);
-            }
-          } catch (e) {}
-        }
       }
 
+      // 3. Fetch Shoots
       const { data: shootsData } = await supabase.from('shoots').select('*');
       if (shootsData && shootsData.length > 0) {
         setCekimler(
@@ -329,6 +323,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
+      // 4. Fetch Edits
       const { data: editsData } = await supabase.from('edits').select('*');
       if (editsData && editsData.length > 0) {
         setEditler(
@@ -344,6 +339,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
+      // 5. Fetch Content Calendar
       const { data: calData } = await supabase.from('content_calendar').select('*');
       if (calData && calData.length > 0) {
         setTakvimPosts(
@@ -359,6 +355,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
+      // 6. Fetch Income Records
       const { data: incomeData } = await supabase.from('income_records').select('*');
       if (incomeData && incomeData.length > 0) {
         setGelirler(
@@ -373,6 +370,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         );
       }
 
+      // 7. Fetch Expense Records
       const { data: expData } = await supabase.from('expense_records').select('*');
       if (expData && expData.length > 0) {
         setGiderler(
