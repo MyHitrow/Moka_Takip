@@ -8,7 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Phone, AtSign, CheckCircle2, Trash2, Plus, Edit } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Building2, Phone, AtSign, CheckCircle2, Trash2, Plus, Edit, Bot, Sparkles } from 'lucide-react';
 import { useData, Isletme } from '@/context/data-context';
 
 export default function IsletmelerPage() {
@@ -21,6 +22,9 @@ export default function IsletmelerPage() {
   const [phone, setPhone] = useState('');
   const [instagram, setInstagram] = useState('');
   const [fee, setFee] = useState('');
+  const [maxDaysBetweenPosts, setMaxDaysBetweenPosts] = useState<number>(3);
+  const [monthlyReelsTarget, setMonthlyReelsTarget] = useState<number>(10);
+  const [monthlyShootTarget, setMonthlyShootTarget] = useState<number>(2);
 
   // Edit Business Modal State
   const [openEdit, setOpenEdit] = useState(false);
@@ -31,6 +35,9 @@ export default function IsletmelerPage() {
   const [editInstagram, setEditInstagram] = useState('');
   const [editFee, setEditFee] = useState('');
   const [editActive, setEditActive] = useState(true);
+  const [editMaxDaysBetweenPosts, setEditMaxDaysBetweenPosts] = useState<number>(3);
+  const [editMonthlyReelsTarget, setEditMonthlyReelsTarget] = useState<number>(10);
+  const [editMonthlyShootTarget, setEditMonthlyShootTarget] = useState<number>(2);
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,12 +49,18 @@ export default function IsletmelerPage() {
       instagram: instagram.startsWith('@') ? instagram : `@${instagram}`,
       fee: fee ? `${fee} ₺` : '0 ₺',
       active: true,
+      maxDaysBetweenPosts: Number(maxDaysBetweenPosts) || 3,
+      monthlyReelsTarget: Number(monthlyReelsTarget) || 10,
+      monthlyShootTarget: Number(monthlyShootTarget) || 2,
     });
     setName('');
     setContact('');
     setPhone('');
     setInstagram('');
     setFee('');
+    setMaxDaysBetweenPosts(3);
+    setMonthlyReelsTarget(10);
+    setMonthlyShootTarget(2);
     setOpenCreate(false);
   };
 
@@ -59,6 +72,9 @@ export default function IsletmelerPage() {
     setEditInstagram(biz.instagram);
     setEditFee(biz.fee.replace(/[^0-9.]/g, ''));
     setEditActive(biz.active);
+    setEditMaxDaysBetweenPosts(biz.maxDaysBetweenPosts || 3);
+    setEditMonthlyReelsTarget(biz.monthlyReelsTarget || 10);
+    setEditMonthlyShootTarget(biz.monthlyShootTarget || 2);
     setOpenEdit(true);
   };
 
@@ -73,6 +89,9 @@ export default function IsletmelerPage() {
       instagram: editInstagram.startsWith('@') ? editInstagram : `@${editInstagram}`,
       fee: editFee ? `${editFee} ₺` : '0 ₺',
       active: editActive,
+      maxDaysBetweenPosts: Number(editMaxDaysBetweenPosts) || 3,
+      monthlyReelsTarget: Number(editMonthlyReelsTarget) || 10,
+      monthlyShootTarget: Number(editMonthlyShootTarget) || 2,
     });
 
     setOpenEdit(false);
@@ -80,44 +99,44 @@ export default function IsletmelerPage() {
   };
 
   return (
-    <div>
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
       <Header title="İşletmeler" />
-      <div className="px-4 lg:px-8 pb-8">
-        <PageHeader
-          title="İşletmeler"
-          subtitle="Müşteri işletmelerin yönetimi ve bilgi güncellemesi"
-          icon={Building2}
-          action={
-            <Dialog open={openCreate} onOpenChange={setOpenCreate}>
-              <DialogTrigger
-                render={
-                  <Button className="bg-primary hover:bg-primary/90 font-bold">
-                    <Plus className="w-4 h-4 mr-2" /> Yeni İşletme Ekle
-                  </Button>
-                }
-              />
-              <DialogContent className="sm:max-w-[425px] bg-card border-border">
-                <DialogHeader>
-                  <DialogTitle>Yeni İşletme Ekle</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreateSubmit} className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">İşletme Adı</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Örn: Lezzet Restoran"
-                      required
-                    />
-                  </div>
+      <PageHeader
+        title="İşletmeler & AI Paket Eğitimi"
+        subtitle="Müşteri işletmelerin paket kotaları ve Yapay Zeka Bekçi kuralları"
+        icon={Building2}
+        action={
+          <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+            <DialogTrigger
+              render={
+                <Button className="bg-primary hover:bg-primary/90 font-bold w-full sm:w-auto">
+                  <Plus className="w-4 h-4 mr-2" /> Yeni İşletme Ekle
+                </Button>
+              }
+            />
+            <DialogContent className="sm:max-w-[480px] bg-card border-border max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Yeni İşletme Ekle & AI Eğit</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreateSubmit} className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="name">İşletme Adı</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Örn: Atoma"
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="contact">Yetkili Kişi</Label>
                     <Input
                       id="contact"
                       value={contact}
                       onChange={(e) => setContact(e.target.value)}
-                      placeholder="Örn: Ahmet Yılmaz"
+                      placeholder="Ahmet Yılmaz"
                     />
                   </div>
                   <div className="space-y-2">
@@ -129,6 +148,8 @@ export default function IsletmelerPage() {
                       placeholder="05XX XXX XX XX"
                     />
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="instagram">Instagram</Label>
                     <Input
@@ -139,141 +160,255 @@ export default function IsletmelerPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="fee">Aylık Anlaşma Ücreti (TL)</Label>
+                    <Label htmlFor="fee">Aylık Ücret (TL)</Label>
                     <Input
                       id="fee"
                       type="number"
                       value={fee}
                       onChange={(e) => setFee(e.target.value)}
-                      placeholder="8000"
+                      placeholder="15000"
                     />
                   </div>
-                  <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 font-bold">
-                    Kaydet
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          }
-        />
-        <div className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {isletmeler.map((business) => (
-              <Card key={business.id} className="bg-card border border-border rounded-xl p-5 relative group hover:border-primary/50 transition-colors shadow-xs">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="font-extrabold text-lg text-foreground">{business.name}</h3>
-                  <div className="flex items-center gap-1.5">
-                    {business.active ? (
-                      <span className="flex items-center text-xs font-bold text-green-500 bg-green-500/10 px-2 py-1 rounded-full border border-green-500/20">
-                        <CheckCircle2 className="w-3 h-3 mr-1" /> Aktif
-                      </span>
-                    ) : (
-                      <span className="flex items-center text-xs font-bold text-muted-foreground bg-muted px-2 py-1 rounded-full border border-border">
-                        Pasif
-                      </span>
-                    )}
+                </div>
 
-                    <button
-                      onClick={() => handleStartEdit(business)}
-                      className="text-muted-foreground hover:text-primary transition-colors p-1"
-                      title="İşletme Bilgilerini Düzenle"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-
-                    <button
-                      onClick={() => deleteIsletme(business.id)}
-                      className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                      title="Sil"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                {/* 🤖 AI BEKÇİ EĞİTİM KUTUSU */}
+                <div className="p-3.5 bg-primary/10 border border-primary/30 rounded-xl space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Bot className="w-4 h-4 text-primary animate-pulse" />
+                    <span className="font-bold text-xs text-primary">🤖 AI Bekçi Eğitme Ayarları</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-[10px]">Kaç günde 1 paylaşım?</Label>
+                      <Input
+                        type="number"
+                        value={maxDaysBetweenPosts}
+                        onChange={(e) => setMaxDaysBetweenPosts(Number(e.target.value))}
+                        className="h-8 text-xs mt-1"
+                        min={1}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Aylık Reels Hedefi</Label>
+                      <Input
+                        type="number"
+                        value={monthlyReelsTarget}
+                        onChange={(e) => setMonthlyReelsTarget(Number(e.target.value))}
+                        className="h-8 text-xs mt-1"
+                        min={1}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px]">Aylık Çekim Hedefi</Label>
+                      <Input
+                        type="number"
+                        value={monthlyShootTarget}
+                        onChange={(e) => setMonthlyShootTarget(Number(e.target.value))}
+                        className="h-8 text-xs mt-1"
+                        min={1}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-center">
-                    <span className="w-24 font-semibold">Yetkili:</span> <span className="text-foreground font-medium">{business.contact}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-primary" /> <span className="text-foreground font-mono font-medium">{business.phone}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <AtSign className="w-4 h-4 mr-2 text-primary" /> <span className="text-foreground font-mono font-medium">{business.instagram}</span>
-                  </div>
-                  <div className="pt-3 mt-3 border-t border-border flex justify-between items-center">
-                    <span className="font-semibold text-xs text-muted-foreground">Aylık Paket Ücreti:</span>
-                    <span className="font-extrabold text-base text-foreground font-mono">{business.fee}</span>
-                  </div>
+
+                <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 font-bold">
+                  İşletmeyi Kaydet & AI Eğit
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        }
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {isletmeler.map((business) => (
+          <Card key={business.id} className="bg-card border border-border rounded-2xl p-5 relative group hover:border-primary/50 transition-colors shadow-xs flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
+              <div className="flex justify-between items-start">
+                <h3 className="font-extrabold text-lg text-foreground">{business.name}</h3>
+                <div className="flex items-center gap-1.5">
+                  {business.active ? (
+                    <span className="flex items-center text-xs font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">
+                      <CheckCircle2 className="w-3 h-3 mr-1" /> Aktif
+                    </span>
+                  ) : (
+                    <span className="flex items-center text-xs font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border">
+                      Pasif
+                    </span>
+                  )}
+
+                  <button
+                    onClick={() => handleStartEdit(business)}
+                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                    title="İşletmeyi Düzenle & AI Ayarla"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => deleteIsletme(business.id)}
+                    className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                    title="İşletmeyi Sil"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
-              </Card>
-            ))}
-          </div>
-        </div>
+              </div>
+
+              {/* 🤖 AI BEKÇİ EĞİTİM BADGE'İ */}
+              <div className="p-2.5 bg-card/60 border border-primary/30 rounded-xl space-y-1 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-primary text-[11px]">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" /> AI Takip Kuralı:
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground font-medium pt-0.5">
+                  <Badge variant="outline" className="text-[10px] bg-primary/10 border-primary/30 text-foreground font-bold">
+                    {business.maxDaysBetweenPosts || 3} Günde 1 Paylaşım
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] bg-primary/10 border-primary/30 text-foreground font-bold">
+                    {business.monthlyReelsTarget || 10} Reels/Ay
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] bg-primary/10 border-primary/30 text-foreground font-bold">
+                    {business.monthlyShootTarget || 2} Çekim/Ay
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {business.contact && (
+                  <p className="flex items-center">
+                    <span className="font-semibold text-foreground mr-1">Yetkili:</span> {business.contact}
+                  </p>
+                )}
+                {business.phone && (
+                  <p className="flex items-center">
+                    <Phone className="w-3 h-3 mr-1 text-primary" /> {business.phone}
+                  </p>
+                )}
+                {business.instagram && (
+                  <p className="flex items-center">
+                    <AtSign className="w-3 h-3 mr-1 text-primary" /> {business.instagram}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-border flex justify-between items-center text-xs">
+              <span className="text-muted-foreground font-medium">Aylık Paket Ücreti:</span>
+              <span className="font-extrabold text-sm text-foreground">{business.fee}</span>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* EDIT BUSINESS MODAL */}
+      {/* EDIT MODAL */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
-        <DialogContent className="sm:max-w-[425px] bg-card border-border">
+        <DialogContent className="sm:max-w-[480px] bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>İşletme Bilgilerini Güncelle</DialogTitle>
+            <DialogTitle>İşletme Bilgilerini & AI Ayarlarını Düzenle</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-4 pt-4">
+          <form onSubmit={handleEditSubmit} className="space-y-4 pt-2">
             <div className="space-y-2">
-              <Label htmlFor="editNameInput">İşletme Adı</Label>
+              <Label htmlFor="editName">İşletme Adı</Label>
               <Input
-                id="editNameInput"
+                id="editName"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="editContactInput">Yetkili Kişi</Label>
-              <Input
-                id="editContactInput"
-                value={editContact}
-                onChange={(e) => setEditContact(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="editContact">Yetkili Kişi</Label>
+                <Input
+                  id="editContact"
+                  value={editContact}
+                  onChange={(e) => setEditContact(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editPhone">Telefon</Label>
+                <Input
+                  id="editPhone"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="editPhoneInput">Telefon</Label>
-              <Input
-                id="editPhoneInput"
-                value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="editInstagram">Instagram</Label>
+                <Input
+                  id="editInstagram"
+                  value={editInstagram}
+                  onChange={(e) => setEditInstagram(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editFee">Aylık Ücret (TL)</Label>
+                <Input
+                  id="editFee"
+                  type="number"
+                  value={editFee}
+                  onChange={(e) => setEditFee(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="editInstagramInput">Instagram</Label>
-              <Input
-                id="editInstagramInput"
-                value={editInstagram}
-                onChange={(e) => setEditInstagram(e.target.value)}
-              />
+
+            {/* 🤖 EDIT AI BEKÇİ EĞİTİM KUTUSU */}
+            <div className="p-3.5 bg-primary/10 border border-primary/30 rounded-xl space-y-3">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-primary animate-pulse" />
+                <span className="font-bold text-xs text-primary">🤖 AI Bekçi Eğitme Ayarları</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <Label className="text-[10px]">Kaç günde 1 paylaşım?</Label>
+                  <Input
+                    type="number"
+                    value={editMaxDaysBetweenPosts}
+                    onChange={(e) => setEditMaxDaysBetweenPosts(Number(e.target.value))}
+                    className="h-8 text-xs mt-1"
+                    min={1}
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px]">Aylık Reels Hedefi</Label>
+                  <Input
+                    type="number"
+                    value={editMonthlyReelsTarget}
+                    onChange={(e) => setEditMonthlyReelsTarget(Number(e.target.value))}
+                    className="h-8 text-xs mt-1"
+                    min={1}
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px]">Aylık Çekim Hedefi</Label>
+                  <Input
+                    type="number"
+                    value={editMonthlyShootTarget}
+                    onChange={(e) => setEditMonthlyShootTarget(Number(e.target.value))}
+                    className="h-8 text-xs mt-1"
+                    min={1}
+                  />
+                </div>
+              </div>
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="editFeeInput">Aylık Anlaşma Ücreti (TL)</Label>
-              <Input
-                id="editFeeInput"
-                type="number"
-                value={editFee}
-                onChange={(e) => setEditFee(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="editActiveSelect">Anlaşma Durumu</Label>
+              <Label htmlFor="editActive">Sözleşme Durumu</Label>
               <select
-                id="editActiveSelect"
-                value={editActive ? 'true' : 'false'}
-                onChange={(e) => setEditActive(e.target.value === 'true')}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-bold text-foreground"
+                id="editActive"
+                value={editActive ? 'active' : 'inactive'}
+                onChange={(e) => setEditActive(e.target.value === 'active')}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-bold"
               >
-                <option value="true">✅ Aktif Müşteri</option>
-                <option value="false">⏸️ Pasif (Anlaşma Bitti)</option>
+                <option value="active">🟢 Aktif Sözleşme</option>
+                <option value="inactive">🔴 Pasif / İptal</option>
               </select>
             </div>
+
             <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 font-bold">
-              Güncellemeleri Kaydet
+              Değişiklikleri Kaydet & AI Eğit
             </Button>
           </form>
         </DialogContent>

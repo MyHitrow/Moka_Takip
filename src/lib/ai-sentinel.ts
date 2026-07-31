@@ -66,15 +66,17 @@ export function runAISentinelAudit({
       daysSinceLastPost = 7; // Gönderi yoksa 7 gün kabul et
     }
 
-    // ── UYARI 1: İçerik Arası Çok Açıldı (4+ gündür içerik yok) ──
-    if (daysSinceLastPost >= 4) {
+    const maxGap = client.maxDaysBetweenPosts || 3; // Eğitilen özel paylaşım aralığı (Varsayılan: 3 gün)
+
+    // ── UYARI 1: İçerik Arası Çok Açıldı (Özel Eğitilen Gün Sınırı Aşıldı) ──
+    if (daysSinceLastPost > maxGap) {
       insights.push({
         id: `delay-${client.id}`,
         client: clientName,
         type: 'delay',
-        severity: daysSinceLastPost >= 6 ? 'high' : 'medium',
+        severity: daysSinceLastPost >= maxGap + 2 ? 'high' : 'medium',
         title: `⚠️ ${clientName} için ${daysSinceLastPost} gündür içerik paylaşılmadı!`,
-        description: `Sözleşme gereği ortalama 3 güne bir içerik girmemiz gerekiyor. Sayfa akışı soğuyor.`,
+        description: `Eğitilen paket kuralına göre ${maxGap} günde bir içerik girilmesi gerekiyor. Yayın aralığı aşılıyor.`,
         daysSinceLastPost,
         actionHref: '/paylasim-takvimi',
         actionText: 'Paylaşım Planla',
