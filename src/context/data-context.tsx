@@ -38,6 +38,7 @@ export interface Gelir {
   client: string;
   description: string;
   amount: number;
+  paidAmount?: number;
   date: string;
   status: string;
 }
@@ -133,7 +134,7 @@ interface DataContextType {
   updateEditStatus: (id: string, status: string) => void;
   addGelir: (item: Omit<Gelir, 'id'>) => void;
   deleteGelir: (id: string) => void;
-  updateGelirStatus: (id: string, status: string) => void;
+  updateGelirStatus: (id: string, status: string, paidAmount?: number) => void;
   generateMonthlyIncomes: (targetMonthStr?: string) => number;
   addGider: (item: Omit<Gider, 'id'>) => void;
   deleteGider: (id: string) => void;
@@ -198,7 +199,7 @@ export function formatDateTr(dateStr: string): string {
     const day = parts[2];
     const months = [
       'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
+      'Temmuz', 'Ağustos', 'Eylü', 'Ekim', 'Kasım', 'Aralık'
     ];
     if (months[monthIndex]) {
       return `${day} ${months[monthIndex]} ${year}`;
@@ -427,11 +428,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const numFee = matchedBiz ? parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount) : Number(g.amount);
           const finalAmount = g.collection_status !== 'paid' && matchedBiz && numFee > 0 ? numFee : Number(g.amount);
 
+          const paidAmt = g.paid_amount !== undefined && g.paid_amount !== null
+            ? Number(g.paid_amount)
+            : g.collection_status === 'paid'
+            ? finalAmount
+            : 0;
+
           return {
             id: g.id,
             client: clientName,
             description: `${clientName} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
             amount: finalAmount,
+            paidAmount: paidAmt,
             date: g.due_date || new Date().toISOString().split('T')[0],
             status: g.collection_status || 'pending',
           };
@@ -673,6 +681,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         client_name: item.client.trim(),
         description: item.description,
         amount: item.amount,
+        paid_amount: item.paidAmount || (item.status === 'paid' ? item.amount : 0),
         due_date: item.date,
         collection_status: item.status,
       });
@@ -694,11 +703,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   };
 
-  const updateGelirStatus = async (id: string, status: string) => {
-    setGelirler((prev) => prev.map((g) => (g.id === id ? { ...g, status } : g)));
+  const updateGelirStatus = async (id: string, status: string, customPaidAmount?: number) => {
+    setGelirler((prev) =>
+      prev.map((g) => {
+        if (g.id === id) {
+          const finalPaid = status === 'paid'
+            ? g.amount
+            : status === 'partial'
+            ? (customPaidAmount !== undefined ? customPaidAmount : g.paidAmount || 0)
+            : 0;
+
+          return {
+            ...g,
+            status,
+            paidAmount: finalPaid,
+          };
+        }
+        return g;
+      })
+    );
+
     try {
       if (isUUID(id)) {
-        await supabase.from('income_records').update({ collection_status: status }).eq('id', id);
+        const updateObj: any = { collection_status: status };
+        if (status === 'paid') {
+          const item = gelirler.find((g) => g.id === id);
+          if (item) updateObj.paid_amount = item.amount;
+        } else if (status === 'partial' && customPaidAmount !== undefined) {
+          updateObj.paid_amount = customPaidAmount;
+        } else if (status === 'pending' || status === 'overdue') {
+          updateObj.paid_amount = 0;
+        }
+
+        await supabase.from('income_records').update(updateObj).eq('id', id);
       }
       fetchCloudData();
     } catch (e) {}

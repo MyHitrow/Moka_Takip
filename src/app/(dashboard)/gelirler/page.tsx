@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TrendingUp, Wallet, ArrowUpRight, AlertCircle, Trash2, Plus, CheckCircle2, RefreshCw, Calendar, Clock } from 'lucide-react';
-import { useData } from '@/context/data-context';
+import { TrendingUp, Wallet, ArrowUpRight, AlertCircle, Trash2, Plus, CheckCircle2, RefreshCw, Calendar, Clock, DollarSign, PieChart } from 'lucide-react';
+import { useData, Gelir } from '@/context/data-context';
 
 const MONTHS_TR = [
   { key: '01', name: 'Ocak' },
@@ -49,6 +49,11 @@ export default function GelirlerPage() {
   const [selectedYear, setSelectedYear] = useState<string>(String(defaultYear));
   const [open, setOpen] = useState(false);
   const [generatedMsg, setGeneratedMsg] = useState('');
+
+  // Partial Payment Modal State
+  const [partialModalOpen, setPartialModalOpen] = useState(false);
+  const [selectedGelirForPartial, setSelectedGelirForPartial] = useState<Gelir | null>(null);
+  const [inputPartialAmount, setInputPartialAmount] = useState<string>('');
 
   const [client, setClient] = useState('');
   const [description, setDescription] = useState('');
@@ -103,12 +108,41 @@ export default function GelirlerPage() {
     setTimeout(() => setGeneratedMsg(''), 4000);
   };
 
+  // Open Partial Payment Modal
+  const handleOpenPartialModal = (income: Gelir) => {
+    setSelectedGelirForPartial(income);
+    setInputPartialAmount(income.paidAmount ? String(income.paidAmount) : '');
+    setPartialModalOpen(true);
+  };
+
+  const handleSavePartialPayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGelirForPartial) return;
+
+    const numPartial = parseFloat(inputPartialAmount) || 0;
+    if (numPartial >= selectedGelirForPartial.amount) {
+      updateGelirStatus(selectedGelirForPartial.id, 'paid');
+    } else if (numPartial > 0) {
+      updateGelirStatus(selectedGelirForPartial.id, 'partial', numPartial);
+    } else {
+      updateGelirStatus(selectedGelirForPartial.id, 'pending', 0);
+    }
+
+    setPartialModalOpen(false);
+    setSelectedGelirForPartial(null);
+    setInputPartialAmount('');
+  };
+
   // CALCULATE STATUS ACCORDING TO USER'S EXACT RULES:
+  // - Paid: GREEN "Tahsil Edildi (Ödendi)"
+  // - Partial: ORANGE "Kısmi Ödeme Yapıldı"
   // - Days 1 to 7: YELLOW "Bekliyor (Ayın İlk Haftası)"
   // - Day 8 onwards (after 7th): RED "Gecikti! (Vadesi Geçti)"
-  // - Paid: GREEN "Tahsil Edildi (Ödendi)"
-  const getItemStatus = (income: { status: string; date: string }) => {
+  const getItemStatus = (income: Gelir) => {
     if (income.status === 'paid') return 'paid';
+    if (income.status === 'partial' || (income.paidAmount && income.paidAmount > 0 && income.paidAmount < income.amount)) {
+      return 'partial';
+    }
 
     const parts = income.date.split('-');
     if (parts.length === 3) {
@@ -150,20 +184,32 @@ export default function GelirlerPage() {
 
   const totalExpected = filteredGelirler.reduce((acc, curr) => acc + curr.amount, 0);
 
-  // GREEN: Paid Incomes
-  const totalPaid = filteredGelirler
+  // GREEN: Full Paid Incomes
+  const totalPaidFull = filteredGelirler
     .filter((g) => g.status === 'paid')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  // YELLOW: Pending Incomes (1st Week - Days 1 to 7)
+  // ORANGE: Partial Amount Collected
+  const totalPartialPaid = filteredGelirler
+    .reduce((acc, curr) => {
+      if (curr.status === 'partial' || (curr.paidAmount && curr.paidAmount > 0 && curr.status !== 'paid')) {
+        return acc + (curr.paidAmount || 0);
+      }
+      return acc;
+    }, 0);
+
+  // Total Collected (Full + Partial)
+  const totalCollectedSoFar = totalPaidFull + totalPartialPaid;
+
+  // YELLOW: Pending Incomes Remaining Balance (1st Week - Days 1 to 7)
   const totalPendingWeek1 = filteredGelirler
     .filter((g) => g.status !== 'paid' && getItemStatus(g) === 'pending')
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + (curr.amount - (curr.paidAmount || 0)), 0);
 
-  // RED: Overdue Incomes (After Day 7 / Past months)
+  // RED: Overdue Incomes Remaining Balance (After Day 7 / Past months)
   const totalOverdueWeek2 = filteredGelirler
     .filter((g) => g.status !== 'paid' && getItemStatus(g) === 'overdue')
-    .reduce((acc, curr) => acc + curr.amount, 0);
+    .reduce((acc, curr) => acc + (curr.amount - (curr.paidAmount || 0)), 0);
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(val);
@@ -174,7 +220,7 @@ export default function GelirlerPage() {
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
           title="Gelirler & 12 Aylık Tahsilat Takvimi"
-          subtitle="Her ayın 27'sinden sonra otomatik gelecek ay açılır (1-7. Günler Sarı Beklemede, 7. Günden Sonra Kırmızı Gecikmede)"
+          subtitle="Kısmi ödeme takibi (Turuncu Kısmi Ödeme, Sarı 1-7. Günler, Kırmızı 7. Günden Sonra)"
           icon={TrendingUp}
           action={
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
@@ -258,7 +304,8 @@ export default function GelirlerPage() {
                         className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold"
                       >
                         <option value="pending">🟡 Bekliyor (Ayın 1-7. Günleri)</option>
-                        <option value="paid">🟢 Ödendi (Tahsil Edildi)</option>
+                        <option value="partial">🟠 Kısmi Ödeme Yapıldı</option>
+                        <option value="paid">🟢 Ödendi (Tamamlandı)</option>
                         <option value="overdue">🔴 Gecikti (7. Günden Sonra)</option>
                       </select>
                     </div>
@@ -324,49 +371,60 @@ export default function GelirlerPage() {
         )}
 
         <div className="mt-6 space-y-6">
-          {/* STAT CARDS: GREEN (TAHSİL EDİLDİ), YELLOW (BEKLEYEN 1-7. GÜN), RED (GECİKEN 7. GÜNDEN SONRA) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* STAT CARDS: BLUE (TOPLAM), GREEN (ÖDENDİ), ORANGE (KISMİ ÖDEME), YELLOW (BEKLEYEN 1-7. GÜN), RED (GECİKEN) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* 1. Beklenen Toplam */}
             <Card className="p-4 bg-card border border-border flex items-center shadow-xs">
-              <div className="bg-blue-500/10 p-3 rounded-full mr-3 shrink-0 border border-blue-500/20">
-                <Wallet className="w-5 h-5 text-blue-400" />
+              <div className="bg-blue-500/10 p-2.5 rounded-full mr-3 shrink-0 border border-blue-500/20">
+                <Wallet className="w-4 h-4 text-blue-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-semibold">Toplam Beklenen</p>
-                <h3 className="text-xl font-extrabold text-foreground">{formatCurrency(totalExpected)}</h3>
+                <p className="text-[11px] text-muted-foreground font-semibold">Toplam Anlaşma</p>
+                <h3 className="text-lg font-extrabold text-foreground">{formatCurrency(totalExpected)}</h3>
               </div>
             </Card>
 
-            {/* 2. Tahsil Edildi (YEŞİL) */}
+            {/* 2. Toplam Alınan (YEŞİL) */}
             <Card className="p-4 bg-card border border-emerald-500/30 bg-emerald-500/5 flex items-center shadow-xs">
-              <div className="bg-emerald-500/20 p-3 rounded-full mr-3 shrink-0 border border-emerald-500/40">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              <div className="bg-emerald-500/20 p-2.5 rounded-full mr-3 shrink-0 border border-emerald-500/40">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               </div>
               <div>
-                <p className="text-xs text-emerald-300 font-bold">🟢 Tahsil Edildi (Ödendi)</p>
-                <h3 className="text-xl font-extrabold text-emerald-400">{formatCurrency(totalPaid)}</h3>
+                <p className="text-[11px] text-emerald-300 font-bold">🟢 Toplam Tahsil Edilen</p>
+                <h3 className="text-lg font-extrabold text-emerald-400">{formatCurrency(totalCollectedSoFar)}</h3>
               </div>
             </Card>
 
-            {/* 3. Beklemede (SARI - 1-7. GÜNLER) */}
+            {/* 3. Kısmi Ödemeler (TURUNCU) */}
+            <Card className="p-4 bg-card border border-orange-500/30 bg-orange-500/5 flex items-center shadow-xs">
+              <div className="bg-orange-500/20 p-2.5 rounded-full mr-3 shrink-0 border border-orange-500/40">
+                <PieChart className="w-4 h-4 text-orange-400" />
+              </div>
+              <div>
+                <p className="text-[11px] text-orange-300 font-bold">🟠 Kısmi Alınan Tutar</p>
+                <h3 className="text-lg font-extrabold text-orange-400">{formatCurrency(totalPartialPaid)}</h3>
+              </div>
+            </Card>
+
+            {/* 4. Beklemede Kalan (SARI - 1-7. GÜNLER) */}
             <Card className="p-4 bg-card border border-amber-500/30 bg-amber-500/5 flex items-center shadow-xs">
-              <div className="bg-amber-500/20 p-3 rounded-full mr-3 shrink-0 border border-amber-500/40">
-                <Clock className="w-5 h-5 text-amber-400" />
+              <div className="bg-amber-500/20 p-2.5 rounded-full mr-3 shrink-0 border border-amber-500/40">
+                <Clock className="w-4 h-4 text-amber-400" />
               </div>
               <div>
-                <p className="text-xs text-amber-300 font-bold">🟡 Bekleyen Ödemeler (1-7. Gün)</p>
-                <h3 className="text-xl font-extrabold text-amber-400">{formatCurrency(totalPendingWeek1)}</h3>
+                <p className="text-[11px] text-amber-300 font-bold">🟡 Bekleyen (1-7. Gün)</p>
+                <h3 className="text-lg font-extrabold text-amber-400">{formatCurrency(totalPendingWeek1)}</h3>
               </div>
             </Card>
 
-            {/* 4. Gecikmede (KIRMIZI - 7. GÜNDEN SONRA) */}
+            {/* 5. Gecikmede Kalan (KIRMIZI - 7. GÜNDEN SONRA) */}
             <Card className="p-4 bg-card border border-red-500/30 bg-red-500/5 flex items-center shadow-xs">
-              <div className="bg-red-500/20 p-3 rounded-full mr-3 shrink-0 border border-red-500/40">
-                <AlertCircle className="w-5 h-5 text-red-400" />
+              <div className="bg-red-500/20 p-2.5 rounded-full mr-3 shrink-0 border border-red-500/40">
+                <AlertCircle className="w-4 h-4 text-red-400" />
               </div>
               <div>
-                <p className="text-xs text-red-300 font-bold">🔴 Geciken Ödemeler (7. Gün Sonrası)</p>
-                <h3 className="text-xl font-extrabold text-red-400">{formatCurrency(totalOverdueWeek2)}</h3>
+                <p className="text-[11px] text-red-300 font-bold">🔴 Geciken (7+ Gün)</p>
+                <h3 className="text-lg font-extrabold text-red-400">{formatCurrency(totalOverdueWeek2)}</h3>
               </div>
             </Card>
           </div>
@@ -377,7 +435,8 @@ export default function GelirlerPage() {
               <thead className="text-xs uppercase bg-muted/50 text-muted-foreground font-bold">
                 <tr>
                   <th className="px-6 py-3 rounded-tl-lg">Müşteri / Açıklama</th>
-                  <th className="px-6 py-3">Tutar</th>
+                  <th className="px-6 py-3">Paket Tutarı</th>
+                  <th className="px-6 py-3">Ödenen / Kalan</th>
                   <th className="px-6 py-3">Vade Tarihi</th>
                   <th className="px-6 py-3">Tahsilat Durumu</th>
                   <th className="px-6 py-3 rounded-tr-lg text-right">İşlem</th>
@@ -386,15 +445,19 @@ export default function GelirlerPage() {
               <tbody>
                 {filteredGelirler.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground font-semibold">
+                    <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground font-semibold">
                       Bu ay için henüz tahsilat kaydı bulunmuyor. *"Seçili Ay İçin Fişleri Oluştur"* butonuna basarak otomatik ekleyebilirsiniz.
                     </td>
                   </tr>
                 ) : (
                   filteredGelirler.map((income) => {
                     const calculatedStatus = getItemStatus(income);
-                    const isOverdue = calculatedStatus === 'overdue';
                     const isPaid = calculatedStatus === 'paid';
+                    const isPartial = calculatedStatus === 'partial';
+                    const isOverdue = calculatedStatus === 'overdue';
+
+                    const paidAmt = isPaid ? income.amount : (income.paidAmount || 0);
+                    const remainingAmt = Math.max(0, income.amount - paidAmt);
 
                     return (
                       <tr
@@ -402,13 +465,15 @@ export default function GelirlerPage() {
                         className={`border-b border-border transition-colors ${
                           isPaid
                             ? 'bg-emerald-500/10 hover:bg-emerald-500/15'
+                            : isPartial
+                            ? 'bg-orange-500/10 hover:bg-orange-500/15'
                             : isOverdue
                             ? 'bg-red-500/10 hover:bg-red-500/15'
                             : 'bg-amber-500/10 hover:bg-amber-500/15'
                         }`}
                       >
                         <td className="px-6 py-4">
-                          <div className={`font-extrabold text-base ${isPaid ? 'text-emerald-300' : isOverdue ? 'text-red-300' : 'text-amber-300'}`}>
+                          <div className={`font-extrabold text-base ${isPaid ? 'text-emerald-300' : isPartial ? 'text-orange-300' : isOverdue ? 'text-red-300' : 'text-amber-300'}`}>
                             {income.client}
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">{income.description}</div>
@@ -417,45 +482,77 @@ export default function GelirlerPage() {
                           {formatCurrency(income.amount)}
                         </td>
                         <td className="px-6 py-4 font-mono text-xs">
+                          {isPaid ? (
+                            <span className="text-emerald-400 font-bold">✓ Tamamı Ödendi</span>
+                          ) : isPartial ? (
+                            <div>
+                              <span className="text-orange-400 font-bold block">Ödenen: {formatCurrency(paidAmt)}</span>
+                              <span className="text-amber-300 font-bold block text-[11px]">Kalan: {formatCurrency(remainingAmt)}</span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Kalan: {formatCurrency(income.amount)}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 font-mono text-xs">
                           {formatDateTr(income.date)}
                           {isOverdue && (
                             <span className="block text-[10px] text-red-400 font-extrabold mt-0.5">
                               🔴 7. Günden Sonra Gecikmede!
                             </span>
                           )}
-                          {!isOverdue && !isPaid && (
+                          {!isOverdue && !isPaid && !isPartial && (
                             <span className="block text-[10px] text-amber-400 font-bold mt-0.5">
                               🟡 Ayın 1-7. Günleri Beklemede
                             </span>
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                             <select
                               value={calculatedStatus}
-                              onChange={(e) => updateGelirStatus(income.id, e.target.value)}
+                              onChange={(e) => {
+                                const newSt = e.target.value;
+                                if (newSt === 'partial') {
+                                  handleOpenPartialModal(income);
+                                } else {
+                                  updateGelirStatus(income.id, newSt);
+                                }
+                              }}
                               className={`text-xs font-extrabold rounded-lg px-2.5 py-1.5 border cursor-pointer outline-none transition-colors ${
                                 isPaid
                                   ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50'
+                                  : isPartial
+                                  ? 'bg-orange-500/25 text-orange-300 border-orange-500/50 font-black'
                                   : isOverdue
                                   ? 'bg-red-500/25 text-red-300 border-red-500/50'
                                   : 'bg-amber-500/25 text-amber-300 border-amber-500/50'
                               }`}
                             >
                               <option value="pending" className="bg-card text-foreground">🟡 Bekliyor (Ayın 1-7. Günleri)</option>
+                              <option value="partial" className="bg-card text-foreground">🟠 Kısmi Ödeme Yapıldı</option>
                               <option value="paid" className="bg-card text-foreground">🟢 Ödendi (Tahsil Edildi)</option>
                               <option value="overdue" className="bg-card text-foreground">🔴 Gecikti! (7. Günden Sonra)</option>
                             </select>
 
                             {!isPaid && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateGelirStatus(income.id, 'paid')}
-                                className="h-8 text-xs bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 font-bold"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Ödendi İşaretle
-                              </Button>
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenPartialModal(income)}
+                                  className="h-8 text-xs bg-orange-500/20 text-orange-300 border-orange-500/40 hover:bg-orange-500/30 font-bold"
+                                >
+                                  🟠 Kısmi Tutar Gir
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateGelirStatus(income.id, 'paid')}
+                                  className="h-8 text-xs bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30 font-bold"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Tam Ödendi
+                                </Button>
+                              </div>
                             )}
                           </div>
                         </td>
@@ -485,8 +582,12 @@ export default function GelirlerPage() {
             ) : (
               filteredGelirler.map((income) => {
                 const calculatedStatus = getItemStatus(income);
-                const isOverdue = calculatedStatus === 'overdue';
                 const isPaid = calculatedStatus === 'paid';
+                const isPartial = calculatedStatus === 'partial';
+                const isOverdue = calculatedStatus === 'overdue';
+
+                const paidAmt = isPaid ? income.amount : (income.paidAmount || 0);
+                const remainingAmt = Math.max(0, income.amount - paidAmt);
 
                 return (
                   <Card
@@ -494,6 +595,8 @@ export default function GelirlerPage() {
                     className={`p-4 border ${
                       isPaid
                         ? 'bg-emerald-500/10 border-emerald-500/40'
+                        : isPartial
+                        ? 'bg-orange-500/10 border-orange-500/40'
                         : isOverdue
                         ? 'bg-red-500/10 border-red-500/40'
                         : 'bg-amber-500/10 border-amber-500/40'
@@ -501,7 +604,7 @@ export default function GelirlerPage() {
                   >
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <h4 className={`font-extrabold text-base ${isPaid ? 'text-emerald-300' : isOverdue ? 'text-red-300' : 'text-amber-300'}`}>
+                        <h4 className={`font-extrabold text-base ${isPaid ? 'text-emerald-300' : isPartial ? 'text-orange-300' : isOverdue ? 'text-red-300' : 'text-amber-300'}`}>
                           {income.client}
                         </h4>
                         <p className="text-xs text-muted-foreground">{income.description}</p>
@@ -514,14 +617,23 @@ export default function GelirlerPage() {
                       </button>
                     </div>
 
-                    <div className="my-3 pt-2 border-t border-border/50 flex items-center justify-between">
+                    <div className="my-3 pt-2 border-t border-border/50 grid grid-cols-2 gap-2">
                       <div>
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold block">Tutar</span>
-                        <span className="text-lg font-extrabold text-foreground font-mono">{formatCurrency(income.amount)}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold block">Toplam Anlaşma</span>
+                        <span className="text-base font-extrabold text-foreground font-mono">{formatCurrency(income.amount)}</span>
                       </div>
                       <div className="text-right">
-                        <span className="text-[10px] text-muted-foreground uppercase font-bold block">Vade Tarihi</span>
-                        <span className="text-xs font-mono font-semibold">{formatDateTr(income.date)}</span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold block">Ödenen / Kalan</span>
+                        {isPaid ? (
+                          <span className="text-xs text-emerald-400 font-bold block">Tam Ödendi</span>
+                        ) : isPartial ? (
+                          <div>
+                            <span className="text-xs text-orange-400 font-bold block">Öd: {formatCurrency(paidAmt)}</span>
+                            <span className="text-[11px] text-amber-300 font-bold block">Kal: {formatCurrency(remainingAmt)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-mono">Kal: {formatCurrency(income.amount)}</span>
+                        )}
                       </div>
                     </div>
 
@@ -530,23 +642,41 @@ export default function GelirlerPage() {
                         <span className="text-xs text-muted-foreground font-bold">Durum:</span>
                         <select
                           value={calculatedStatus}
-                          onChange={(e) => updateGelirStatus(income.id, e.target.value)}
+                          onChange={(e) => {
+                            const newSt = e.target.value;
+                            if (newSt === 'partial') {
+                              handleOpenPartialModal(income);
+                            } else {
+                              updateGelirStatus(income.id, newSt);
+                            }
+                          }}
                           className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground font-bold outline-none"
                         >
                           <option value="pending">🟡 Bekliyor (Ayın 1-7. Günleri)</option>
+                          <option value="partial">🟠 Kısmi Ödeme Yapıldı</option>
                           <option value="paid">🟢 Ödendi (Tahsil Edildi)</option>
                           <option value="overdue">🔴 Gecikti! (7. Günden Sonra)</option>
                         </select>
                       </div>
 
                       {!isPaid && (
-                        <Button
-                          size="sm"
-                          onClick={() => updateGelirStatus(income.id, 'paid')}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs font-bold"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Ödendi Olarak İşaretle
-                        </Button>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenPartialModal(income)}
+                            className="bg-orange-500/20 text-orange-300 border-orange-500/40 hover:bg-orange-500/30 text-xs font-bold h-8"
+                          >
+                            🟠 Kısmi Tutar Gir
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => updateGelirStatus(income.id, 'paid')}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs font-bold"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Tam Ödendi
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </Card>
@@ -555,6 +685,82 @@ export default function GelirlerPage() {
             )}
           </div>
         </div>
+
+        {/* 🟠 PARTIAL PAYMENT INPUT MODAL DIALOG */}
+        <Dialog open={partialModalOpen} onOpenChange={setPartialModalOpen}>
+          <DialogContent className="sm:max-w-[400px] bg-card border-border">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-orange-400 font-extrabold">
+                <PieChart className="w-5 h-5 text-orange-400" /> Kısmi Ödeme Tutarı Gir
+              </DialogTitle>
+            </DialogHeader>
+
+            {selectedGelirForPartial && (
+              <form onSubmit={handleSavePartialPayment} className="space-y-4 pt-2">
+                <div className="p-3 bg-muted/40 rounded-xl border border-border space-y-1 text-xs">
+                  <div className="flex justify-between font-bold">
+                    <span className="text-muted-foreground">Müşteri:</span>
+                    <span className="text-foreground">{selectedGelirForPartial.client}</span>
+                  </div>
+                  <div className="flex justify-between font-bold">
+                    <span className="text-muted-foreground">Toplam Paket Ücreti:</span>
+                    <span className="text-foreground font-mono">{formatCurrency(selectedGelirForPartial.amount)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="partialAmtInput" className="font-bold text-orange-300">Alınan Kısmi Tutar (TL)</Label>
+                  <div className="relative">
+                    <Input
+                      id="partialAmtInput"
+                      type="number"
+                      value={inputPartialAmount}
+                      onChange={(e) => setInputPartialAmount(e.target.value)}
+                      placeholder="Örn: 10000"
+                      className="pl-8 font-mono text-base font-bold text-orange-300 border-orange-500/40 bg-orange-500/5 focus:border-orange-500"
+                      required
+                      autoFocus
+                    />
+                    <DollarSign className="w-4 h-4 text-orange-400 absolute left-2.5 top-3" />
+                  </div>
+                </div>
+
+                {inputPartialAmount && parseFloat(inputPartialAmount) > 0 && (
+                  <div className="p-3 bg-orange-500/10 rounded-xl border border-orange-500/30 text-xs space-y-1 animate-fade-in font-bold">
+                    <div className="flex justify-between text-orange-300">
+                      <span>Alınan Tutar:</span>
+                      <span className="font-mono">{formatCurrency(parseFloat(inputPartialAmount))}</span>
+                    </div>
+                    <div className="flex justify-between text-amber-300 font-extrabold border-t border-orange-500/20 pt-1">
+                      <span>Kalan Bakiye:</span>
+                      <span className="font-mono">
+                        {formatCurrency(Math.max(0, selectedGelirForPartial.amount - parseFloat(inputPartialAmount)))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setPartialModalOpen(false)}
+                    className="text-xs"
+                  >
+                    Vazgeç
+                  </Button>
+
+                  <Button
+                    type="submit"
+                    className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold"
+                  >
+                    Kısmi Ödemeyi Kaydet
+                  </Button>
+                </div>
+              </form>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
