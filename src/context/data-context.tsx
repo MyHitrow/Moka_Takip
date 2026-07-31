@@ -215,7 +215,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
-  // Helper to persist system config (SystemUsers & Ekip) to Supabase Cloud DB
+  // Helper to persist system config (SystemUsers & Ekip) into Supabase Cloud DB via contact_name column
   const syncSettingsToCloud = async (updatedUsers: SystemUser[], updatedEkip: EkipUyesi[]) => {
     try {
       const payload = JSON.stringify({ systemUsers: updatedUsers, ekip: updatedEkip });
@@ -226,12 +226,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (existing) {
-        await supabase.from('clients').update({ notes: payload }).eq('id', existing.id);
+        await supabase.from('clients').update({ contact_name: payload }).eq('id', existing.id);
       } else {
         await supabase.from('clients').insert({
           name: '__SYSTEM_SETTINGS__',
-          contact_name: 'System Config',
-          notes: payload,
+          contact_name: payload,
           is_active: false,
         });
       }
@@ -277,13 +276,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .eq('name', '__SYSTEM_SETTINGS__')
         .maybeSingle();
 
-      if (sysRecord && sysRecord.notes) {
+      if (sysRecord && sysRecord.contact_name) {
         try {
-          const parsed = JSON.parse(sysRecord.notes);
-          if (parsed.systemUsers && parsed.systemUsers.length > 0) {
+          const parsed = JSON.parse(sysRecord.contact_name);
+          if (parsed.systemUsers && Array.isArray(parsed.systemUsers)) {
             setSystemUsers(parsed.systemUsers);
           }
-          if (parsed.ekip && parsed.ekip.length > 0) {
+          if (parsed.ekip && Array.isArray(parsed.ekip)) {
             setEkip(parsed.ekip);
           }
         } catch (e) {}
