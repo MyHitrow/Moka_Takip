@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Settings, ShieldCheck, Plus, Trash2, Edit, AlertTriangle } from 'lucide-react';
-import { useData, SystemUser } from '@/context/data-context';
+import { Settings, ShieldCheck, Plus, Trash2, Edit, AlertTriangle, Sparkles, Scale, Megaphone, Flame } from 'lucide-react';
+import { useData, SystemUser, formatRoleLabel } from '@/context/data-context';
 
 export default function AyarlarPage() {
   const { systemUsers, currentUser, addSystemUser, updateSystemUser, deleteSystemUser, logout } = useData();
@@ -23,13 +23,13 @@ export default function AyarlarPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<SystemUser['role']>('admin');
+  const [role, setRole] = useState<SystemUser['role']>('creative_director');
 
   // Edit User state
   const [editName, setEditName] = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editPassword, setEditPassword] = useState('');
-  const [editRole, setEditRole] = useState<SystemUser['role']>('admin');
+  const [editRole, setEditRole] = useState<SystemUser['role']>('creative_director');
 
   const isSuperAdmin = currentUser.role === 'super_admin';
 
@@ -44,11 +44,11 @@ export default function AyarlarPage() {
       name,
       role,
       permissions: {
-        canManageFinance: role === 'admin' || role === 'super_admin',
+        canManageFinance: true,
         canManageShoots: true,
         canManageEdits: true,
         canManageTakvim: true,
-        canManageTeam: role === 'admin' || role === 'super_admin',
+        canManageTeam: true,
         canManageUsers: role === 'super_admin',
       },
     });
@@ -57,7 +57,7 @@ export default function AyarlarPage() {
       setUsername('');
       setPassword('');
       setName('');
-      setRole('admin');
+      setRole('creative_director');
       setOpenUserModal(false);
     } else {
       setErrorMsg('Bu kullanıcı adı zaten kullanılıyor veya yetkiniz yetersiz!');
@@ -90,14 +90,36 @@ export default function AyarlarPage() {
 
   const getRoleBadge = (userRole: SystemUser['role']) => {
     switch (userRole) {
+      case 'creative_director':
+        return (
+          <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/40 font-extrabold flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-purple-400" /> Creative Director
+          </Badge>
+        );
+      case 'avukat':
+        return (
+          <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/40 font-extrabold flex items-center gap-1">
+            <Scale className="w-3 h-3 text-blue-400" /> Avukat
+          </Badge>
+        );
+      case 'ads_specialist':
+        return (
+          <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-extrabold flex items-center gap-1">
+            <Megaphone className="w-3 h-3 text-emerald-400" /> Ads Uzmanı
+          </Badge>
+        );
+      case 'herbokolog':
+        return (
+          <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/40 font-extrabold flex items-center gap-1">
+            <Flame className="w-3 h-3 text-amber-400" /> Herbokolog
+          </Badge>
+        );
       case 'super_admin':
-        return <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 font-bold">Süper Admin</Badge>;
+        return <Badge className="bg-red-500/20 text-red-300 border-red-500/40 font-extrabold">Süper Admin</Badge>;
       case 'admin':
-        return <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 font-bold">Admin</Badge>;
-      case 'editor':
-        return <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 font-bold">Kurgucu / Editör</Badge>;
+        return <Badge className="bg-primary/20 text-primary border-primary/40 font-bold">Admin</Badge>;
       default:
-        return <Badge variant="secondary" className="font-semibold">Ekip Üyesi</Badge>;
+        return <Badge variant="secondary" className="font-semibold">{formatRoleLabel(userRole)}</Badge>;
     }
   };
 
@@ -106,7 +128,7 @@ export default function AyarlarPage() {
       <Header title="Ayarlar" />
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
-          title="Ayarlar & Kullanıcı Yönetimi"
+          title="Ayarlar & Özel Rol Yönetimi"
           subtitle="Kullanıcı oluşturma, rol değiştirme ve yetki kontrolü"
           icon={Settings}
         />
@@ -144,10 +166,10 @@ export default function AyarlarPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-bold">Sistem Kullanıcıları & Rol Yönetimi</h3>
+                  <h3 className="text-lg font-bold">Sistem Kullanıcıları & Özel Roller</h3>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Kullanıcı isimleri, kullanıcı adları, şifreler ve kullanıcı rolleri buradan değiştirilebilir. Değişiklikler Ekip sayfasıyla anında eşzamanlanır.
+                  Creative Director, Avukat, Ads Uzmanı ve Herbokolog rolleri arasında geçiş yapabilirsiniz. Değişiklikler Ekip sayfasıyla anında eşzamanlanır.
                 </p>
               </div>
 
@@ -210,10 +232,12 @@ export default function AyarlarPage() {
                           onChange={(e) => setRole(e.target.value as any)}
                           className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
                         >
-                          <option value="admin">Admin (Yönetici)</option>
-                          <option value="editor">Editör / İçerik Üretici</option>
-                          <option value="member">Ekip Üyesi</option>
-                          <option value="super_admin">Süper Admin</option>
+                          <option value="creative_director">✨ Creative Director</option>
+                          <option value="avukat">⚖️ Avukat</option>
+                          <option value="ads_specialist">📢 Ads Uzmanı</option>
+                          <option value="herbokolog">🔥 Herbokolog</option>
+                          <option value="super_admin">👑 Süper Admin</option>
+                          <option value="admin">🏢 Admin (Yönetici)</option>
                         </select>
                       </div>
 
@@ -234,7 +258,7 @@ export default function AyarlarPage() {
                     <th className="px-4 py-3 rounded-l">Kullanıcı Adı</th>
                     <th className="px-4 py-3">Ad Soyad</th>
                     <th className="px-4 py-3">Şifre</th>
-                    <th className="px-4 py-3">Sistem Rolü</th>
+                    <th className="px-4 py-3">Özel Rolü</th>
                     <th className="px-4 py-3 text-right rounded-r">İşlem</th>
                   </tr>
                 </thead>
@@ -333,10 +357,12 @@ export default function AyarlarPage() {
                 onChange={(e) => setEditRole(e.target.value as any)}
                 className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
               >
-                <option value="admin">Admin (Yönetici)</option>
-                <option value="editor">Editör / İçerik Üretici</option>
-                <option value="member">Ekip Üyesi</option>
-                <option value="super_admin">Süper Admin</option>
+                <option value="creative_director">✨ Creative Director</option>
+                <option value="avukat">⚖️ Avukat</option>
+                <option value="ads_specialist">📢 Ads Uzmanı</option>
+                <option value="herbokolog">🔥 Herbokolog</option>
+                <option value="super_admin">👑 Süper Admin</option>
+                <option value="admin">🏢 Admin (Yönetici)</option>
               </select>
             </div>
 

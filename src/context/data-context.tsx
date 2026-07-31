@@ -80,12 +80,23 @@ export interface UserPermissions {
   canManageUsers: boolean;
 }
 
+export type RoleType =
+  | 'super_admin'
+  | 'admin'
+  | 'creative_director'
+  | 'avukat'
+  | 'ads_specialist'
+  | 'herbokolog'
+  | 'editor'
+  | 'member'
+  | string;
+
 export interface SystemUser {
   id: string;
   username: string;
   password?: string;
   name: string;
-  role: 'super_admin' | 'admin' | 'editor' | 'member';
+  role: RoleType;
   permissions: UserPermissions;
 }
 
@@ -193,6 +204,27 @@ export function formatDateTr(dateStr: string): string {
     }
   }
   return dateStr;
+}
+
+export function formatRoleLabel(roleKey: string): string {
+  switch (roleKey) {
+    case 'creative_director':
+      return 'Creative Director';
+    case 'avukat':
+      return 'Avukat';
+    case 'ads_specialist':
+      return 'Ads Uzmanı';
+    case 'herbokolog':
+      return 'Herbokolog';
+    case 'super_admin':
+      return 'Süper Admin';
+    case 'admin':
+      return 'Admin';
+    case 'editor':
+      return 'Editör / Kurgucu';
+    default:
+      return roleKey || 'Ekip Üyesi';
+  }
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -428,14 +460,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setSystemUsers(updatedUsers);
 
     // Sync to Ekip
-    const roleLabel =
-      user.role === 'super_admin'
-        ? 'Süper Admin'
-        : user.role === 'admin'
-        ? 'Admin'
-        : user.role === 'editor'
-        ? 'Kurgucu / Editör'
-        : 'Ekip Üyesi';
+    const roleLabel = formatRoleLabel(user.role);
 
     const parts = user.name.trim().split(' ');
     const initials = parts.length >= 2
@@ -480,15 +505,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         (targetUser && member.username === targetUser.username) ||
         (targetUser && member.name.toLowerCase() === targetUser.name.toLowerCase())
       ) {
-        const newRole = updatedFields.role || targetUser?.role;
-        const roleLabel =
-          newRole === 'super_admin'
-            ? 'Süper Admin'
-            : newRole === 'admin'
-            ? 'Admin'
-            : newRole === 'editor'
-            ? 'Kurgucu / Editör'
-            : 'Ekip Üyesi';
+        const newRole = updatedFields.role || targetUser?.role || 'member';
+        const roleLabel = formatRoleLabel(newRole);
 
         return {
           ...member,
@@ -816,11 +834,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const updatedEkip = [...ekip, newItem];
     setEkip(updatedEkip);
 
-    const userRole: SystemUser['role'] = item.role.toLowerCase().includes('admin')
-      ? 'admin'
-      : item.role.toLowerCase().includes('kurgu') || item.role.toLowerCase().includes('edit')
-      ? 'editor'
-      : 'member';
+    const userRole: SystemUser['role'] = item.role;
 
     const newSysUser: SystemUser = {
       id: Date.now().toString(),
@@ -829,11 +843,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       name: item.name,
       role: userRole,
       permissions: {
-        canManageFinance: userRole === 'admin',
+        canManageFinance: true,
         canManageShoots: true,
         canManageEdits: true,
         canManageTakvim: true,
-        canManageTeam: userRole === 'admin',
+        canManageTeam: true,
         canManageUsers: false,
       },
     };
