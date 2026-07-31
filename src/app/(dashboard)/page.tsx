@@ -6,7 +6,7 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { WeekShoots } from '@/components/dashboard/week-shoots';
 import { EditorWorkload } from '@/components/dashboard/editor-workload';
 import { HaftalikNotlar } from '@/components/dashboard/haftalik-notlar';
-import { useData } from '@/context/data-context';
+import { useData, Gelir } from '@/context/data-context';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -21,29 +21,127 @@ import {
   AlertTriangle,
   Eye,
   CalendarClock,
-  ArrowRight
+  ArrowRight,
+  PieChart
 } from 'lucide-react';
 
-export default function DashboardPage() {
-  const { cekimler, editler, gelirler, giderler, currentUser, formatDateTr } = useData();
+const MONTHS_TR = [
+  { key: '01', name: 'Ocak' },
+  { key: '02', name: 'Şubat' },
+  { key: '03', name: 'Mart' },
+  { key: '04', name: 'Nisan' },
+  { key: '05', name: 'Mayıs' },
+  { key: '06', name: 'Haziran' },
+  { key: '07', name: 'Temmuz' },
+  { key: '08', name: 'Ağustos' },
+  { key: '09', name: 'Eylül' },
+  { key: '10', name: 'Ekim' },
+  { key: '11', name: 'Kasım' },
+  { key: '12', name: 'Aralık' },
+];
 
-  const currentDate = new Date().toLocaleDateString('tr-TR', {
+export default function DashboardPage() {
+  const { cekimler, editler, gelirler, giderler, currentUser } = useData();
+
+  const now = new Date();
+  let activeMonthIndex = now.getMonth(); // 0-11
+  let activeYear = now.getFullYear();
+
+  // Rule: Starting on the 27th day of the month, active period automatically advances to NEXT MONTH!
+  if (now.getDate() >= 27) {
+    activeMonthIndex += 1;
+    if (activeMonthIndex > 11) {
+      activeMonthIndex = 0;
+      activeYear += 1;
+    }
+  }
+
+  const activeMonthKey = String(activeMonthIndex + 1).padStart(2, '0');
+  const activeMonthName = MONTHS_TR.find((m) => m.key === activeMonthKey)?.name || '';
+  const activePeriodStr = `${activeYear}-${activeMonthKey}`;
+
+  const currentDate = now.toLocaleDateString('tr-TR', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = now.toISOString().split('T')[0];
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(val);
 
-  const totalExpectedIncome = gelirler.reduce((acc, curr) => acc + curr.amount, 0);
-  const totalPaidIncome = gelirler.filter((g) => g.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-  const totalOverdueIncome = gelirler.filter((g) => g.status === 'overdue').reduce((acc, curr) => acc + curr.amount, 0);
-  const totalExpenses = giderler.reduce((acc, curr) => acc + curr.amount, 0);
-  const netBalance = totalPaidIncome - totalExpenses;
+  // Helper to calculate exact status matching Gelirler page logic
+  const getItemStatus = (income: Gelir) => {
+    if (income.status === 'paid') return 'paid';
+    if (income.status === 'partial' || (income.paidAmount && income.paidAmount > 0 && income.paidAmount < income.amount)) {
+      return 'partial';
+    }
+
+    const parts = income.date.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const monthIndex = parseInt(parts[1], 10) - 1;
+
+      const currentYear = now.getFullYear();
+      const currentMonthIndex = now.getMonth();
+      const currentDay = now.getDate();
+
+      // Past months -> Always RED Gecikti!
+      if (year < currentYear || (year === currentYear && monthIndex < currentMonthIndex)) {
+        return 'overdue';
+      }
+
+      // Current month:
+      if (year === currentYear && monthIndex === currentMonthIndex) {
+        if (currentDay > 7) {
+          return 'overdue';
+        }
+        return 'pending';
+      }
+
+      return 'pending';
+    }
+
+    return income.status;
+  };
+
+  // Active Month Incomes
+  const activeGelirler = gelirler.filter((g) => g.date.startsWith(activePeriodStr));
+
+  // 1. Total Expected Anlaşma
+  const totalExpectedIncome = activeGelirler.reduce((acc, curr) => acc + curr.amount, 0);
+
+  // 2. Full Paid Incomes
+  const totalPaidFull = activeGelirler
+    .filter((g) => g.status === 'paid')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  // 3. Partial Amount Collected
+  const totalPartialPaid = activeGelirler
+    .reduce((acc, curr) => {
+      if (curr.status === 'partial' || (curr.paidAmount && curr.paidAmount > 0 && curr.status !== 'paid')) {
+        return acc + (curr.paidAmount || 0);
+      }
+      return acc;
+    }, 0);
+
+  // Total Collected (Full + Partial)
+  const totalCollectedSoFar = totalPaidFull + totalPartialPaid;
+
+  // 4. Overdue Remaining Balance (Day 8+)
+  const totalOverdueIncome = activeGelirler
+    .filter((g) => g.status !== 'paid' && getItemStatus(g) === 'overdue')
+    .reduce((acc, curr) => acc + (curr.amount - (curr.paidAmount || 0)), 0);
+
+  // Active Month Expenses
+  const activeGiderler = giderler.filter((e) => e.date.startsWith(activePeriodStr));
+  const totalExpenses = activeGiderler.length > 0
+    ? activeGiderler.reduce((acc, curr) => acc + curr.amount, 0)
+    : giderler.reduce((acc, curr) => acc + curr.amount, 0);
+
+  const netBalance = totalCollectedSoFar - totalExpenses;
 
   const waitingEdits = editler.filter((e) => e.status === 'waiting').length;
   const inProgressEdits = editler.filter((e) => e.status === 'editing').length;
@@ -151,26 +249,44 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Finans Section */}
+        {/* Finans Section - SYNCHRONIZED WITH GELİRLER PAGE ACTIVE PERIOD */}
         <section>
-          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold mt-8">Finans Özeti</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex items-center justify-between mb-3 mt-8">
+            <h2 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-2">
+              <span>Finans Özeti</span>
+              <span className="bg-primary/20 text-primary px-2 py-0.5 rounded-md font-extrabold text-[10px] lowercase tracking-normal">
+                {activeMonthName} {activeYear} (Aktif Dönem)
+              </span>
+            </h2>
+            <Link href="/gelirler" className="text-xs text-primary font-bold hover:underline">
+              Gelirler Tablosunu Aç →
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard
-              title="Beklenen Gelir"
+              title="Aktif Ay Anlaşma"
               value={formatCurrency(totalExpectedIncome)}
               icon={TrendingUp}
               href="/gelirler"
               color="info"
             />
             <StatCard
-              title="Tahsil Edilen"
-              value={formatCurrency(totalPaidIncome)}
+              title="Tahsil Edilen (Tam+Kısmi)"
+              value={formatCurrency(totalCollectedSoFar)}
               icon={Wallet}
               href="/gelirler"
               color="success"
             />
             <StatCard
-              title="Geciken Ödemeler"
+              title="Kısmi Alınan Tutar"
+              value={formatCurrency(totalPartialPaid)}
+              icon={PieChart}
+              href="/gelirler"
+              color="warning"
+            />
+            <StatCard
+              title="Geciken Ödemeler (7+ Gün)"
               value={formatCurrency(totalOverdueIncome)}
               icon={AlertCircle}
               href="/gelirler"
@@ -182,13 +298,6 @@ export default function DashboardPage() {
               icon={TrendingDown}
               href="/giderler"
               color="warning"
-            />
-            <StatCard
-              title="Net Durum"
-              value={formatCurrency(netBalance)}
-              icon={Wallet}
-              href="/gelirler"
-              color={netBalance >= 0 ? "success" : "danger"}
             />
           </div>
         </section>
