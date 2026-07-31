@@ -276,48 +276,70 @@ export default function CekimlerPage() {
                 </Button>
               </div>
 
-              {/* Day Pills Carousel */}
-              <div
-                ref={carouselRef}
-                className="overflow-x-auto flex gap-2 py-2 snap-x snap-mandatory touch-pan-x scrollbar-none w-full"
-                style={{ WebkitOverflowScrolling: 'touch' }}
-              >
-                {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
-                  const dStr = `${year}-${selectedMonthStr}-${String(d).padStart(2, '0')}`;
-                  const isSelected = d === selectedDay;
-                  const isToday = dStr === todayStr;
-                  const shootCount = cekimler.filter((c) => c.date === dStr).length;
+              {/* Day Pills Carousel with Arrow Controls */}
+              <div className="flex items-center gap-1.5 w-full min-w-0">
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => setSelectedDay((prev) => Math.max(1, prev - 1))}
+                  className="h-16 w-8 shrink-0 rounded-xl bg-card border-border shadow-xs"
+                  title="Önceki Gün"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
 
-                  const dayOfWeekIndex = new Date(year, month, d).getDay();
-                  const dayName = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'][dayOfWeekIndex];
+                <div
+                  ref={carouselRef}
+                  className="overflow-x-auto flex gap-2 py-2 snap-x snap-mandatory touch-pan-x scrollbar-none flex-1 min-w-0"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
+                >
+                  {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
+                    const dStr = `${year}-${selectedMonthStr}-${String(d).padStart(2, '0')}`;
+                    const isSelected = d === selectedDay;
+                    const isToday = dStr === todayStr;
+                    const shootCount = cekimler.filter((c) => c.date === dStr).length;
 
-                  return (
-                    <button
-                      key={d}
-                      data-selected={isSelected}
-                      onClick={() => setSelectedDay(d)}
-                      className={`flex flex-col items-center justify-center min-w-[58px] h-16 rounded-xl border transition-all shrink-0 snap-center ${
-                        isSelected
-                          ? 'bg-primary text-primary-foreground border-primary font-bold shadow-md scale-105'
-                          : isToday
-                          ? 'bg-primary/10 border-primary/40 text-foreground font-semibold'
-                          : 'bg-card border-border text-muted-foreground hover:bg-accent'
-                      }`}
-                    >
-                      <span className="text-[10px] uppercase font-mono">{dayName}</span>
-                      <span className="text-lg font-extrabold leading-none mt-0.5">{d}</span>
-                      {shootCount > 0 && (
-                        <span
-                          className={`text-[9px] px-1.5 rounded-full mt-1 ${
-                            isSelected ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary'
-                          }`}
-                        >
-                          {shootCount} Çekim
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+                    const dayOfWeekIndex = new Date(year, month, d).getDay();
+                    const dayName = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'][dayOfWeekIndex];
+
+                    return (
+                      <button
+                        key={d}
+                        data-selected={isSelected}
+                        onClick={() => setSelectedDay(d)}
+                        className={`flex flex-col items-center justify-center min-w-[56px] h-16 rounded-xl border transition-all shrink-0 snap-center ${
+                          isSelected
+                            ? 'bg-primary text-primary-foreground border-primary font-bold shadow-md scale-105'
+                            : isToday
+                            ? 'bg-primary/10 border-primary/40 text-foreground font-semibold'
+                            : 'bg-card border-border text-muted-foreground hover:bg-accent'
+                        }`}
+                      >
+                        <span className="text-[10px] uppercase font-mono">{dayName}</span>
+                        <span className="text-lg font-extrabold leading-none mt-0.5">{d}</span>
+                        {shootCount > 0 && (
+                          <span
+                            className={`text-[9px] px-1.5 rounded-full mt-1 ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-primary/20 text-primary'
+                            }`}
+                          >
+                            {shootCount} Çekim
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => setSelectedDay((prev) => Math.min(totalDays, prev + 1))}
+                  className="h-16 w-8 shrink-0 rounded-xl bg-card border-border shadow-xs"
+                  title="Sonraki Gün"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
 
               {/* Selected Day Shoots Mobile Cards */}
