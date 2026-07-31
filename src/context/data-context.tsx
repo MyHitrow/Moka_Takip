@@ -199,7 +199,7 @@ export function formatDateTr(dateStr: string): string {
     const day = parts[2];
     const months = [
       'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylü', 'Ekim', 'Kasım', 'Aralık'
+      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
     ];
     if (months[monthIndex]) {
       return `${day} ${months[monthIndex]} ${year}`;
@@ -428,16 +428,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const numFee = matchedBiz ? parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount) : Number(g.amount);
           const finalAmount = g.collection_status !== 'paid' && matchedBiz && numFee > 0 ? numFee : Number(g.amount);
 
-          const paidAmt = g.paid_amount !== undefined && g.paid_amount !== null
-            ? Number(g.paid_amount)
-            : g.collection_status === 'paid'
-            ? finalAmount
-            : 0;
+          // Parse partial payment amount from description if present
+          let paidAmt = 0;
+          if (g.collection_status === 'paid') {
+            paidAmt = finalAmount;
+          } else if (g.collection_status === 'partial') {
+            const match = g.description ? g.description.match(/(?:Kısmi Ödenen:\s*|kısmi:\s*)(\d+)/i) : null;
+            if (match) {
+              paidAmt = parseFloat(match[1]) || 0;
+            }
+          }
 
           return {
             id: g.id,
             client: clientName,
-            description: `${clientName} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
+            description: g.description || `${clientName} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
             amount: finalAmount,
             paidAmount: paidAmt,
             date: g.due_date || new Date().toISOString().split('T')[0],
@@ -681,7 +686,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         client_name: item.client.trim(),
         description: item.description,
         amount: item.amount,
-        paid_amount: item.paidAmount || (item.status === 'paid' ? item.amount : 0),
         due_date: item.date,
         collection_status: item.status,
       });
@@ -713,9 +717,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             ? (customPaidAmount !== undefined ? customPaidAmount : g.paidAmount || 0)
             : 0;
 
+          let desc = g.description;
+          if (status === 'partial' && customPaidAmount !== undefined) {
+            desc = `${g.client} - Aylık Paket Ücreti (Kısmi Ödenen: ${customPaidAmount} ₺)`;
+          }
+
           return {
             ...g,
             status,
+            description: desc,
             paidAmount: finalPaid,
           };
         }
@@ -726,13 +736,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       if (isUUID(id)) {
         const updateObj: any = { collection_status: status };
-        if (status === 'paid') {
+        if (status === 'partial' && customPaidAmount !== undefined) {
           const item = gelirler.find((g) => g.id === id);
-          if (item) updateObj.paid_amount = item.amount;
-        } else if (status === 'partial' && customPaidAmount !== undefined) {
-          updateObj.paid_amount = customPaidAmount;
-        } else if (status === 'pending' || status === 'overdue') {
-          updateObj.paid_amount = 0;
+          const clientName = item ? item.client : 'Müşteri';
+          updateObj.description = `${clientName} - Aylık Paket Ücreti (Kısmi Ödenen: ${customPaidAmount} ₺)`;
         }
 
         await supabase.from('income_records').update(updateObj).eq('id', id);
