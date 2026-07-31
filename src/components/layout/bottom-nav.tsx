@@ -12,7 +12,7 @@ export function BottomNav({ onMenuOpen }: BottomNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 pb-safe items-center justify-around bg-[oklch(0.15_0.012_270)]/95 backdrop-blur-xl border-t border-border md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 pb-safe items-center justify-around bg-sidebar/95 backdrop-blur-xl border-t border-border md:hidden shadow-lg">
       {BOTTOM_NAV_ITEMS.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
@@ -22,8 +22,8 @@ export function BottomNav({ onMenuOpen }: BottomNavProps) {
             <button
               key={item.label}
               onClick={onMenuOpen}
-              className={`flex flex-col items-center gap-1 text-[11px] transition-all duration-200 ${
-                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-all duration-200 ${
+                isActive ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Icon className="h-5 w-5" />
@@ -36,11 +36,11 @@ export function BottomNav({ onMenuOpen }: BottomNavProps) {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex flex-col items-center gap-1 text-[11px] transition-all duration-200 ${
-              isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            className={`flex flex-col items-center gap-1 text-[11px] font-semibold transition-all duration-200 ${
+              isActive ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className={`h-5 w-5 ${isActive ? 'text-primary' : ''}`} />
             <span>{item.label}</span>
           </Link>
         );
