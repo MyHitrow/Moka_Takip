@@ -460,6 +460,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
         setGelirler(mappedGelirler);
       }
+
+      // 7. Fetch Expense Records (Giderler) and sync real-time with Supabase DB!
+      const { data: expData } = await supabase.from('expense_records').select('*');
+      if (expData && expData.length > 0) {
+        setGiderler(
+          expData.map((e) => ({
+            id: e.id,
+            title: e.title,
+            category: e.category || 'office',
+            amount: Number(e.amount),
+            date: e.expense_date || new Date().toISOString().split('T')[0],
+            paidBy: e.paid_by || 'Şirket Hesabı',
+          }))
+        );
+      }
     } catch (err) {}
   };
 
@@ -861,6 +876,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addGider = async (item: Omit<Gider, 'id'>) => {
+    const tempId = Date.now().toString();
+    const newGider: Gider = { ...item, id: tempId };
+    setGiderler((prev) => [newGider, ...prev]);
+
     try {
       await supabase.from('expense_records').insert({
         title: item.title,
