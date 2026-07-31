@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/header';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ const MONTHS_TR = [
   { key: '06', name: 'Haziran' },
   { key: '07', name: 'Temmuz' },
   { key: '08', name: 'Ağustos' },
-  { key: '09', name: 'Eylü' },
+  { key: '09', name: 'Eylül' },
   { key: '10', name: 'Ekim' },
   { key: '11', name: 'Kasım' },
   { key: '12', name: 'Aralık' },
@@ -55,6 +55,18 @@ export default function GelirlerPage() {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [status, setStatus] = useState('pending');
+
+  // Auto-generate active period receipts if none exist yet for the selected month!
+  useEffect(() => {
+    if (selectedMonth !== 'all' && isletmeler.length > 0) {
+      const targetPrefix = `${selectedYear}-${selectedMonth}`;
+      const hasRecords = gelirler.some((g) => g.date.startsWith(targetPrefix));
+
+      if (!hasRecords) {
+        generateMonthlyIncomes(targetPrefix);
+      }
+    }
+  }, [selectedMonth, selectedYear, isletmeler, gelirler.length]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,7 +174,7 @@ export default function GelirlerPage() {
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
           title="Gelirler & 12 Aylık Tahsilat Takvimi"
-          subtitle="Her ayın 27'sinde sonraki ay listelenir (1-7. Günler Sarı Beklemede, 7. Günden Sonra Kırmızı Gecikmede)"
+          subtitle="Her ayın 27'sinden sonra otomatik gelecek ay açılır (1-7. Günler Sarı Beklemede, 7. Günden Sonra Kırmızı Gecikmede)"
           icon={TrendingUp}
           action={
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
@@ -264,7 +276,7 @@ export default function GelirlerPage() {
         <div className="mt-6">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs uppercase font-extrabold tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-primary" /> 12 Aylık Tahsilat Takvimi (27'sinden Sonra Gelecek Ay Seçilir)
+              <Calendar className="w-4 h-4 text-primary" /> 12 Aylık Tahsilat Takvimi (27'sinden Sonra Gelecek Ay Listelenir)
             </h3>
             <button
               onClick={() => setSelectedMonth('all')}
@@ -374,7 +386,7 @@ export default function GelirlerPage() {
               <tbody>
                 {filteredGelirler.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground font-semibold">
                       Bu ay için henüz tahsilat kaydı bulunmuyor. *"Seçili Ay İçin Fişleri Oluştur"* butonuna basarak otomatik ekleyebilirsiniz.
                     </td>
                   </tr>
