@@ -595,14 +595,66 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const deleteIsletme = async (id: string) => {
     const target = isletmeler.find((i) => i.id === id);
+    const targetName = target?.name;
+
+    // 1. Delete from Isletmeler state
     setIsletmeler((prev) => prev.filter((i) => i.id !== id));
 
+    // 2. Delete all associated records from Gelirler, Cekimler, Editler, TakvimPosts states IMMEDIATELY
+    if (targetName) {
+      setGelirler((prev) => prev.filter((g) => !isClientMatch(g.client, targetName)));
+      setCekimler((prev) => prev.filter((c) => !isClientMatch(c.client, targetName)));
+      setEditler((prev) => prev.filter((e) => !isClientMatch(e.client, targetName)));
+      setTakvimPosts((prev) => prev.filter((t) => !isClientMatch(t.client, targetName)));
+    }
+
     try {
+      // 3. Delete client from Supabase DB
       if (isUUID(id)) {
         await supabase.from('clients').delete().eq('id', id);
       } else if (target) {
         await supabase.from('clients').delete().eq('name', target.name);
       }
+
+      // 4. Delete all associated records from Supabase DB tables!
+      if (targetName) {
+        const { data: incomes } = await supabase.from('income_records').select('id, client_name');
+        if (incomes) {
+          for (const inc of incomes) {
+            if (isClientMatch(inc.client_name, targetName)) {
+              await supabase.from('income_records').delete().eq('id', inc.id);
+            }
+          }
+        }
+
+        const { data: shoots } = await supabase.from('shoots').select('id, client_name');
+        if (shoots) {
+          for (const s of shoots) {
+            if (isClientMatch(s.client_name, targetName)) {
+              await supabase.from('shoots').delete().eq('id', s.id);
+            }
+          }
+        }
+
+        const { data: edits } = await supabase.from('edits').select('id, client_name');
+        if (edits) {
+          for (const ed of edits) {
+            if (isClientMatch(ed.client_name, targetName)) {
+              await supabase.from('edits').delete().eq('id', ed.id);
+            }
+          }
+        }
+
+        const { data: posts } = await supabase.from('content_calendar').select('id, client_name');
+        if (posts) {
+          for (const p of posts) {
+            if (isClientMatch(p.client_name, targetName)) {
+              await supabase.from('content_calendar').delete().eq('id', p.id);
+            }
+          }
+        }
+      }
+
       fetchCloudData();
     } catch (e) {}
   };
