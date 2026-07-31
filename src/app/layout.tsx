@@ -11,8 +11,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Ajans Panel — Prodüksiyon Yönetim Sistemi",
-    template: "%s | Ajans Panel",
+    default: "MOKA Takip — Prodüksiyon Yönetim Sistemi",
+    template: "%s | MOKA Takip",
   },
   description:
     "Prodüksiyon ve sosyal medya ajansları için çekim planlama, edit yönetimi, paylaşım takvimi ve ön muhasebe yönetim paneli.",
@@ -20,15 +20,20 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Ajans Panel",
+    title: "MOKA Takip",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/apple-icon.png",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a14",
+  themeColor: "#0c0c14",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -38,8 +43,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="tr" className={`${inter.variable} h-full`}>
-      <body className="min-h-full bg-background text-foreground antialiased">
+    <html lang="tr" className={`${inter.variable} h-full dark`}>
+      <body className="min-h-full bg-background text-foreground antialiased selection:bg-primary/30 selection:text-primary">
         <DataProvider>
           <TooltipProvider>{children}</TooltipProvider>
         </DataProvider>
@@ -47,4 +52,3 @@ export default function RootLayout({
     </html>
   );
 }
-

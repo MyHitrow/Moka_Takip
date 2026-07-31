@@ -85,11 +85,10 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <div className="mt-6 pt-6 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-        <span className="flex items-center gap-1 text-emerald-400">
-          <ShieldCheck className="w-3.5 h-3.5" /> Süper Admin Hesabı
+      <div className="mt-6 pt-6 border-t border-border flex items-center justify-center text-xs text-muted-foreground">
+        <span className="flex items-center gap-1 text-emerald-400/70">
+          <ShieldCheck className="w-3.5 h-3.5" /> Güvenli Giriş
         </span>
-        <span className="font-mono">kadorizator</span>
       </div>
     </Card>
   );

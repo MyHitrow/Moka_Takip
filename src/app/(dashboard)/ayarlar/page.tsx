@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Settings, ShieldCheck, Plus, Trash2, Edit, AlertTriangle, Sparkles, Scale, Megaphone, Flame } from 'lucide-react';
+import { Settings, ShieldCheck, Plus, Trash2, Edit, AlertTriangle, Sparkles, Scale, Megaphone, Flame, User } from 'lucide-react';
 import { useData, SystemUser, formatRoleLabel } from '@/context/data-context';
 
 export default function AyarlarPage() {
@@ -124,198 +124,239 @@ export default function AyarlarPage() {
   };
 
   return (
-    <div>
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
       <Header title="Ayarlar" />
-      <div className="px-4 lg:px-8 pb-8">
-        <PageHeader
-          title="Ayarlar & Özel Rol Yönetimi"
-          subtitle="Kullanıcı oluşturma, rol değiştirme ve yetki kontrolü"
-          icon={Settings}
-        />
+      <PageHeader
+        title="Ayarlar & Özel Rol Yönetimi"
+        subtitle="Kullanıcı oluşturma, rol değiştirme ve yetki kontrolü"
+        icon={Settings}
+      />
 
-        <div className="mt-6 space-y-6">
-          {/* Active Profile Info */}
-          <Card className="p-6 bg-card border-border">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xl font-bold border border-primary/30">
-                  {currentUser.name.charAt(0)}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold">{currentUser.name}</h3>
-                    {getRoleBadge(currentUser.role)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Kullanıcı Adı: <span className="text-foreground font-mono font-bold">@{currentUser.username}</span>
-                  </p>
-                </div>
+      <div className="space-y-6">
+        {/* Active Profile Info */}
+        <Card className="p-5 md:p-6 bg-card border-border">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary/20 text-primary flex items-center justify-center text-lg md:text-xl font-bold border border-primary/30 shrink-0">
+                {currentUser.name.charAt(0)}
               </div>
-
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={logout} className="text-xs font-semibold">
-                  Oturumu Kapat
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          {/* User Management Section */}
-          <Card className="p-6 bg-card border-border">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-              <div>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-bold">Sistem Kullanıcıları & Özel Roller</h3>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base md:text-lg font-bold text-foreground truncate">{currentUser.name}</h3>
+                  {getRoleBadge(currentUser.role)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Creative Director, Avukat, Ads Uzmanı ve Herbokolog rolleri arasında geçiş yapabilirsiniz. Değişiklikler Ekip sayfasıyla anında eşzamanlanır.
+                  Kullanıcı Adı: <span className="text-foreground font-mono font-bold">@{currentUser.username}</span>
                 </p>
               </div>
+            </div>
 
-              {isSuperAdmin && (
-                <Dialog open={openUserModal} onOpenChange={setOpenUserModal}>
-                  <DialogTrigger
-                    render={
-                      <Button className="bg-primary hover:bg-primary/90 text-white font-bold">
-                        <Plus className="w-4 h-4 mr-2" /> Yeni Kullanıcı Ekle
-                      </Button>
-                    }
-                  />
-                  <DialogContent className="sm:max-w-[450px] bg-card border-border">
-                    <DialogHeader>
-                      <DialogTitle>Yeni Sistem Kullanıcısı Ekle</DialogTitle>
-                    </DialogHeader>
-                    {errorMsg && (
-                      <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        <span>{errorMsg}</span>
-                      </div>
-                    )}
-                    <form onSubmit={handleAddUser} className="space-y-4 pt-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="newUsername">Kullanıcı Adı</Label>
-                        <Input
-                          id="newUsername"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          placeholder="Örn: ahmet_kurgu"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newPass">Giriş Şifresi</Label>
-                        <Input
-                          id="newPass"
-                          type="text"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="Örn: 123456"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newName">Ad Soyad</Label>
-                        <Input
-                          id="newName"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Örn: Ahmet Kurgucu"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newRole">Kullanıcı Rolü</Label>
-                        <select
-                          id="newRole"
-                          value={role}
-                          onChange={(e) => setRole(e.target.value as any)}
-                          className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
+            <Button variant="outline" size="sm" onClick={logout} className="text-xs font-semibold w-full sm:w-auto">
+              Oturumu Kapat
+            </Button>
+          </div>
+        </Card>
+
+        {/* User Management Section */}
+        <Card className="p-4 md:p-6 bg-card border-border">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-primary" />
+                <h3 className="text-base md:text-lg font-bold text-foreground">Sistem Kullanıcıları & Özel Roller</h3>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Creative Director, Avukat, Ads Uzmanı ve Herbokolog rolleri arasında geçiş yapabilirsiniz.
+              </p>
+            </div>
+
+            {isSuperAdmin && (
+              <Dialog open={openUserModal} onOpenChange={setOpenUserModal}>
+                <DialogTrigger
+                  render={
+                    <Button className="bg-primary hover:bg-primary/90 text-white font-bold w-full sm:w-auto">
+                      <Plus className="w-4 h-4 mr-2" /> Yeni Kullanıcı Ekle
+                    </Button>
+                  }
+                />
+                <DialogContent className="sm:max-w-[450px] bg-card border-border max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Yeni Sistem Kullanıcısı Ekle</DialogTitle>
+                  </DialogHeader>
+                  {errorMsg && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+                  <form onSubmit={handleAddUser} className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="newUsername">Kullanıcı Adı</Label>
+                      <Input
+                        id="newUsername"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="Örn: ahmet_kurgu"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newPass">Giriş Şifresi</Label>
+                      <Input
+                        id="newPass"
+                        type="text"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Örn: 123456"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newName">Ad Soyad</Label>
+                      <Input
+                        id="newName"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Örn: Ahmet Kurgucu"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newRole">Kullanıcı Rolü</Label>
+                      <select
+                        id="newRole"
+                        value={role}
+                        onChange={(e) => setRole(e.target.value as any)}
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm font-semibold text-foreground"
+                      >
+                        <option value="creative_director">✨ Creative Director</option>
+                        <option value="avukat">⚖️ Avukat</option>
+                        <option value="ads_specialist">📢 Ads Uzmanı</option>
+                        <option value="herbokolog">🔥 Herbokolog</option>
+                        <option value="super_admin">👑 Süper Admin</option>
+                        <option value="admin">🏢 Admin (Yönetici)</option>
+                      </select>
+                    </div>
+
+                    <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold">
+                      Kullanıcıyı Kaydet
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+
+          {/* Mobile Card List (md:hidden) */}
+          <div className="block md:hidden space-y-3">
+            {systemUsers.map((user) => {
+              const isSelf = user.username === currentUser.username;
+              const isProtected = user.username === 'kadorizator';
+
+              return (
+                <div
+                  key={user.id}
+                  className="p-4 rounded-xl border border-border bg-card/50 flex flex-col gap-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-primary" />
+                      <span className="font-bold text-sm text-foreground">{user.name}</span>
+                    </div>
+                    {getRoleBadge(user.role)}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
+                    <span>@{user.username}</span>
+                    <span className="font-mono">••••••••</span>
+                  </div>
+
+                  {isSuperAdmin && (
+                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/40">
+                      <button
+                        onClick={() => handleStartEdit(user)}
+                        className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                      >
+                        <Edit className="w-3.5 h-3.5" /> Düzenle
+                      </button>
+                      {!isProtected && !isSelf && (
+                        <button
+                          onClick={() => deleteSystemUser(user.id)}
+                          className="text-xs font-semibold text-red-400 hover:underline flex items-center gap-1"
                         >
-                          <option value="creative_director">✨ Creative Director</option>
-                          <option value="avukat">⚖️ Avukat</option>
-                          <option value="ads_specialist">📢 Ads Uzmanı</option>
-                          <option value="herbokolog">🔥 Herbokolog</option>
-                          <option value="super_admin">👑 Süper Admin</option>
-                          <option value="admin">🏢 Admin (Yönetici)</option>
-                        </select>
-                      </div>
+                          <Trash2 className="w-3.5 h-3.5" /> Sil
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-                      <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 text-white font-bold">
-                        Kullanıcıyı Kaydet
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
+          {/* Desktop Table (hidden md:block) */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs uppercase bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 rounded-l">Kullanıcı Adı</th>
+                  <th className="px-4 py-3">Ad Soyad</th>
+                  <th className="px-4 py-3">Şifre</th>
+                  <th className="px-4 py-3">Özel Rolü</th>
+                  <th className="px-4 py-3 text-right rounded-r">İşlem</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {systemUsers.map((user) => {
+                  const isSelf = user.username === currentUser.username;
+                  const isProtected = user.username === 'kadorizator';
 
-            {/* Users Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs uppercase bg-muted/50 text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 rounded-l">Kullanıcı Adı</th>
-                    <th className="px-4 py-3">Ad Soyad</th>
-                    <th className="px-4 py-3">Şifre</th>
-                    <th className="px-4 py-3">Özel Rolü</th>
-                    <th className="px-4 py-3 text-right rounded-r">İşlem</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {systemUsers.map((user) => {
-                    const isSelf = user.username === currentUser.username;
-                    const isProtected = user.username === 'kadorizator';
-
-                    return (
-                      <tr key={user.id} className="bg-card hover:bg-muted/20 transition-colors">
-                        <td className="px-4 py-3.5 font-bold text-foreground flex items-center gap-1.5">
-                          <span>@{user.username}</span>
-                          {isProtected && (
-                            <Badge className="bg-purple-500/20 text-purple-300 text-[10px] py-0 px-1">Ana Süper Admin</Badge>
+                  return (
+                    <tr key={user.id} className="bg-card hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3.5 font-bold text-foreground flex items-center gap-1.5">
+                        <span>@{user.username}</span>
+                        {isProtected && (
+                          <Badge className="bg-purple-500/20 text-purple-300 text-[10px] py-0 px-1">Ana Süper Admin</Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 text-foreground font-medium">{user.name}</td>
+                      <td className="px-4 py-3.5 font-mono text-xs text-muted-foreground">
+                        {'••••••••'}
+                      </td>
+                      <td className="px-4 py-3.5">{getRoleBadge(user.role)}</td>
+                      <td className="px-4 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() => handleStartEdit(user)}
+                              className="text-muted-foreground hover:text-primary transition-colors p-1 flex items-center gap-1 text-xs font-semibold"
+                            >
+                              <Edit className="w-4 h-4" /> Düzenle
+                            </button>
                           )}
-                        </td>
-                        <td className="px-4 py-3.5 text-foreground font-medium">{user.name}</td>
-                        <td className="px-4 py-3.5 font-mono text-xs text-foreground font-semibold">
-                          {user.password || '******'}
-                        </td>
-                        <td className="px-4 py-3.5">{getRoleBadge(user.role)}</td>
-                        <td className="px-4 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {isSuperAdmin && (
-                              <button
-                                onClick={() => handleStartEdit(user)}
-                                className="text-muted-foreground hover:text-primary transition-colors p-1 flex items-center gap-1 text-xs font-semibold"
-                                title="Kullanıcı Bilgilerini & Rolünü Düzenle"
-                              >
-                                <Edit className="w-4 h-4" /> Düzenle
-                              </button>
-                            )}
 
-                            {isSuperAdmin && !isProtected && !isSelf && (
-                              <button
-                                onClick={() => deleteSystemUser(user.id)}
-                                className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                                title="Kullanıcıyı Sil"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </div>
+                          {isSuperAdmin && !isProtected && !isSelf && (
+                            <button
+                              onClick={() => deleteSystemUser(user.id)}
+                              className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
 
       {/* EDIT USER & ROLE MODAL */}
       <Dialog open={openEditModal} onOpenChange={setOpenEditModal}>
-        <DialogContent className="sm:max-w-[425px] bg-card border-border">
+        <DialogContent className="sm:max-w-[425px] bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Kullanıcı Bilgilerini & Rolünü Düzenle</DialogTitle>
           </DialogHeader>
@@ -355,7 +396,7 @@ export default function AyarlarPage() {
                 id="editRoleSelect"
                 value={editRole}
                 onChange={(e) => setEditRole(e.target.value as any)}
-                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
+                className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm font-semibold text-foreground"
               >
                 <option value="creative_director">✨ Creative Director</option>
                 <option value="avukat">⚖️ Avukat</option>

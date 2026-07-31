@@ -266,7 +266,7 @@ export default function CekimlerPage() {
               </div>
 
               {/* Day Pills Carousel */}
-              <div className="overflow-x-auto flex gap-2 py-1 no-scrollbar">
+              <div className="overflow-x-auto flex gap-2 py-2 snap-x snap-mandatory scrollbar-none max-w-full">
                 {Array.from({ length: totalDays }, (_, i) => i + 1).map((d) => {
                   const dStr = `${year}-${selectedMonthStr}-${String(d).padStart(2, '0')}`;
                   const isSelected = d === selectedDay;
