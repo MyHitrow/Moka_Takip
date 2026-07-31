@@ -480,18 +480,49 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const target = isletmeler.find((i) => i.id === id);
     const oldName = target?.name;
 
-    setIsletmeler((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updatedFields } : item))
-    );
-
     const numFee = updatedFields.fee !== undefined
       ? parseFloat(updatedFields.fee.replace(/[^0-9.]/g, '')) || 0
       : undefined;
 
     const newName = updatedFields.name || oldName;
 
+    // 1. Update Isletmeler local state
+    setIsletmeler((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updatedFields } : item))
+    );
+
+    // 2. Update Gelirler (Income Records) local state IMMEDIATELY!
+    if (oldName && newName) {
+      setGelirler((prev) =>
+        prev.map((g) => {
+          if (g.client === oldName || g.client === newName) {
+            return {
+              ...g,
+              client: newName,
+              description: g.description.includes('Aylık Paket')
+                ? `${newName} - Aylık Paket Ücreti (Ayın İlk Haftası)`
+                : g.description,
+              amount: numFee !== undefined && g.status !== 'paid' ? numFee : g.amount,
+            };
+          }
+          return g;
+        })
+      );
+
+      // Sync local state for Cekimler, Editler, TakvimPosts too!
+      setCekimler((prev) =>
+        prev.map((c) => (c.client === oldName ? { ...c, client: newName } : c))
+      );
+      setEditler((prev) =>
+        prev.map((e) => (e.client === oldName ? { ...e, client: newName } : e))
+      );
+      setTakvimPosts((prev) =>
+        prev.map((t) => (t.client === oldName ? { ...t, client: newName } : t))
+      );
+    }
+
     try {
-      // 1. Update clients table
+      // 3. Update Supabase clients table
       if (isUUID(id)) {
         const updateData: any = {};
         if (updatedFields.name !== undefined) updateData.name = updatedFields.name;
@@ -514,9 +545,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         await supabase.from('clients').update(updateData).eq('name', target.name);
       }
 
-      // 2. REAL-TIME SYNC TO GELİRLER (INCOME RECORDS)!
+      // 4. REAL-TIME SYNC TO SUPABASE DB FOR ALL RELATED TABLES!
       if (oldName && newName) {
-        // If client name changed, update all income records for this client
         if (oldName !== newName) {
           await supabase
             .from('income_records')
@@ -526,19 +556,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             })
             .eq('client_name', oldName);
 
-          // Sync shoots, edits, content_calendar client names too!
           await supabase.from('shoots').update({ client_name: newName }).eq('client_name', oldName);
           await supabase.from('edits').update({ client_name: newName }).eq('client_name', oldName);
           await supabase.from('content_calendar').update({ client_name: newName }).eq('client_name', oldName);
         }
 
-        // If monthly fee changed, update all pending income records for this client
+        // Update fee for ALL unpaid income records (both pending AND overdue!)
         if (numFee !== undefined && numFee >= 0) {
           await supabase
             .from('income_records')
             .update({ amount: numFee })
             .eq('client_name', newName)
-            .eq('collection_status', 'pending');
+            .neq('collection_status', 'paid');
         }
       }
 
@@ -683,7 +712,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         try {
           await supabase.from('income_records').insert({
             client_name: biz.name,
-            description: `${biz.name} - Aylık Paket Tahsilatı (Ayın İlk Haftası)`,
+            description: `${biz.name} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
             amount: numFee,
             due_date: dueDate,
             collection_status: 'pending',
