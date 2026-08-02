@@ -149,27 +149,70 @@ export async function parseExcelFile(file: File): Promise<ParsedExcelResult> {
       const strVal = String(val).trim();
       if (!strVal) return;
 
-      // Client name column
-      if (k.includes('işletme') || k.includes('isletme') || k.includes('müşteri') || k.includes('musteri') || k.includes('client') || k.includes('firma')) {
+      // 1. Location / Yer / Mekan / Adres (Check BEFORE title so 'Çekim Yeri' / 'Çekim Mekanı' matches location!)
+      if (
+        k.includes('konum') ||
+        k.includes('yer') ||
+        k.includes('location') ||
+        k.includes('mekan') ||
+        k.includes('mekân') ||
+        k.includes('adres') ||
+        k.includes('lokasyon') ||
+        k.includes('nerede') ||
+        k.includes('stüdyo') ||
+        k.includes('studyo')
+      ) {
+        locationVal = strVal;
+      }
+      // 2. Client name / İşletme / Müşteri / Firma / Marka
+      else if (
+        k.includes('işletme') ||
+        k.includes('isletme') ||
+        k.includes('müşteri') ||
+        k.includes('musteri') ||
+        k.includes('client') ||
+        k.includes('firma') ||
+        k.includes('marka')
+      ) {
         clientName = strVal;
       }
-      // Title column
-      else if (k.includes('başlık') || k.includes('baslik') || k.includes('çekim') || k.includes('cekim') || k.includes('konu') || k.includes('title') || k.includes('içerik')) {
-        title = strVal;
+      // 3. Platform / Kanal
+      else if (
+        k.includes('platform') ||
+        k.includes('kanal') ||
+        k.includes('sosyal medya')
+      ) {
+        platformVal = strVal;
       }
-      // Date column
-      else if (k.includes('tarih') || k.includes('date') || k.includes('gün')) {
+      // 4. Date / Tarih
+      else if (
+        k.includes('tarih') ||
+        k.includes('date') ||
+        k.includes('gün')
+      ) {
         dateVal = strVal;
       }
-      // Time column
-      else if (k.includes('saat') || k.includes('time')) {
+      // 5. Time / Saat
+      else if (
+        k.includes('saat') ||
+        k.includes('time')
+      ) {
         timeVal = strVal;
       }
-      // Location / Platform
-      else if (k.includes('konum') || k.includes('yer') || k.includes('location')) {
-        locationVal = strVal;
-      } else if (k.includes('platform') || k.includes('kanal')) {
-        platformVal = strVal;
+      // 6. Title / Başlık / Konu / İçerik
+      else if (
+        k.includes('başlık') ||
+        k.includes('baslik') ||
+        k.includes('çekim') ||
+        k.includes('cekim') ||
+        k.includes('konu') ||
+        k.includes('title') ||
+        k.includes('içerik') ||
+        k.includes('icerik') ||
+        k.includes('açıklama') ||
+        k.includes('aciklama')
+      ) {
+        title = strVal;
       }
     });
 
