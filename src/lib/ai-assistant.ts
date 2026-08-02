@@ -195,14 +195,50 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
 export function processLocalAIChat(userQuery: string, data: DataContextPayload): string {
   const query = userQuery.trim().toLowerCase();
 
-  // 1. İşletme sayısı sorgusu
-  if (query.includes('kaç işletme') || query.includes('kaç müşteri') || query.includes('işletme sayısı') || query.includes('kaç tane müşterimiz var')) {
+  // 1. Selamlaşma / Hatır sorma
+  if (
+    query === 'selam' ||
+    query === 'merhaba' ||
+    query.startsWith('selam') ||
+    query.startsWith('merhaba') ||
+    query.includes('nasılsın') ||
+    query.includes('naber')
+  ) {
     const activeCount = data.isletmeler.filter((i) => i.active).length;
-    const names = data.isletmeler.map((i) => `• <b>${i.name}</b> (${i.fee})`).join('\n');
-    return `Ajansımızda toplam <b>${data.isletmeler.length}</b> adet kayıtlı işletme bulunuyor (${activeCount} aktif sözleşmeli):\n\n${names}\n\nHangi işletme hakkında detaylı bilgi almak istersiniz?`;
+    return `Selamlar! Ben MOKA CREATIVE AGENCY canlı veritabanı hafızasına sahip AI Asistanınızım. 🤖\n\nŞu an sistemde <b>${data.isletmeler.length} işletmeniz</b> (${activeCount} aktif), planlı çekimleriniz ve kurgularınız güncel olarak zihnimdedir.\n\nBana <i>"İşletmelerimizi listele"</i>, <i>"Editör yükü nasıl?"</i> veya <i>"Yarın 10'a X çekimi yaz"</i> diyebilirsiniz!`;
   }
 
-  // 2. Özel notlar & Kritik durumlar
+  // 2. İşletme / Müşteri Listesi Sorgusu (Örn: "işletmeleri listeler misin", "müşterilerimizi göster", "kaç işletmem var")
+  const isBusinessListIntent =
+    query.includes('işletme') ||
+    query.includes('isletme') ||
+    query.includes('müşteri') ||
+    query.includes('musteri') ||
+    query.includes('listele') ||
+    query.includes('listelr') ||
+    query.includes('liste') ||
+    query.includes('hangileri') ||
+    query.includes('kimler');
+
+  if (isBusinessListIntent && !query.includes('not') && !query.includes('taviz') && !query.includes('kritik')) {
+    const activeClients = data.isletmeler.filter((i) => i.active);
+    if (data.isletmeler.length === 0) {
+      return `Henüz veritabanında kayıtlı bir işletmeniz bulunmuyor. <b>İşletmeler</b> sayfasından yeni müşteri ekleyebilirsiniz.`;
+    }
+
+    let res = `🏢 <b>MOKA CREATIVE AGENCY Kayıtlı İşletme Listesi (${data.isletmeler.length} İşletme / ${activeClients.length} Aktif):</b>\n\n`;
+    data.isletmeler.forEach((b, idx) => {
+      const noteStr = b.notes ? ` 🧠 <i>"${b.notes}"</i>` : '';
+      res += `${idx + 1}. <b>${b.name}</b> — Paket: ${b.fee} (${b.active ? '🟢 Aktif' : '🔴 Pasif'})\n`;
+      res += `   - Yetkili: ${b.contact} (${b.phone}) | IG: ${b.instagram}\n`;
+      res += `   - Hedefler: ${b.monthlyReelsTarget || 10} Reels/ay, ${b.monthlyShootTarget || 2} Çekim/ay${noteStr}\n\n`;
+    });
+
+    res += `Hangi işletmenin çekimleri veya editleri hakkında detaylı bilgi almak istersiniz?`;
+    return res;
+  }
+
+  // 3. Özel notlar & Kritik durumlar
   if (query.includes('not') || query.includes('taviz') || query.includes('esnek') || query.includes('kritik') || query.includes('zor') || query.includes('özellik')) {
     const clientsWithNotes = data.isletmeler.filter((i) => i.notes && i.notes.trim().length > 0);
     if (clientsWithNotes.length === 0) {
@@ -215,8 +251,8 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 3. Editör / Ekip İş yükü sorgusu
-  if (query.includes('editör') || query.includes('kurgu') || query.includes('iş yükü') || query.includes('ekip')) {
+  // 4. Editör / Ekip İş yükü sorgusu
+  if (query.includes('editör') || query.includes('kurgu') || query.includes('iş yükü') || query.includes('ekip') || query.includes('edit')) {
     const pendingEdits = data.editler.filter((e) => e.status !== 'ready' && e.status !== 'published');
     const workload: Record<string, number> = {};
     pendingEdits.forEach((e) => {
@@ -234,8 +270,8 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 4. Çekimler sorgusu
-  if (query.includes('çekim') || query.includes('günlük çekim') || query.includes('bugün') || query.includes('hafta')) {
+  // 5. Çekimler sorgusu
+  if (query.includes('çekim') || query.includes('cekim') || query.includes('günlük çekim') || query.includes('bugün') || query.includes('hafta')) {
     const todayStr = new Date().toISOString().split('T')[0];
     const todayShoots = data.cekimler.filter((s) => s.date === todayStr);
 
@@ -256,7 +292,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 5. Belirli bir işletme adı aranıyorsa
+  // 6. Belirli bir işletme adı aranıyorsa
   const matchedClient = data.isletmeler.find((i) => query.includes(i.name.toLowerCase()));
   if (matchedClient) {
     const clientEdits = data.editler.filter((e) => isClientMatch(e.client, matchedClient.name));
@@ -275,7 +311,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 6. Finans sorgusu
+  // 7. Finans sorgusu
   if (query.includes('gelir') || query.includes('gider') || query.includes('para') || query.includes('bütçe') || query.includes('finans')) {
     const totalRevenue = data.gelirler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
     const totalExpenses = data.giderler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
