@@ -94,8 +94,24 @@ export default function AiDirektorPage() {
     setIsSending(true);
 
     try {
+      const canSeeFinance = currentUser.role === 'super_admin' || currentUser.permissions?.canManageFinance;
+      const safeGelirler = canSeeFinance ? gelirler : [];
+      const safeGiderler = canSeeFinance ? giderler : [];
+      const safeIsletmeler = canSeeFinance
+        ? isletmeler
+        : isletmeler.map((biz) => ({ ...biz, fee: '🔒 [Yetkiniz Yok]' }));
+
       // 1. First parse local commands (e.g. create shoots, edits, notes)
-      const payloadData = { isletmeler, cekimler, editler, gelirler, giderler, takvimPosts, haftalikNotlar, ekip };
+      const payloadData = {
+        isletmeler: safeIsletmeler,
+        cekimler,
+        editler,
+        gelirler: safeGelirler,
+        giderler: safeGiderler,
+        takvimPosts,
+        haftalikNotlar,
+        ekip,
+      };
       const { actions, textReply } = parseAICommandsAndIntent(query, payloadData);
 
       if (actions.length > 0) {

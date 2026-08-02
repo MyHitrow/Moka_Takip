@@ -22,20 +22,30 @@ export interface AIExecutedAction {
  * Serializes current database state into a rich structured text context for LLMs
  */
 export function buildAgencySystemPrompt(data: DataContextPayload): string {
+  const isFinanceRestricted = data.isletmeler.some((i) => i.fee && (i.fee.includes('Gizli') || i.fee.includes('Yetkiniz')));
   const activeClients = data.isletmeler.filter((i) => i.active);
   const totalRevenue = data.gelirler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpenses = data.giderler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
   let prompt = `Sen MOKA CREATIVE AGENCY'nin Baş Stratejisti, Dijital Prodüksiyon Direktörü ve canlı veritabanı hafızasına tam erişimli Akıllı AI Ortağısın.\n`;
-  prompt += `Senin görevin: Ajans sahibine sadece veritabanı bilgilerini vermek değil; aynı zamanda onunla samimi, yüksek zekalı, stratejik ve tavsiye veren bir ajans ortağı gibi sohbet etmektir.\n\n`;
+  prompt += `Senin görevin: Ajans sahibine veya yetkili ajans çalışanına veritabanı bilgileri sunmak ve yardım etmektir.\n\n`;
+
+  if (isFinanceRestricted) {
+    prompt += `🔒 HASSAS FİNANSAL GİZLİLİK UYARISI: Bu kullanıcının finansal verilere, gelir/giderlere, cirolara ve paket ücretlerine erişim yetkisi KISITLANMIŞTIR.\n`;
+    prompt += `Kullanıcı sana gelir, gider, ciro, bütçe, kazanç, en çok kazandıran müşteriler veya paket ücretleri sorarsa KESİNLİKLE hiçbir finansal rakam üretme ve sadece "🔒 Finansal verileri görüntüleme ve sorgulama yetkiniz bulunmamaktadır. Lütfen Süper Admin ile iletişime geçin." yanıtını ver.\n\n`;
+  }
 
   prompt += `📊 ANLIK CANLI VERİTABANI ÖZETİ:\n`;
   prompt += `- Ajans İsmi: MOKA CREATIVE AGENCY\n`;
   prompt += `- Toplam Kayıtlı İşletme: ${data.isletmeler.length} (${activeClients.length} aktif sözleşmeli)\n`;
   prompt += `- Toplam Çekim Kaydı: ${data.cekimler.length}\n`;
   prompt += `- Toplam Kurgu/Edit Görevi: ${data.editler.length}\n`;
-  prompt += `- Toplam Gelir: ₺${totalRevenue.toLocaleString('tr-TR')}\n`;
-  prompt += `- Toplam Gider: ₺${totalExpenses.toLocaleString('tr-TR')}\n\n`;
+  if (!isFinanceRestricted) {
+    prompt += `- Toplam Gelir: ₺${totalRevenue.toLocaleString('tr-TR')}\n`;
+    prompt += `- Toplam Gider: ₺${totalExpenses.toLocaleString('tr-TR')}\n\n`;
+  } else {
+    prompt += `- Toplam Gelir/Gider: [GİZLİ / KISITLI ERİŞİM]\n\n`;
+  }
 
   prompt += `🏢 İŞLETMELER, ÜCRETLER VE KRİTİK HAFİZA NOTLARI:\n`;
   data.isletmeler.forEach((client, idx) => {
@@ -199,6 +209,22 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
  */
 export function processLocalAIChat(userQuery: string, data: DataContextPayload): string {
   const query = userQuery.trim().toLowerCase();
+  const isFinanceRestricted = data.isletmeler.some((i) => i.fee && (i.fee.includes('Gizli') || i.fee.includes('Yetkiniz')));
+  const isFinanceQuery =
+    query.includes('gelir') ||
+    query.includes('gider') ||
+    query.includes('para') ||
+    query.includes('bütçe') ||
+    query.includes('finans') ||
+    query.includes('ciro') ||
+    query.includes('kazanç') ||
+    query.includes('kazandıran') ||
+    query.includes('düşük getiri') ||
+    query.includes('paket ücreti');
+
+  if (isFinanceRestricted && isFinanceQuery) {
+    return `🔒 <b>Erişim Engellendi:</b> Finansal verileri görüntüleme ve AI ile sorgulama yetkiniz bulunmamaktadır. Lütfen Süper Admin ile iletişime geçin.`;
+  }
 
   // 1. Selamlaşma / Hatır sorma
   if (
