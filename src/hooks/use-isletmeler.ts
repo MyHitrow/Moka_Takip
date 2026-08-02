@@ -124,12 +124,21 @@ export function createIsletmelerActions({
         monthlyShootTarget: mergedShootTarget,
       })}`;
 
+      const mergedContact = (updatedFields.contact !== undefined ? updatedFields.contact : (target?.contact || '-')).split('__AI_META__:')[0].trim();
+
+      const packedMetaString = `__AI_META__:${JSON.stringify({
+        maxDaysBetweenPosts: mergedMaxDays,
+        monthlyReelsTarget: mergedReelsTarget,
+        monthlyShootTarget: mergedShootTarget,
+        notes: cleanNotes,
+      })}`;
+
       const updateData: Record<string, unknown> = {
+        contact_name: `${mergedContact} ${packedMetaString}`,
         notes: packedNotes,
       };
 
       if (updatedFields.name !== undefined) updateData.name = newName;
-      if (updatedFields.contact !== undefined) updateData.contact_name = updatedFields.contact;
       if (updatedFields.phone !== undefined) updateData.phone = updatedFields.phone;
       if (updatedFields.instagram !== undefined) updateData.instagram = updatedFields.instagram;
       if (numFee !== undefined) updateData.monthly_fee = numFee;
@@ -140,10 +149,30 @@ export function createIsletmelerActions({
 
       if (isUUID(id)) {
         const { error } = await supabase.from('clients').update(updateData).eq('id', id);
-        if (error) console.error('İşletme güncelleme hatası:', error.message);
+        if (error) {
+          console.warn('Tam güncelleme uyarısı, sadece contact_name deneniyor:', error.message);
+          // Kolon yoksa sadece contact_name ile kaydet
+          await supabase.from('clients').update({
+            name: newName,
+            contact_name: `${mergedContact} ${packedMetaString}`,
+            phone: updatedFields.phone || target?.phone,
+            instagram: updatedFields.instagram || target?.instagram,
+            monthly_fee: numFee !== undefined ? numFee : target?.fee,
+            is_active: updatedFields.active !== undefined ? updatedFields.active : target?.active,
+          }).eq('id', id);
+        }
       } else if (target) {
         const { error } = await supabase.from('clients').update(updateData).eq('name', target.name);
-        if (error) console.error('İşletme güncelleme hatası (name):', error.message);
+        if (error) {
+          await supabase.from('clients').update({
+            name: newName,
+            contact_name: `${mergedContact} ${packedMetaString}`,
+            phone: updatedFields.phone || target.phone,
+            instagram: updatedFields.instagram || target.instagram,
+            monthly_fee: numFee !== undefined ? numFee : target.fee,
+            is_active: updatedFields.active !== undefined ? updatedFields.active : target.active,
+          }).eq('name', target.name);
+        }
       }
 
       // Gelir kayıtlarını da güncelle

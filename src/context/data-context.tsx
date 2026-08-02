@@ -198,6 +198,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (clientsData) {
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
         currentClientsList = realClients.map((c) => {
+          let rawContact = c.contact_name || '-';
+          let cleanContact = rawContact;
           let notesStr = c.notes || c.ai_notes || '';
           let maxDays = c.max_days_between_posts !== null && c.max_days_between_posts !== undefined && c.max_days_between_posts !== 0
             ? Number(c.max_days_between_posts)
@@ -209,7 +211,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             ? Number(c.monthly_shoot_target)
             : 2;
 
-          // AI Meta paketi varsa ayrıştır
+          // 1. contact_name içerisindeki AI META paketini ayrıştır (Garanti Katmanı)
+          if (rawContact.includes('__AI_META__:')) {
+            try {
+              const parts = rawContact.split('__AI_META__:');
+              cleanContact = parts[0].trim();
+              const meta = JSON.parse(parts[1]);
+              if (meta.maxDaysBetweenPosts !== undefined && meta.maxDaysBetweenPosts !== null) maxDays = Number(meta.maxDaysBetweenPosts);
+              if (meta.monthlyReelsTarget !== undefined && meta.monthlyReelsTarget !== null) reelsTarget = Number(meta.monthlyReelsTarget);
+              if (meta.monthlyShootTarget !== undefined && meta.monthlyShootTarget !== null) shootTarget = Number(meta.monthlyShootTarget);
+              if (meta.notes !== undefined && meta.notes !== null) notesStr = meta.notes;
+            } catch (e) {}
+          }
+
+          // 2. notes içerisindeki AI META paketini ayrıştır
           if (notesStr && notesStr.includes('__AI_META__:')) {
             try {
               const parts = notesStr.split('__AI_META__:');
@@ -224,7 +239,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           return {
             id: c.id,
             name: c.name.trim(),
-            contact: c.contact_name || '-',
+            contact: cleanContact || '-',
             phone: c.phone || '-',
             instagram: c.instagram || '@-',
             fee: c.monthly_fee ? `${c.monthly_fee} ₺` : '0 ₺',
