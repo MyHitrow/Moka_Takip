@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BOTTOM_NAV_ITEMS } from '@/lib/constants';
+import { useData } from '@/context/data-context';
 
 interface BottomNavProps {
   onMenuOpen: () => void;
@@ -10,10 +11,17 @@ interface BottomNavProps {
 
 export function BottomNav({ onMenuOpen }: BottomNavProps) {
   const pathname = usePathname();
+  const { currentUser } = useData();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-[calc(3.75rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)] items-center justify-around bg-sidebar/95 backdrop-blur-2xl border-t border-border/80 md:hidden shadow-2xl">
-      {BOTTOM_NAV_ITEMS.map((item) => {
+      {BOTTOM_NAV_ITEMS.filter((item) => {
+        if (currentUser.role === 'super_admin') return true;
+        if ('permissionKey' in item && item.permissionKey) {
+          return !!currentUser.permissions?.[item.permissionKey as keyof typeof currentUser.permissions];
+        }
+        return true;
+      }).map((item) => {
         const isActive = pathname === item.href || (item.href !== '/' && item.href !== '#menu' && pathname.startsWith(`${item.href}`));
         const Icon = item.icon;
 

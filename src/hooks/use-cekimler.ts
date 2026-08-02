@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Cekim } from '@/types/app';
 import { isUUID } from '@/lib/helpers';
+import { logger } from '@/lib/logger';
 
 interface UseCekimlerProps {
   cekimler: Cekim[];
@@ -26,11 +27,11 @@ export function createCekimlerActions({
         status: item.status || 'planned',
       });
       if (error) {
-        console.error('Çekim ekleme hatası:', error.message);
+        logger.error('Çekim ekleme hatası:', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('addCekim beklenmeyen hata:', e);
+      logger.error('addCekim beklenmeyen hata:', e);
     }
   };
 
@@ -40,16 +41,31 @@ export function createCekimlerActions({
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('shoots').delete().eq('id', id);
-        if (error) console.error('Çekim silme hatası:', error.message);
+        if (error) logger.error('Çekim silme hatası:', error.message);
       } else if (target) {
         const { error } = await supabase.from('shoots').delete().eq('title', target.title);
-        if (error) console.error('Çekim silme hatası (title):', error.message);
+        if (error) logger.error('Çekim silme hatası (title):', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('deleteCekim beklenmeyen hata:', e);
+      logger.error('deleteCekim beklenmeyen hata:', e);
     }
   };
 
-  return { addCekim, deleteCekim };
+  const updateCekimStatus = async (id: string, status: string) => {
+    // Optimistik güncelleme — önce local state'i güncelle
+    setCekimler((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
+    try {
+      if (isUUID(id)) {
+        const { error } = await supabase.from('shoots').update({ status }).eq('id', id);
+        if (error) logger.error('Çekim durum güncelleme hatası:', error.message);
+      }
+      await fetchCloudData();
+    } catch (e) {
+      logger.error('updateCekimStatus beklenmeyen hata:', e);
+    }
+  };
+
+  return { addCekim, deleteCekim, updateCekimStatus };
 }
+

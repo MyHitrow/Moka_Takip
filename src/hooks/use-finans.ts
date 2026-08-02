@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Gelir, Gider, Isletme } from '@/types/app';
 import { isUUID, isClientMatch, safeExpenseCategory } from '@/lib/helpers';
+import { logger } from '@/lib/logger';
 
 interface UseFinansProps {
   gelirler: Gelir[];
@@ -32,11 +33,11 @@ export function createFinansActions({
         paid_amount: item.paidAmount || (item.status === 'paid' ? item.amount : 0),
       });
       if (error) {
-        console.error('Gelir ekleme hatası:', error.message);
+        logger.error('Gelir ekleme hatası:', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('addGelir beklenmeyen hata:', e);
+      logger.error('addGelir beklenmeyen hata:', e);
     }
   };
 
@@ -46,14 +47,14 @@ export function createFinansActions({
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('income_records').delete().eq('id', id);
-        if (error) console.error('Gelir silme hatası:', error.message);
+        if (error) logger.error('Gelir silme hatası:', error.message);
       } else if (target) {
         const { error } = await supabase.from('income_records').delete().eq('description', target.description);
-        if (error) console.error('Gelir silme hatası (description):', error.message);
+        if (error) logger.error('Gelir silme hatası (description):', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('deleteGelir beklenmeyen hata:', e);
+      logger.error('deleteGelir beklenmeyen hata:', e);
     }
   };
 
@@ -101,11 +102,11 @@ export function createFinansActions({
           updateObj.description = `${clientName} - Aylık Paket Ücreti (Kısmi Ödenen: ${customPaidAmount} ₺)`;
         }
         const { error } = await supabase.from('income_records').update(updateObj).eq('id', id);
-        if (error) console.error('Gelir durumu güncelleme hatası:', error.message);
+        if (error) logger.error('Gelir durumu güncelleme hatası:', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('updateGelirStatus beklenmeyen hata:', e);
+      logger.error('updateGelirStatus beklenmeyen hata:', e);
     }
   };
 
@@ -148,10 +149,10 @@ export function createFinansActions({
             due_date: dueDate,
             collection_status: 'pending',
           });
-          if (error) console.error('Aylık gelir oluşturma hatası:', error.message);
+          if (error) logger.error('Aylık gelir oluşturma hatası:', error.message);
           else count++;
         } catch (e) {
-          console.error('generateMonthlyIncomes döngü hatası:', e);
+          logger.error('generateMonthlyIncomes döngü hatası:', e);
         }
       }
     }
@@ -171,11 +172,11 @@ export function createFinansActions({
         paid_by_text: item.paidBy,
       });
       if (error) {
-        console.error('Gider ekleme hatası:', error.message);
+        logger.error('Gider ekleme hatası:', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('addGider beklenmeyen hata:', e);
+      logger.error('addGider beklenmeyen hata:', e);
     }
   };
 
@@ -185,14 +186,14 @@ export function createFinansActions({
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('expense_records').delete().eq('id', id);
-        if (error) console.error('Gider silme hatası:', error.message);
+        if (error) logger.error('Gider silme hatası:', error.message);
       } else if (target) {
         const { error } = await supabase.from('expense_records').delete().eq('title', target.title);
-        if (error) console.error('Gider silme hatası (title):', error.message);
+        if (error) logger.error('Gider silme hatası (title):', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('deleteGider beklenmeyen hata:', e);
+      logger.error('deleteGider beklenmeyen hata:', e);
     }
   };
 

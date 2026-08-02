@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { EditItem } from '@/types/app';
 import { isUUID, normalizeContentType } from '@/lib/helpers';
+import { logger } from '@/lib/logger';
 
 interface UseEditlerProps {
   editler: EditItem[];
@@ -27,11 +28,11 @@ export function createEditlerActions({
         status: item.status || 'waiting',
       });
       if (error) {
-        console.error('Edit ekleme hatası:', error.message);
+        logger.error('Edit ekleme hatası:', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('addEdit beklenmeyen hata:', e);
+      logger.error('addEdit beklenmeyen hata:', e);
     }
   };
 
@@ -41,14 +42,14 @@ export function createEditlerActions({
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('edits').delete().eq('id', id);
-        if (error) console.error('Edit silme hatası:', error.message);
+        if (error) logger.error('Edit silme hatası:', error.message);
       } else if (target) {
         const { error } = await supabase.from('edits').delete().eq('title', target.title);
-        if (error) console.error('Edit silme hatası (title):', error.message);
+        if (error) logger.error('Edit silme hatası (title):', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('deleteEdit beklenmeyen hata:', e);
+      logger.error('deleteEdit beklenmeyen hata:', e);
     }
   };
 
@@ -57,11 +58,11 @@ export function createEditlerActions({
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('edits').update({ status }).eq('id', id);
-        if (error) console.error('Edit status güncelleme hatası:', error.message);
+        if (error) logger.error('Edit status güncelleme hatası:', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('updateEditStatus beklenmeyen hata:', e);
+      logger.error('updateEditStatus beklenmeyen hata:', e);
     }
   };
 

@@ -75,10 +75,12 @@ export interface EkipUyesi {
 }
 
 export interface UserPermissions {
-  canManageFinance: boolean;
+  canManageClients: boolean;
   canManageShoots: boolean;
   canManageEdits: boolean;
   canManageTakvim: boolean;
+  canManageFinance: boolean;
+  canManageReports: boolean;
   canManageTeam: boolean;
   canManageUsers: boolean;
 }

@@ -61,10 +61,12 @@ export function createEkipActions({
       name: item.name,
       role: normalizedRole,
       permissions: {
-        canManageFinance: true,
+        canManageClients: true,
         canManageShoots: true,
         canManageEdits: true,
         canManageTakvim: true,
+        canManageFinance: normalizedRole !== 'editor' && normalizedRole !== 'member',
+        canManageReports: normalizedRole !== 'editor' && normalizedRole !== 'member',
         canManageTeam: true,
         canManageUsers: normalizedRole === 'super_admin',
       },

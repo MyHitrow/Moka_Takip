@@ -13,7 +13,17 @@ import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2, Clock, CheckCirc
 import { useData } from '@/context/data-context';
 import { parseExcelFile, ParsedExcelResult, downloadSampleExcelTemplate } from '@/lib/excel-importer';
 
+import { PermissionGuard } from '@/components/shared/permission-guard';
+
 export default function PaylasimTakvimiPage() {
+  return (
+    <PermissionGuard requiredPermission="canManageTakvim">
+      <PaylasimTakvimiPageContent />
+    </PermissionGuard>
+  );
+}
+
+function PaylasimTakvimiPageContent() {
   const { takvimPosts, isletmeler, addTakvimPost, deleteTakvimPost, updateTakvimPostStatus, formatDateTr } = useData();
 
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // Default Aug 2026

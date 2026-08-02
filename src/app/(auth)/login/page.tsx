@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -27,7 +27,7 @@ export default function LoginPage() {
       return;
     }
 
-    const success = login(username.trim(), password);
+    const success = await login(username.trim(), password);
     if (success) {
       router.push('/');
     } else {

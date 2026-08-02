@@ -49,7 +49,13 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 overflow-y-auto">
-        {SIDEBAR_ITEMS.map((item) => {
+        {SIDEBAR_ITEMS.filter((item) => {
+          if (currentUser.role === 'super_admin') return true;
+          if ('permissionKey' in item && item.permissionKey) {
+            return !!currentUser.permissions?.[item.permissionKey as keyof typeof currentUser.permissions];
+          }
+          return true;
+        }).map((item) => {
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}`));
           const Icon = item.icon;
           return (

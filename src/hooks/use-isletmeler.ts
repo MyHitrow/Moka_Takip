@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Isletme, Gelir, Cekim, EditItem, TakvimPost } from '@/types/app';
 import { isUUID, isClientMatch } from '@/lib/helpers';
+import { logger } from '@/lib/logger';
 
 interface UseIsletmelerProps {
   isletmeler: Isletme[];
@@ -51,7 +52,7 @@ export function createIsletmelerActions({
       }).select().single();
 
       if (error) {
-        console.error('İşletme ekleme hatası:', error.message);
+        logger.error('İşletme ekleme hatası:', error.message);
       }
 
       if (numFee > 0 && item.active) {
@@ -64,11 +65,11 @@ export function createIsletmelerActions({
           due_date: firstWeekDate,
           collection_status: 'pending',
         });
-        if (incErr) console.error('Aylık paket gelir kaydı hatası:', incErr.message);
+        if (incErr) logger.error('Aylık paket gelir kaydı hatası:', incErr.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('addIsletme beklenmeyen hata:', e);
+      logger.error('addIsletme beklenmeyen hata:', e);
     }
   };
 
@@ -150,7 +151,7 @@ export function createIsletmelerActions({
       if (isUUID(id)) {
         const { error } = await supabase.from('clients').update(updateData).eq('id', id);
         if (error) {
-          console.warn('Tam güncelleme uyarısı, sadece contact_name deneniyor:', error.message);
+          logger.warn('Tam güncelleme uyardısı, sadece contact_name deneniyor:', error.message);
           // Kolon yoksa sadece contact_name ile kaydet
           await supabase.from('clients').update({
             name: newName,
@@ -193,7 +194,7 @@ export function createIsletmelerActions({
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('updateIsletme beklenmeyen hata:', e);
+      logger.error('updateIsletme beklenmeyen hata:', e);
     }
   };
 
@@ -212,10 +213,10 @@ export function createIsletmelerActions({
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('clients').delete().eq('id', id);
-        if (error) console.error('İşletme silme hatası:', error.message);
+        if (error) logger.error('İşletme silme hatası:', error.message);
       } else if (target) {
         const { error } = await supabase.from('clients').delete().eq('name', target.name);
-        if (error) console.error('İşletme silme hatası (name):', error.message);
+        if (error) logger.error('İşletme silme hatası (name):', error.message);
       }
 
       if (targetName) {
@@ -232,7 +233,7 @@ export function createIsletmelerActions({
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('deleteIsletme beklenmeyen hata:', e);
+      logger.error('deleteIsletme beklenmeyen hata:', e);
     }
   };
 

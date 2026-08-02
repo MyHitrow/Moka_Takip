@@ -27,7 +27,17 @@ const MONTHS_TR = [
   { key: '12', name: 'Aralık' },
 ];
 
+import { PermissionGuard } from '@/components/shared/permission-guard';
+
 export default function GelirlerPage() {
+  return (
+    <PermissionGuard requiredPermission="canManageFinance">
+      <GelirlerPageContent />
+    </PermissionGuard>
+  );
+}
+
+function GelirlerPageContent() {
   const { gelirler, isletmeler, addGelir, deleteGelir, updateGelirStatus, generateMonthlyIncomes, formatDateTr } = useData();
 
   const now = new Date();

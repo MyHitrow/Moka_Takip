@@ -12,7 +12,17 @@ import { Badge } from '@/components/ui/badge';
 import { Building2, Phone, AtSign, CheckCircle2, Trash2, Plus, Edit, Bot, Sparkles } from 'lucide-react';
 import { useData, Isletme } from '@/context/data-context';
 
+import { PermissionGuard } from '@/components/shared/permission-guard';
+
 export default function IsletmelerPage() {
+  return (
+    <PermissionGuard requiredPermission="canManageClients">
+      <IsletmelerPageContent />
+    </PermissionGuard>
+  );
+}
+
+function IsletmelerPageContent() {
   const { isletmeler, addIsletme, updateIsletme, deleteIsletme } = useData();
 
   // Create Business Modal State

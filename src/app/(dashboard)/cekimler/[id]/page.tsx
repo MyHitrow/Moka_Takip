@@ -13,7 +13,7 @@ import { SHOOT_STATUS_LABELS, SHOOT_STATUS_COLORS } from '@/lib/constants';
 
 export default function CekimDetayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { cekimler, editler, ekip, formatDateTr } = useData();
+  const { cekimler, editler, ekip, formatDateTr, updateCekimStatus } = useData();
 
   const shoot = cekimler.find((c) => c.id === id) || cekimler[0];
 
@@ -50,14 +50,18 @@ export default function CekimDetayPage({ params }: { params: Promise<{ id: strin
           subtitle={`Müşteri: ${shoot.client}`}
           icon={Camera}
           action={
-            <Badge
-              variant="outline"
-              className={`text-sm px-3 py-1 ${
-                SHOOT_STATUS_COLORS?.[shoot.status as keyof typeof SHOOT_STATUS_COLORS] || ''
-              }`}
+            <select
+              value={shoot.status}
+              onChange={(e) => updateCekimStatus(shoot.id, e.target.value)}
+              className="text-xs bg-card border border-input rounded-lg px-3 py-1.5 font-bold text-foreground cursor-pointer shadow-xs outline-none"
             >
-              {SHOOT_STATUS_LABELS?.[shoot.status as keyof typeof SHOOT_STATUS_LABELS] || shoot.status}
-            </Badge>
+              <option value="planned">Planlandı</option>
+              <option value="ready">Çekime Hazır</option>
+              <option value="shot">Çekildi</option>
+              <option value="files_transferred">Dosyalar Aktarıldı</option>
+              <option value="completed">Tamamlandı</option>
+              <option value="cancelled">İptal Edildi</option>
+            </select>
           }
         />
 

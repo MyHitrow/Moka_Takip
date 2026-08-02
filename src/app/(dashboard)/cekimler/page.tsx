@@ -29,8 +29,18 @@ import { SHOOT_STATUS_LABELS, SHOOT_STATUS_COLORS } from '@/lib/constants';
 import { useData } from '@/context/data-context';
 import { parseExcelFile, ParsedExcelResult, downloadSampleExcelTemplate } from '@/lib/excel-importer';
 
+import { PermissionGuard } from '@/components/shared/permission-guard';
+
 export default function CekimlerPage() {
-  const { cekimler, isletmeler, addCekim, deleteCekim, formatDateTr } = useData();
+  return (
+    <PermissionGuard requiredPermission="canManageShoots">
+      <CekimlerPageContent />
+    </PermissionGuard>
+  );
+}
+
+function CekimlerPageContent() {
+  const { cekimler, isletmeler, addCekim, deleteCekim, updateCekimStatus, formatDateTr } = useData();
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // Default Aug 2026
   const [selectedDay, setSelectedDay] = useState<number>(5);
@@ -88,7 +98,7 @@ export default function CekimlerPage() {
 
   const monthNames = [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-    'Temmuz', 'Ağustos', 'Eylü', 'Ekim', 'Kasım', 'Aralık'
+    'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
   ];
 
   const weekDays = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
@@ -511,6 +521,21 @@ export default function CekimlerPage() {
                             <MapPin className="w-3.5 h-3.5 mr-1 text-muted-foreground" /> {shoot.location}
                           </span>
                         </div>
+                        <div className="pt-2 border-t border-border flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Durum:</span>
+                          <select
+                            value={shoot.status}
+                            onChange={(e) => updateCekimStatus(shoot.id, e.target.value)}
+                            className="text-xs bg-background border border-input rounded-lg px-2 py-1 font-semibold text-foreground outline-none cursor-pointer"
+                          >
+                            <option value="planned">Planlandı</option>
+                            <option value="ready">Çekime Hazır</option>
+                            <option value="shot">Çekildi</option>
+                            <option value="files_transferred">Dosyalar Aktarıldı</option>
+                            <option value="completed">Tamamlandı</option>
+                            <option value="cancelled">İptal Edildi</option>
+                          </select>
+                        </div>
                       </Card>
                     ))}
                   </div>
@@ -670,12 +695,18 @@ export default function CekimlerPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <Badge
-                          variant="outline"
-                          className={SHOOT_STATUS_COLORS?.[shoot.status as keyof typeof SHOOT_STATUS_COLORS] || ''}
+                        <select
+                          value={shoot.status}
+                          onChange={(e) => updateCekimStatus(shoot.id, e.target.value)}
+                          className="text-xs bg-background border border-input rounded-md px-2.5 py-1 text-foreground cursor-pointer font-semibold outline-none"
                         >
-                          {SHOOT_STATUS_LABELS?.[shoot.status as keyof typeof SHOOT_STATUS_LABELS] || shoot.status}
-                        </Badge>
+                          <option value="planned">Planlandı</option>
+                          <option value="ready">Çekime Hazır</option>
+                          <option value="shot">Çekildi</option>
+                          <option value="files_transferred">Dosyalar Aktarıldı</option>
+                          <option value="completed">Tamamlandı</option>
+                          <option value="cancelled">İptal Edildi</option>
+                        </select>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
@@ -707,21 +738,13 @@ export default function CekimlerPage() {
                       <span className="text-xs font-bold text-primary block">{shoot.client}</span>
                       <h4 className="font-extrabold text-base text-foreground">{shoot.title}</h4>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={SHOOT_STATUS_COLORS?.[shoot.status as keyof typeof SHOOT_STATUS_COLORS] || ''}
-                      >
-                        {SHOOT_STATUS_LABELS?.[shoot.status as keyof typeof SHOOT_STATUS_LABELS] || shoot.status}
-                      </Badge>
-                      <button
-                        onClick={() => deleteCekim(shoot.id)}
-                        className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                        title="Sil"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => deleteCekim(shoot.id)}
+                      className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                      title="Sil"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                   <div className="mt-3 pt-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                     <span className="flex items-center">
@@ -730,6 +753,21 @@ export default function CekimlerPage() {
                     <span className="flex items-center">
                       <MapPin className="w-3.5 h-3.5 mr-1 text-muted-foreground" /> {shoot.location}
                     </span>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-border flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground font-medium">Durum:</span>
+                    <select
+                      value={shoot.status}
+                      onChange={(e) => updateCekimStatus(shoot.id, e.target.value)}
+                      className="text-xs bg-background border border-input rounded-lg px-2 py-1 font-semibold text-foreground outline-none cursor-pointer"
+                    >
+                      <option value="planned">Planlandı</option>
+                      <option value="ready">Çekime Hazır</option>
+                      <option value="shot">Çekildi</option>
+                      <option value="files_transferred">Dosyalar Aktarıldı</option>
+                      <option value="completed">Tamamlandı</option>
+                      <option value="cancelled">İptal Edildi</option>
+                    </select>
                   </div>
                 </Card>
               ))}

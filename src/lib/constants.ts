@@ -23,23 +23,23 @@ import {
 export const SIDEBAR_ITEMS = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
   { label: 'AI Direktör', href: '/ai-direktor', icon: Bot },
-  { label: 'İşletmeler', href: '/isletmeler', icon: Building2 },
-  { label: 'Çekimler', href: '/cekimler', icon: Camera },
-  { label: 'Editler', href: '/editler', icon: Film },
-  { label: 'Paylaşım Takvimi', href: '/paylasim-takvimi', icon: CalendarDays },
-  { label: 'Gelirler', href: '/gelirler', icon: TrendingUp },
-  { label: 'Giderler', href: '/giderler', icon: TrendingDown },
-  { label: 'Raporlar', href: '/raporlar', icon: BarChart3 },
-  { label: 'Ekip', href: '/ekip', icon: Users },
+  { label: 'İşletmeler', href: '/isletmeler', icon: Building2, permissionKey: 'canManageClients' },
+  { label: 'Çekimler', href: '/cekimler', icon: Camera, permissionKey: 'canManageShoots' },
+  { label: 'Editler', href: '/editler', icon: Film, permissionKey: 'canManageEdits' },
+  { label: 'Paylaşım Takvimi', href: '/paylasim-takvimi', icon: CalendarDays, permissionKey: 'canManageTakvim' },
+  { label: 'Gelirler', href: '/gelirler', icon: TrendingUp, permissionKey: 'canManageFinance' },
+  { label: 'Giderler', href: '/giderler', icon: TrendingDown, permissionKey: 'canManageFinance' },
+  { label: 'Raporlar', href: '/raporlar', icon: BarChart3, permissionKey: 'canManageReports' },
+  { label: 'Ekip', href: '/ekip', icon: Users, permissionKey: 'canManageTeam' },
   { label: 'Bildirimler', href: '/bildirimler', icon: Bell },
-  { label: 'Ayarlar', href: '/ayarlar', icon: Settings },
+  { label: 'Ayarlar', href: '/ayarlar', icon: Settings, permissionKey: 'canManageUsers' },
 ] as const;
 
 export const BOTTOM_NAV_ITEMS = [
   { label: 'Ana Sayfa', href: '/', icon: Home },
-  { label: 'Çekimler', href: '/cekimler', icon: Camera },
-  { label: 'Editler', href: '/editler', icon: Film },
-  { label: 'Finans', href: '/gelirler', icon: DollarSign },
+  { label: 'Çekimler', href: '/cekimler', icon: Camera, permissionKey: 'canManageShoots' },
+  { label: 'Editler', href: '/editler', icon: Film, permissionKey: 'canManageEdits' },
+  { label: 'Finans', href: '/gelirler', icon: DollarSign, permissionKey: 'canManageFinance' },
   { label: 'Menü', href: '#menu', icon: Menu },
 ] as const;
 

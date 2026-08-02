@@ -12,7 +12,17 @@ import { TrendingDown, Calendar, CreditCard, Trash2, Plus } from 'lucide-react';
 import { EXPENSE_CATEGORY_LABELS } from '@/lib/constants';
 import { useData } from '@/context/data-context';
 
+import { PermissionGuard } from '@/components/shared/permission-guard';
+
 export default function GiderlerPage() {
+  return (
+    <PermissionGuard requiredPermission="canManageFinance">
+      <GiderlerPageContent />
+    </PermissionGuard>
+  );
+}
+
+function GiderlerPageContent() {
   const { giderler, addGider, deleteGider, formatDateTr } = useData();
   const [open, setOpen] = useState(false);
 

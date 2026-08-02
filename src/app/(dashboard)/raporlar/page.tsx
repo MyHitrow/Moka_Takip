@@ -83,7 +83,17 @@ function StatCard({
 
 type FilterType = 'month' | 'quarter' | 'year' | 'all';
 
+import { PermissionGuard } from '@/components/shared/permission-guard';
+
 export default function RaporlarPage() {
+  return (
+    <PermissionGuard requiredPermission="canManageReports">
+      <RaporlarPageContent />
+    </PermissionGuard>
+  );
+}
+
+function RaporlarPageContent() {
   const { gelirler, giderler, isletmeler, cekimler, editler, updateGelirStatus } = useData();
   const [timeFilter, setTimeFilter] = useState<FilterType>('year');
 

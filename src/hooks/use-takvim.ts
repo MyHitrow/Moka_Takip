@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { TakvimPost } from '@/types/app';
 import { isUUID } from '@/lib/helpers';
+import { logger } from '@/lib/logger';
 
 interface UseTakvimProps {
   takvimPosts: TakvimPost[];
@@ -27,11 +28,11 @@ export function createTakvimActions({
         status: item.status || 'preparing',
       });
       if (error) {
-        console.error('Takvim post ekleme hatası:', error.message);
+        logger.error('Takvim post ekleme hatası:', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('addTakvimPost beklenmeyen hata:', e);
+      logger.error('addTakvimPost beklenmeyen hata:', e);
     }
   };
 
@@ -41,14 +42,14 @@ export function createTakvimActions({
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('content_calendar').delete().eq('id', id);
-        if (error) console.error('Takvim post silme hatası:', error.message);
+        if (error) logger.error('Takvim post silme hatası:', error.message);
       } else if (target) {
         const { error } = await supabase.from('content_calendar').delete().eq('title', target.title);
-        if (error) console.error('Takvim post silme hatası (title):', error.message);
+        if (error) logger.error('Takvim post silme hatası (title):', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('deleteTakvimPost beklenmeyen hata:', e);
+      logger.error('deleteTakvimPost beklenmeyen hata:', e);
     }
   };
 
@@ -57,11 +58,11 @@ export function createTakvimActions({
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('content_calendar').update({ status }).eq('id', id);
-        if (error) console.error('Takvim post status güncelleme hatası:', error.message);
+        if (error) logger.error('Takvim post status güncelleme hatası:', error.message);
       }
       await fetchCloudData();
     } catch (e) {
-      console.error('updateTakvimPostStatus beklenmeyen hata:', e);
+      logger.error('updateTakvimPostStatus beklenmeyen hata:', e);
     }
   };
 

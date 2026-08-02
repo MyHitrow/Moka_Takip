@@ -12,7 +12,17 @@ import { Label } from '@/components/ui/label';
 import { Users, Phone, Video, Trash2, Plus, Sparkles, Scale, Megaphone, Flame } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
+import { PermissionGuard } from '@/components/shared/permission-guard';
+
 export default function EkipPage() {
+  return (
+    <PermissionGuard requiredPermission="canManageTeam">
+      <EkipPageContent />
+    </PermissionGuard>
+  );
+}
+
+function EkipPageContent() {
   const { ekip, editler, systemUsers, addEkipUyesi, deleteEkipUyesi } = useData();
   const [open, setOpen] = useState(false);
 

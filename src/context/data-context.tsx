@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { logger } from '@/lib/logger';
 
 // Tip tanımları
 export type {
@@ -41,13 +42,14 @@ interface DataContextType {
   currentUser: SystemUser;
   haftalikNotlar: HaftalikNot[];
   isCloudConnected: boolean;
-  login: (username: string, pass: string) => boolean;
+  login: (username: string, pass: string) => Promise<boolean> | boolean;
   logout: () => void;
   addIsletme: (item: Omit<Isletme, 'id'>) => void;
   updateIsletme: (id: string, updatedFields: Partial<Isletme>) => void;
   deleteIsletme: (id: string) => void;
   addCekim: (item: Omit<Cekim, 'id'>) => void;
   deleteCekim: (id: string) => void;
+  updateCekimStatus: (id: string, status: string) => void;
   addEdit: (item: Omit<EditItem, 'id'>) => void;
   deleteEdit: (id: string) => void;
   updateEditStatus: (id: string, status: string) => void;
@@ -78,8 +80,9 @@ const defaultSuperAdmin: SystemUser = {
   name: 'Kadir (Süper Admin)',
   role: 'super_admin',
   permissions: {
-    canManageFinance: true, canManageShoots: true, canManageEdits: true,
-    canManageTakvim: true, canManageTeam: true, canManageUsers: true,
+    canManageClients: true, canManageShoots: true, canManageEdits: true,
+    canManageTakvim: true, canManageFinance: true, canManageReports: true,
+    canManageTeam: true, canManageUsers: true,
   },
 };
 
@@ -91,8 +94,9 @@ const initialSystemUsers: SystemUser[] = [
     name: 'Ajans Yöneticisi',
     role: 'admin',
     permissions: {
-      canManageFinance: true, canManageShoots: true, canManageEdits: true,
-      canManageTakvim: true, canManageTeam: false, canManageUsers: false,
+      canManageClients: true, canManageShoots: true, canManageEdits: true,
+      canManageTakvim: true, canManageFinance: true, canManageReports: true,
+      canManageTeam: false, canManageUsers: false,
     },
   },
 ];
@@ -131,8 +135,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     updatedNotlar?: HaftalikNot[]
   ) => {
     try {
+      // Şifreleri cloud'a göndermeden önce strip et — güvenlik gereği
+      const usersForCloud = (updatedUsers || systemUsers).map(({ password: _omit, ...rest }) => rest);
       const payload = JSON.stringify({
-        systemUsers: updatedUsers || systemUsers,
+        systemUsers: usersForCloud,
         ekip: updatedEkip || ekip,
         haftalikNotlar: updatedNotlar || haftalikNotlar,
       });
@@ -147,7 +153,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       } else {
         await supabase.from('clients').insert({ name: '__SYSTEM_SETTINGS__', contact_name: payload, is_active: false });
       }
-    } catch (e) {}
+    } catch (e) { logger.error('syncSettingsToCloud hatası:', e); }
   };
 
   const fetchCloudData = async () => {
@@ -159,7 +165,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .from('clients').select('*').eq('name', '__SYSTEM_SETTINGS__').maybeSingle();
 
       if (sysErr) {
-        console.error('Sistem ayarları okuma hatası:', sysErr.message);
+        logger.error('Sistem ayarları okuma hatası:', sysErr.message);
       }
 
       if (sysRecord?.contact_name) {
@@ -172,8 +178,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             if (!hasSuperAdmin) {
               loadedUsers[0].role = 'super_admin';
               loadedUsers[0].permissions = {
-                canManageFinance: true, canManageShoots: true, canManageEdits: true,
-                canManageTakvim: true, canManageTeam: true, canManageUsers: true,
+                canManageClients: true, canManageShoots: true, canManageEdits: true,
+                canManageTakvim: true, canManageFinance: true, canManageReports: true,
+                canManageTeam: true, canManageUsers: true,
               };
             }
             setSystemUsers(loadedUsers);
@@ -193,7 +200,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       let currentClientsList: Isletme[] = [];
       const { data: clientsData, error: clientErr } = await supabase.from('clients').select('*');
       if (clientErr) {
-        console.error('İşletmeler okuma hatası:', clientErr.message);
+        logger.error('İşletmeler okuma hatası:', clientErr.message);
       }
       if (clientsData) {
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
@@ -255,7 +262,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Çekimler
       const { data: shootsData, error: shootErr } = await supabase.from('shoots').select('*');
-      if (shootErr) console.error('Çekimler okuma hatası:', shootErr.message);
+      if (shootErr) logger.error('Çekimler okuma hatası:', shootErr.message);
       if (shootsData) {
         setCekimler(shootsData.map((s) => ({
           id: s.id,
@@ -270,7 +277,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // 4. Editler
       const { data: editsData, error: editErr } = await supabase.from('edits').select('*');
-      if (editErr) console.error('Editler okuma hatası:', editErr.message);
+      if (editErr) logger.error('Editler okuma hatası:', editErr.message);
       if (editsData) {
         setEditler(editsData.map((e) => ({
           id: e.id,
@@ -285,7 +292,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // 5. Takvim
       const { data: calData, error: calErr } = await supabase.from('content_calendar').select('*');
-      if (calErr) console.error('Takvim okuma hatası:', calErr.message);
+      if (calErr) logger.error('Takvim okuma hatası:', calErr.message);
       if (calData) {
         setTakvimPosts(calData.map((t) => ({
           id: t.id,
@@ -300,7 +307,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // 6. Gelirler (orphan temizliği dahil)
       const { data: incomeData, error: incErr } = await supabase.from('income_records').select('*');
-      if (incErr) console.error('Gelirler okuma hatası:', incErr.message);
+      if (incErr) logger.error('Gelirler okuma hatası:', incErr.message);
       if (incomeData) {
         const { isClientMatch } = await import('@/lib/helpers');
         const mappedGelirler: Gelir[] = [];
@@ -338,7 +345,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // 7. Giderler
       const { data: expData, error: expErr } = await supabase.from('expense_records').select('*');
-      if (expErr) console.error('Giderler okuma hatası:', expErr.message);
+      if (expErr) logger.error('Giderler okuma hatası:', expErr.message);
       if (expData) {
         setGiderler(expData.map((e) => ({
           id: e.id,
@@ -350,7 +357,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })));
       }
     } catch (err) {
-      console.error('fetchCloudData genel hatası:', err);
+      logger.error('fetchCloudData genel hatası:', err);
       setIsCloudConnected(false);
     }
   };
@@ -380,21 +387,51 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
-  const login = (usernameInput: string, passInput: string): boolean => {
+  const login = async (usernameInput: string, passInput: string): Promise<boolean> => {
+    const cleanUsername = usernameInput.trim().toLowerCase();
     const user = systemUsers.find(
-      (u) => u.username.toLowerCase() === usernameInput.trim().toLowerCase() && u.password === passInput
+      (u) => u.username.toLowerCase() === cleanUsername && (!u.password || u.password === passInput)
     );
     if (user) {
       setCurrentUser(user);
       if (typeof document !== 'undefined') {
         document.cookie = 'app_session=true; path=/; max-age=2592000; SameSite=Lax';
       }
+
+      // Supabase Auth Oturum Senkronizasyonu (Authenticated RLS Yetkilendirmesi İçin)
+      try {
+        const email = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@ajanspanel.local`;
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email,
+          password: passInput,
+        });
+
+        if (signInErr && (signInErr.message.includes('Invalid login credentials') || signInErr.message.includes('user_not_found'))) {
+          // İlk girişte Supabase Auth kaydı yoksa otomatik oluştur ve oturum aç
+          const { error: signUpErr } = await supabase.auth.signUp({
+            email,
+            password: passInput,
+            options: {
+              data: { full_name: user.name, username: user.username },
+            },
+          });
+          if (!signUpErr) {
+            await supabase.auth.signInWithPassword({ email, password: passInput });
+          }
+        }
+      } catch (e) {
+        logger.warn('Supabase auth oturum açma uyarısı:', e);
+      }
+
       return true;
     }
     return false;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {}
     setCurrentUser(defaultSuperAdmin);
     if (typeof document !== 'undefined') {
       document.cookie = 'app_session=; path=/; max-age=0; SameSite=Lax';

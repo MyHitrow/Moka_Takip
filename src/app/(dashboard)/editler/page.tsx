@@ -25,7 +25,17 @@ import {
 } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
+import { PermissionGuard } from '@/components/shared/permission-guard';
+
 export default function EditlerPage() {
+  return (
+    <PermissionGuard requiredPermission="canManageEdits">
+      <EditlerPageContent />
+    </PermissionGuard>
+  );
+}
+
+function EditlerPageContent() {
   const { editler, ekip, systemUsers, isletmeler, addEdit, deleteEdit, updateEditStatus, formatDateTr } = useData();
   const [open, setOpen] = useState(false);
   const [mainCategory, setMainCategory] = useState<'pending' | 'completed'>('pending');
