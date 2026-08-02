@@ -17,7 +17,7 @@ export function createTakvimActions({
 }: UseTakvimProps) {
   const addTakvimPost = async (item: Omit<TakvimPost, 'id'>) => {
     try {
-      await supabase.from('content_calendar').insert({
+      const { error } = await supabase.from('content_calendar').insert({
         client_name: item.client.trim(),
         title: item.title,
         content_type: item.platform, // content_type NOT NULL
@@ -26,8 +26,13 @@ export function createTakvimActions({
         publish_time: item.time || null,
         status: item.status || 'preparing',
       });
-      fetchCloudData();
-    } catch (e) {}
+      if (error) {
+        console.error('Takvim post ekleme hatası:', error.message);
+      }
+      await fetchCloudData();
+    } catch (e) {
+      console.error('addTakvimPost beklenmeyen hata:', e);
+    }
   };
 
   const deleteTakvimPost = async (id: string) => {
@@ -35,22 +40,29 @@ export function createTakvimActions({
     setTakvimPosts((prev) => prev.filter((t) => t.id !== id));
     try {
       if (isUUID(id)) {
-        await supabase.from('content_calendar').delete().eq('id', id);
+        const { error } = await supabase.from('content_calendar').delete().eq('id', id);
+        if (error) console.error('Takvim post silme hatası:', error.message);
       } else if (target) {
-        await supabase.from('content_calendar').delete().eq('title', target.title);
+        const { error } = await supabase.from('content_calendar').delete().eq('title', target.title);
+        if (error) console.error('Takvim post silme hatası (title):', error.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('deleteTakvimPost beklenmeyen hata:', e);
+    }
   };
 
   const updateTakvimPostStatus = async (id: string, status: TakvimPost['status']) => {
     setTakvimPosts((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     try {
       if (isUUID(id)) {
-        await supabase.from('content_calendar').update({ status }).eq('id', id);
+        const { error } = await supabase.from('content_calendar').update({ status }).eq('id', id);
+        if (error) console.error('Takvim post status güncelleme hatası:', error.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('updateTakvimPostStatus beklenmeyen hata:', e);
+    }
   };
 
   return { addTakvimPost, deleteTakvimPost, updateTakvimPostStatus };

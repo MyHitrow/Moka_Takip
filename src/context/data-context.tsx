@@ -155,8 +155,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setIsCloudConnected(true);
 
       // 1. Sistem ayarları (kullanıcılar, ekip, notlar)
-      const { data: sysRecord } = await supabase
+      const { data: sysRecord, error: sysErr } = await supabase
         .from('clients').select('*').eq('name', '__SYSTEM_SETTINGS__').maybeSingle();
+
+      if (sysErr) {
+        console.error('Sistem ayarları okuma hatası:', sysErr.message);
+      }
 
       if (sysRecord?.contact_name) {
         try {
@@ -169,7 +173,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       // 2. İşletmeler (clients)
       let currentClientsList: Isletme[] = [];
-      const { data: clientsData } = await supabase.from('clients').select('*');
+      const { data: clientsData, error: clientErr } = await supabase.from('clients').select('*');
+      if (clientErr) {
+        console.error('İşletmeler okuma hatası:', clientErr.message);
+      }
       if (clientsData) {
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
         currentClientsList = realClients.map((c) => ({
@@ -188,8 +195,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 3. Çekimler
-      const { data: shootsData } = await supabase.from('shoots').select('*');
-      if (shootsData && shootsData.length > 0) {
+      const { data: shootsData, error: shootErr } = await supabase.from('shoots').select('*');
+      if (shootErr) console.error('Çekimler okuma hatası:', shootErr.message);
+      if (shootsData) {
         setCekimler(shootsData.map((s) => ({
           id: s.id,
           client: (s.client_name || s.client_id || 'İşletme').toString().trim(),
@@ -202,8 +210,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 4. Editler
-      const { data: editsData } = await supabase.from('edits').select('*');
-      if (editsData && editsData.length > 0) {
+      const { data: editsData, error: editErr } = await supabase.from('edits').select('*');
+      if (editErr) console.error('Editler okuma hatası:', editErr.message);
+      if (editsData) {
         setEditler(editsData.map((e) => ({
           id: e.id,
           title: e.title,
@@ -216,8 +225,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 5. Takvim
-      const { data: calData } = await supabase.from('content_calendar').select('*');
-      if (calData && calData.length > 0) {
+      const { data: calData, error: calErr } = await supabase.from('content_calendar').select('*');
+      if (calErr) console.error('Takvim okuma hatası:', calErr.message);
+      if (calData) {
         setTakvimPosts(calData.map((t) => ({
           id: t.id,
           client: (t.client_name || 'İşletme').trim(),
@@ -230,8 +240,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 6. Gelirler (orphan temizliği dahil)
-      const { data: incomeData } = await supabase.from('income_records').select('*');
-      if (incomeData && incomeData.length > 0) {
+      const { data: incomeData, error: incErr } = await supabase.from('income_records').select('*');
+      if (incErr) console.error('Gelirler okuma hatası:', incErr.message);
+      if (incomeData) {
         const { isClientMatch } = await import('@/lib/helpers');
         const mappedGelirler: Gelir[] = [];
         for (const g of incomeData) {
@@ -245,10 +256,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const numFee = parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount);
           const finalAmount = g.collection_status !== 'paid' && numFee > 0 ? numFee : Number(g.amount);
 
-          let paidAmt = 0;
-          if (g.collection_status === 'paid') {
+          let paidAmt = g.paid_amount !== undefined && g.paid_amount !== null ? Number(g.paid_amount) : 0;
+          if (g.collection_status === 'paid' && paidAmt === 0) {
             paidAmt = finalAmount;
-          } else if (g.collection_status === 'partial') {
+          } else if (g.collection_status === 'partial' && paidAmt === 0) {
             const match = g.description ? g.description.match(/(?:Kısmi Ödenen:\s*|kısmi:\s*)(\d+)/i) : null;
             if (match) paidAmt = parseFloat(match[1]) || 0;
           }
@@ -267,8 +278,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 7. Giderler
-      const { data: expData } = await supabase.from('expense_records').select('*');
-      if (expData && expData.length > 0) {
+      const { data: expData, error: expErr } = await supabase.from('expense_records').select('*');
+      if (expErr) console.error('Giderler okuma hatası:', expErr.message);
+      if (expData) {
         setGiderler(expData.map((e) => ({
           id: e.id,
           title: e.title || e.description || 'Gider',
@@ -279,6 +291,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })));
       }
     } catch (err) {
+      console.error('fetchCloudData genel hatası:', err);
       setIsCloudConnected(false);
     }
   };

@@ -23,15 +23,21 @@ export function createFinansActions({
 }: UseFinansProps) {
   const addGelir = async (item: Omit<Gelir, 'id'>) => {
     try {
-      await supabase.from('income_records').insert({
+      const { error } = await supabase.from('income_records').insert({
         client_name: item.client.trim(),
         description: item.description,
         amount: item.amount,
         due_date: item.date,
         collection_status: item.status || 'pending',
+        paid_amount: item.paidAmount || (item.status === 'paid' ? item.amount : 0),
       });
-      fetchCloudData();
-    } catch (e) {}
+      if (error) {
+        console.error('Gelir ekleme hatası:', error.message);
+      }
+      await fetchCloudData();
+    } catch (e) {
+      console.error('addGelir beklenmeyen hata:', e);
+    }
   };
 
   const deleteGelir = async (id: string) => {
@@ -39,12 +45,16 @@ export function createFinansActions({
     setGelirler((prev) => prev.filter((i) => i.id !== id));
     try {
       if (isUUID(id)) {
-        await supabase.from('income_records').delete().eq('id', id);
+        const { error } = await supabase.from('income_records').delete().eq('id', id);
+        if (error) console.error('Gelir silme hatası:', error.message);
       } else if (target) {
-        await supabase.from('income_records').delete().eq('description', target.description);
+        const { error } = await supabase.from('income_records').delete().eq('description', target.description);
+        if (error) console.error('Gelir silme hatası (description):', error.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('deleteGelir beklenmeyen hata:', e);
+    }
   };
 
   const updateGelirStatus = async (id: string, status: string, customPaidAmount?: number) => {
@@ -72,16 +82,31 @@ export function createFinansActions({
 
     try {
       if (isUUID(id)) {
-        const updateObj: Record<string, unknown> = { collection_status: status };
+        const item = gelirler.find((g) => g.id === id);
+        const finalPaid =
+          status === 'paid'
+            ? (item?.amount || 0)
+            : status === 'partial'
+            ? customPaidAmount !== undefined
+              ? customPaidAmount
+              : item?.paidAmount || 0
+            : 0;
+
+        const updateObj: Record<string, unknown> = {
+          collection_status: status,
+          paid_amount: finalPaid,
+        };
         if (status === 'partial' && customPaidAmount !== undefined) {
-          const item = gelirler.find((g) => g.id === id);
           const clientName = item ? item.client : 'Müşteri';
           updateObj.description = `${clientName} - Aylık Paket Ücreti (Kısmi Ödenen: ${customPaidAmount} ₺)`;
         }
-        await supabase.from('income_records').update(updateObj).eq('id', id);
+        const { error } = await supabase.from('income_records').update(updateObj).eq('id', id);
+        if (error) console.error('Gelir durumu güncelleme hatası:', error.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('updateGelirStatus beklenmeyen hata:', e);
+    }
   };
 
   // Ayın 27'sinden itibaren bir sonraki aya otomatik gelir oluştur
@@ -116,27 +141,28 @@ export function createFinansActions({
 
       if (!existsInDb && !existsInState) {
         try {
-          await supabase.from('income_records').insert({
+          const { error } = await supabase.from('income_records').insert({
             client_name: biz.name.trim(),
             description: `${biz.name.trim()} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
             amount: numFee,
             due_date: dueDate,
             collection_status: 'pending',
           });
-          count++;
-        } catch (e) {}
+          if (error) console.error('Aylık gelir oluşturma hatası:', error.message);
+          else count++;
+        } catch (e) {
+          console.error('generateMonthlyIncomes döngü hatası:', e);
+        }
       }
     }
 
-    fetchCloudData();
+    await fetchCloudData();
     return count;
   };
 
   const addGider = async (item: Omit<Gider, 'id'>) => {
-    const tempId = Date.now().toString();
-    setGiderler((prev) => [{ ...item, id: tempId }, ...prev]);
     try {
-      await supabase.from('expense_records').insert({
+      const { error } = await supabase.from('expense_records').insert({
         title: item.title,
         description: item.title,
         category: safeExpenseCategory(item.category),
@@ -144,8 +170,13 @@ export function createFinansActions({
         expense_date: item.date,
         paid_by_text: item.paidBy,
       });
-      fetchCloudData();
-    } catch (e) {}
+      if (error) {
+        console.error('Gider ekleme hatası:', error.message);
+      }
+      await fetchCloudData();
+    } catch (e) {
+      console.error('addGider beklenmeyen hata:', e);
+    }
   };
 
   const deleteGider = async (id: string) => {
@@ -153,12 +184,16 @@ export function createFinansActions({
     setGiderler((prev) => prev.filter((i) => i.id !== id));
     try {
       if (isUUID(id)) {
-        await supabase.from('expense_records').delete().eq('id', id);
+        const { error } = await supabase.from('expense_records').delete().eq('id', id);
+        if (error) console.error('Gider silme hatası:', error.message);
       } else if (target) {
-        await supabase.from('expense_records').delete().eq('title', target.title);
+        const { error } = await supabase.from('expense_records').delete().eq('title', target.title);
+        if (error) console.error('Gider silme hatası (title):', error.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('deleteGider beklenmeyen hata:', e);
+    }
   };
 
   return { addGelir, deleteGelir, updateGelirStatus, generateMonthlyIncomes, addGider, deleteGider };

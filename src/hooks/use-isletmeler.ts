@@ -30,7 +30,7 @@ export function createIsletmelerActions({
   const addIsletme = async (item: Omit<Isletme, 'id'>) => {
     const numFee = parseFloat(item.fee.replace(/[^0-9.]/g, '')) || 0;
     try {
-      await supabase.from('clients').insert({
+      const { data, error } = await supabase.from('clients').insert({
         name: item.name.trim(),
         contact_name: item.contact,
         phone: item.phone,
@@ -40,21 +40,28 @@ export function createIsletmelerActions({
         max_days_between_posts: item.maxDaysBetweenPosts || 3,
         monthly_reels_target: item.monthlyReelsTarget || 10,
         monthly_shoot_target: item.monthlyShootTarget || 2,
-      });
+      }).select().single();
+
+      if (error) {
+        console.error('İşletme ekleme hatası:', error.message);
+      }
 
       if (numFee > 0 && item.active) {
         const today = new Date();
         const firstWeekDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-05`;
-        await supabase.from('income_records').insert({
+        const { error: incErr } = await supabase.from('income_records').insert({
           client_name: item.name.trim(),
           description: `${item.name.trim()} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
           amount: numFee,
           due_date: firstWeekDate,
           collection_status: 'pending',
         });
+        if (incErr) console.error('Aylık paket gelir kaydı hatası:', incErr.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('addIsletme beklenmeyen hata:', e);
+    }
   };
 
   const updateIsletme = async (id: string, updatedFields: Partial<Isletme>) => {
@@ -108,9 +115,11 @@ export function createIsletmelerActions({
       if (updatedFields.monthlyShootTarget !== undefined) updateData.monthly_shoot_target = updatedFields.monthlyShootTarget;
 
       if (isUUID(id)) {
-        await supabase.from('clients').update(updateData).eq('id', id);
+        const { error } = await supabase.from('clients').update(updateData).eq('id', id);
+        if (error) console.error('İşletme güncelleme hatası:', error.message);
       } else if (target) {
-        await supabase.from('clients').update(updateData).eq('name', target.name);
+        const { error } = await supabase.from('clients').update(updateData).eq('name', target.name);
+        if (error) console.error('İşletme güncelleme hatası (name):', error.message);
       }
 
       // Gelir kayıtlarını da güncelle
@@ -129,8 +138,10 @@ export function createIsletmelerActions({
           }
         }
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('updateIsletme beklenmeyen hata:', e);
+    }
   };
 
   const deleteIsletme = async (id: string) => {
@@ -147,9 +158,11 @@ export function createIsletmelerActions({
 
     try {
       if (isUUID(id)) {
-        await supabase.from('clients').delete().eq('id', id);
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        if (error) console.error('İşletme silme hatası:', error.message);
       } else if (target) {
-        await supabase.from('clients').delete().eq('name', target.name);
+        const { error } = await supabase.from('clients').delete().eq('name', target.name);
+        if (error) console.error('İşletme silme hatası (name):', error.message);
       }
 
       if (targetName) {
@@ -164,8 +177,10 @@ export function createIsletmelerActions({
           }
         }
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('deleteIsletme beklenmeyen hata:', e);
+    }
   };
 
   return { addIsletme, updateIsletme, deleteIsletme };

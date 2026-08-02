@@ -6,6 +6,20 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = request.headers.get('authorization');
+    const { searchParams } = new URL(request.url);
+    const querySecret = searchParams.get('secret');
+
+    // Eğer CRON_SECRET tanımlı ise doğrulama yap
+    if (cronSecret) {
+      const isValidHeader = authHeader === `Bearer ${cronSecret}`;
+      const isValidQuery = querySecret === cronSecret;
+      if (!isValidHeader && !isValidQuery) {
+        return NextResponse.json({ error: 'Yetkisiz erişim! Geçersiz CRON_SECRET.' }, { status: 401 });
+      }
+    }
+
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
 

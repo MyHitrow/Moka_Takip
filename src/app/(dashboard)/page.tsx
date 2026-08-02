@@ -165,107 +165,101 @@ export default function DashboardPage() {
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-0 md:pt-6">
-      <Header title="Dashboard" subtitle="Genel bakış ve bugünün görevleri" />
+      <Header title="Genel Bakış" subtitle="Ajansındaki tüm işleri buradan yönetebilirsin." />
 
       {/* HIGH PRIORITY EXCLAMATION ALERT BANNER FOR EDITS DUE TODAY */}
       {dueTodayEdits.length > 0 && (
-        <div className="p-4 bg-red-500/15 border-2 border-red-500/50 text-red-300 rounded-2xl red-glow animate-pulse flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+        <div className="p-4 bg-[#E32636]/15 border border-[#E32636]/50 text-white rounded-xl red-button-shadow flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-red-500 text-white rounded-xl font-extrabold text-xl shrink-0">
-              <AlertTriangle className="w-6 h-6 animate-bounce" />
+            <div className="p-2.5 bg-[#E32636] text-white rounded-lg font-extrabold text-xl shrink-0">
+              <AlertTriangle className="w-5 h-5 animate-bounce" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+              <h3 className="text-sm font-extrabold text-[#F7F7F8] flex items-center gap-2">
                 ⚠️ BUGÜN YAPILMASI GEREKEN ({dueTodayEdits.length}) ADET EDİT VAR!
               </h3>
-              <p className="text-xs text-red-200 mt-0.5 font-medium">
+              <p className="text-xs text-[#B5B7BD] mt-0.5 font-medium">
                 {dueTodayEdits.map((e) => `${e.client} (${e.title})`).join(' • ')}
               </p>
             </div>
           </div>
           <Link href="/editler">
-            <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white font-extrabold shrink-0">
-              Editlere Git <ArrowRight className="w-4 h-4 ml-1" />
+            <Button size="sm" className="bg-[#E32636] hover:bg-[#FF3545] text-white font-bold text-xs shrink-0">
+              Editlere Git <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Button>
           </Link>
         </div>
       )}
 
       <PageHeader
-        title={`Dashboard — Hoşgeldiniz, ${currentUser.name}`}
-        subtitle={currentDate}
+        title={`Hoş geldin, ${currentUser.name}.`}
+        subtitle="Ajansındaki tüm işleri ve operasyonu buradan yönetebilirsin."
       />
 
       {/* 🤖 AI DİREKTÖR BEKÇİSİ (SENTINEL) WIDGET */}
       <AiSentinelWidget />
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Çekimler Section */}
         <section>
-          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold mt-0">Çekim Durumu</h2>
+          <h2 className="text-xs uppercase tracking-widest text-[#73767E] mb-3 font-bold">Çekim Durumu</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Toplam Çekim"
               value={cekimler.length}
               icon={Camera}
               href="/cekimler"
-              color="info"
             />
             <StatCard
               title="Planlanan Çekimler"
               value={cekimler.filter((c) => c.status === 'planned' || c.status === 'ready').length}
               icon={Clock}
               href="/cekimler"
-              color="warning"
             />
           </div>
         </section>
 
         {/* Editler Section */}
         <section>
-          <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-3 font-semibold mt-8">Edit Durumu</h2>
+          <h2 className="text-xs uppercase tracking-widest text-[#73767E] mb-3 font-bold mt-6">Edit Durumu</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title="Kurgu Bekleyen"
               value={waitingEdits}
               icon={CalendarClock}
               href="/editler"
-              color="default"
             />
             <StatCard
               title="Kurguda"
               value={inProgressEdits}
               icon={Video}
               href="/editler"
-              color="info"
             />
             <StatCard
               title="Müşteri Onayında"
               value={clientReviewEdits}
               icon={Eye}
               href="/editler"
-              color="warning"
             />
             <StatCard
               title="Biten / Hazır"
               value={readyEdits}
               icon={CheckCircle}
               href="/editler"
-              color="success"
             />
           </div>
         </section>
 
-        {/* Finans Section - SYNCHRONIZED WITH GELİRLER PAGE ACTIVE PERIOD */}
+        {/* Finans Section */}
         <section>
-          <div className="flex items-center justify-between mb-3 mt-8">
-            <h2 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold flex items-center gap-2">
+          <div className="flex items-center justify-between mb-3 mt-6">
+            <h2 className="text-xs uppercase tracking-widest text-[#73767E] font-bold flex items-center gap-2">
               <span>Finans Özeti</span>
-              <span className="bg-primary/20 text-primary px-2 py-0.5 rounded-md font-extrabold text-[10px] lowercase tracking-normal">
+              <span className="bg-[#E32636]/15 text-[#E32636] border border-[#E32636]/30 px-2 py-0.5 rounded-md font-extrabold text-[10px] lowercase tracking-normal">
                 {activeMonthName} {activeYear} (Aktif Dönem)
               </span>
             </h2>
-            <Link href="/gelirler" className="text-xs text-primary font-bold hover:underline">
+            <Link href="/gelirler" className="text-xs text-[#E32636] font-bold hover:underline">
               Gelirler Tablosunu Aç →
             </Link>
           </div>
@@ -276,41 +270,36 @@ export default function DashboardPage() {
               value={formatCurrency(totalExpectedIncome)}
               icon={TrendingUp}
               href="/gelirler"
-              color="info"
             />
             <StatCard
               title="Tahsil Edilen (Tam+Kısmi)"
               value={formatCurrency(totalCollectedSoFar)}
               icon={Wallet}
               href="/gelirler"
-              color="success"
             />
             <StatCard
               title="Kısmi Alınan Tutar"
               value={formatCurrency(totalPartialPaid)}
               icon={PieChart}
               href="/gelirler"
-              color="warning"
             />
             <StatCard
-              title="Geciken Ödemeler (7+ Gün)"
+              title="Geciken Ödemeler"
               value={formatCurrency(totalOverdueIncome)}
               icon={AlertCircle}
               href="/gelirler"
-              color="danger"
             />
             <StatCard
               title="Toplam Gider"
               value={formatCurrency(totalExpenses)}
               icon={TrendingDown}
               href="/giderler"
-              color="warning"
             />
           </div>
         </section>
 
-        {/* Bottom Grids: Haftalık Notlar, Çekimler & Ekip Yükü */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+        {/* Bottom Grids */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
           <div className="lg:col-span-1">
             <HaftalikNotlar />
           </div>

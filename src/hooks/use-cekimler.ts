@@ -17,7 +17,7 @@ export function createCekimlerActions({
 }: UseCekimlerProps) {
   const addCekim = async (item: Omit<Cekim, 'id'>) => {
     try {
-      await supabase.from('shoots').insert({
+      const { error } = await supabase.from('shoots').insert({
         client_name: item.client.trim(),
         title: item.title,
         shoot_date: item.date,
@@ -25,8 +25,13 @@ export function createCekimlerActions({
         location: item.location,
         status: item.status || 'planned',
       });
-      fetchCloudData();
-    } catch (e) {}
+      if (error) {
+        console.error('Çekim ekleme hatası:', error.message);
+      }
+      await fetchCloudData();
+    } catch (e) {
+      console.error('addCekim beklenmeyen hata:', e);
+    }
   };
 
   const deleteCekim = async (id: string) => {
@@ -34,12 +39,16 @@ export function createCekimlerActions({
     setCekimler((prev) => prev.filter((i) => i.id !== id));
     try {
       if (isUUID(id)) {
-        await supabase.from('shoots').delete().eq('id', id);
+        const { error } = await supabase.from('shoots').delete().eq('id', id);
+        if (error) console.error('Çekim silme hatası:', error.message);
       } else if (target) {
-        await supabase.from('shoots').delete().eq('title', target.title);
+        const { error } = await supabase.from('shoots').delete().eq('title', target.title);
+        if (error) console.error('Çekim silme hatası (title):', error.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('deleteCekim beklenmeyen hata:', e);
+    }
   };
 
   return { addCekim, deleteCekim };

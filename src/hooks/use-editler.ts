@@ -17,7 +17,7 @@ export function createEditlerActions({
 }: UseEditlerProps) {
   const addEdit = async (item: Omit<EditItem, 'id'>) => {
     try {
-      await supabase.from('edits').insert({
+      const { error } = await supabase.from('edits').insert({
         client_name: item.client.trim(),
         title: item.title,
         content_type: normalizeContentType(item.type),
@@ -26,8 +26,13 @@ export function createEditlerActions({
         deadline: item.deadline,
         status: item.status || 'waiting',
       });
-      fetchCloudData();
-    } catch (e) {}
+      if (error) {
+        console.error('Edit ekleme hatası:', error.message);
+      }
+      await fetchCloudData();
+    } catch (e) {
+      console.error('addEdit beklenmeyen hata:', e);
+    }
   };
 
   const deleteEdit = async (id: string) => {
@@ -35,22 +40,29 @@ export function createEditlerActions({
     setEditler((prev) => prev.filter((i) => i.id !== id));
     try {
       if (isUUID(id)) {
-        await supabase.from('edits').delete().eq('id', id);
+        const { error } = await supabase.from('edits').delete().eq('id', id);
+        if (error) console.error('Edit silme hatası:', error.message);
       } else if (target) {
-        await supabase.from('edits').delete().eq('title', target.title);
+        const { error } = await supabase.from('edits').delete().eq('title', target.title);
+        if (error) console.error('Edit silme hatası (title):', error.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('deleteEdit beklenmeyen hata:', e);
+    }
   };
 
   const updateEditStatus = async (id: string, status: string) => {
     setEditler((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)));
     try {
       if (isUUID(id)) {
-        await supabase.from('edits').update({ status }).eq('id', id);
+        const { error } = await supabase.from('edits').update({ status }).eq('id', id);
+        if (error) console.error('Edit status güncelleme hatası:', error.message);
       }
-      fetchCloudData();
-    } catch (e) {}
+      await fetchCloudData();
+    } catch (e) {
+      console.error('updateEditStatus beklenmeyen hata:', e);
+    }
   };
 
   return { addEdit, deleteEdit, updateEditStatus };
