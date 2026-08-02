@@ -53,6 +53,7 @@ export default function AiDirektorPage() {
     addCekim,
     addEdit,
     addHaftalikNot,
+    addTakvimPost,
   } = useData();
 
   const [chatInput, setChatInput] = useState('');
@@ -183,10 +184,13 @@ export default function AiDirektorPage() {
       const res = await parseExcelFile(file);
       if (res.shoots.length > 0 || res.posts.length > 0) {
         res.shoots.forEach((s) => addCekim(s));
+        res.posts.forEach((p) => addTakvimPost(p));
+
         let reply = `✅ <b>📊 EXCEL DOSYASI BAŞARIYLA OKUNDU VE VERİTABANINA AKTARILDI!</b>\n\n`;
         reply += `• <b>${res.shoots.length} Adet Çekim Planı</b> Çekimler modülüne eklendi.\n`;
+        reply += `• <b>${res.posts.length} Adet Paylaşım Planı</b> Paylaşım Takvimi modülüne eklendi.\n`;
         reply += `• <b>${res.clientNamesFound.length} İşletme</b> tespit edildi (${res.clientNamesFound.join(', ')}).\n\n`;
-        reply += `Tüm çekimleri Çekimler ve Paylaşım Takvimi sayfalarınızdan inceleyebilirsiniz! 🚀`;
+        reply += `Tüm kayıtları Çekimler ve Paylaşım Takvimi sayfalarınızdan inceleyebilirsiniz! 🚀`;
 
         const aiMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
