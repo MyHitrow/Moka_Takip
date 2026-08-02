@@ -524,41 +524,71 @@ export default function PaylasimTakvimiPage() {
           )}
 
           {/* Full List View on Mobile */}
-          {mobileView === 'list' && (
-            <div className="space-y-3 pt-2">
-              {takvimPosts.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-6">Kayıtlı paylaşım bulunmuyor.</p>
-              ) : (
-                takvimPosts.map((post) => (
-                  <Card key={post.id} className="p-4 bg-card border border-border shadow-sm space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-xs font-bold text-primary">{post.client}</span>
-                        <h4 className="font-extrabold text-base text-foreground">{post.title}</h4>
-                      </div>
-                      <Badge variant="outline" className={`text-xs ${getPlatformBadgeColor(post.platform)}`}>
-                        {post.platform}
-                      </Badge>
-                    </div>
+          {mobileView === 'list' && (() => {
+            const currentMonthStr = `${year}-${selectedMonthStr}`;
+            const sortedMonthPosts = takvimPosts
+              .filter((p) => p.date.startsWith(currentMonthStr))
+              .sort((a, b) => {
+                const dateA = a.date + (a.time || '00:00');
+                const dateB = b.date + (b.time || '00:00');
+                return dateA.localeCompare(dateB);
+              });
 
-                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                      <span>Tarih: {formatDateTr(post.date)} - {post.time}</span>
-                      <select
-                        value={post.status}
-                        onChange={(e) => updateTakvimPostStatus(post.id, e.target.value as any)}
-                        className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground"
-                      >
-                        <option value="preparing">Hazırlanıyor</option>
-                        <option value="ready">Hazır</option>
-                        <option value="scheduled">Planlandı</option>
-                        <option value="published">Paylaşıldı</option>
-                      </select>
+            // Group by date
+            const groupedByDate: Record<string, typeof sortedMonthPosts> = {};
+            sortedMonthPosts.forEach((p) => {
+              if (!groupedByDate[p.date]) groupedByDate[p.date] = [];
+              groupedByDate[p.date].push(p);
+            });
+
+            return (
+              <div className="space-y-4 pt-2">
+                {sortedMonthPosts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">Bu ay için kayıtlı paylaşım bulunmuyor.</p>
+                ) : (
+                  Object.entries(groupedByDate).map(([dateStr, posts]) => (
+                    <div key={dateStr}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="h-px flex-1 bg-border" />
+                        <span className="text-[11px] font-bold text-primary px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20">
+                          {formatDateTr(dateStr)}
+                        </span>
+                        <div className="h-px flex-1 bg-border" />
+                      </div>
+                      <div className="space-y-2">
+                        {posts.map((post) => (
+                          <Card key={post.id} className="p-4 bg-card border border-border shadow-sm space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="text-xs font-bold text-primary">{post.client}</span>
+                                <h4 className="font-extrabold text-base text-foreground">{post.title}</h4>
+                              </div>
+                              <Badge variant="outline" className={`text-xs ${getPlatformBadgeColor(post.platform)}`}>
+                                {post.platform}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                              <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {post.time || '--:--'}</span>
+                              <select
+                                value={post.status}
+                                onChange={(e) => updateTakvimPostStatus(post.id, e.target.value as any)}
+                                className="text-xs bg-background border border-input rounded-md px-2 py-1 text-foreground"
+                              >
+                                <option value="preparing">Hazırlanıyor</option>
+                                <option value="ready">Hazır</option>
+                                <option value="scheduled">Planlandı</option>
+                                <option value="published">Paylaşıldı</option>
+                              </select>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
                     </div>
-                  </Card>
-                ))
-              )}
-            </div>
-          )}
+                  ))
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* ======================================================== */}
