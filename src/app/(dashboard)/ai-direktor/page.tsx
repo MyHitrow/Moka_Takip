@@ -24,10 +24,13 @@ import {
   MessageSquare,
   User,
   Loader2,
+  FileSpreadsheet,
+  Paperclip,
 } from 'lucide-react';
 import { useData } from '@/context/data-context';
 import { runAISentinelAudit } from '@/lib/ai-sentinel';
 import { parseAICommandsAndIntent } from '@/lib/ai-assistant';
+import { parseExcelFile } from '@/lib/excel-importer';
 
 interface ChatMessage {
   id: string;
@@ -158,6 +161,53 @@ export default function AiDirektorPage() {
           timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleAIChatExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsSending(true);
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: `📊 Excel Dosyası Yüklendi: **${file.name}**`,
+      timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+
+    try {
+      const res = await parseExcelFile(file);
+      if (res.shoots.length > 0 || res.posts.length > 0) {
+        res.shoots.forEach((s) => addCekim(s));
+        let reply = `✅ <b>📊 EXCEL DOSYASI BAŞARIYLA OKUNDU VE VERİTABANINA AKTARILDI!</b>\n\n`;
+        reply += `• <b>${res.shoots.length} Adet Çekim Planı</b> Çekimler modülüne eklendi.\n`;
+        reply += `• <b>${res.clientNamesFound.length} İşletme</b> tespit edildi (${res.clientNamesFound.join(', ')}).\n\n`;
+        reply += `Tüm çekimleri Çekimler ve Paylaşım Takvimi sayfalarınızdan inceleyebilirsiniz! 🚀`;
+
+        const aiMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: reply,
+          timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            sender: 'ai',
+            text: `⚠️ Yüklenen Excel dosyasında geçerli çekim veya takvim kaydı bulunamadı. Lütfen dosyanızın sütunlarını kontrol edin.`,
+            timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+      }
+    } catch (err) {
+      console.error('AI Chat Excel upload error:', err);
     } finally {
       setIsSending(false);
     }
@@ -320,10 +370,30 @@ export default function AiDirektorPage() {
             }}
             className="flex items-center gap-2 pt-1"
           >
+            <div className="relative shrink-0">
+              <input
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                onChange={handleAIChatExcelUpload}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                disabled={isSending}
+                title="Excel / CSV Dosyası Yükle ve Otomatik Çekim/Takvim Aktar"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                disabled={isSending}
+                className="h-10 w-10 border-[#2B2D32] bg-[#111214] hover:bg-[#1D1F23] text-emerald-400 shrink-0"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+              </Button>
+            </div>
+
             <Input
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="AI Asistanınıza sorun... (ör. Kaç işletmem var?, ModaPlus nasıl bir müşteri?)"
+              placeholder="AI Asistanınıza sorun... (ör. Yarın 10'a Luness çekimi yaz veya sol butondan Excel yükle)"
               className="bg-[#0D0E10] border-[#2B2D32] text-xs h-10 text-[#F7F7F8] placeholder:text-[#73767E]"
               disabled={isSending}
             />

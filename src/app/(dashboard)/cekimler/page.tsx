@@ -19,10 +19,15 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
-  List
+  List,
+  FileSpreadsheet,
+  Upload,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 import { SHOOT_STATUS_LABELS, SHOOT_STATUS_COLORS } from '@/lib/constants';
 import { useData } from '@/context/data-context';
+import { parseExcelFile, ParsedExcelResult } from '@/lib/excel-importer';
 
 export default function CekimlerPage() {
   const { cekimler, isletmeler, addCekim, deleteCekim, formatDateTr } = useData();
@@ -48,6 +53,35 @@ export default function CekimlerPage() {
   const [time, setTime] = useState('10:00');
   const [location, setLocation] = useState('');
   const [status, setStatus] = useState('planned');
+
+  // Excel Upload State
+  const [excelOpen, setExcelOpen] = useState(false);
+  const [isParsingExcel, setIsParsingExcel] = useState(false);
+  const [excelResult, setExcelResult] = useState<ParsedExcelResult | null>(null);
+
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsParsingExcel(true);
+    try {
+      const res = await parseExcelFile(file);
+      setExcelResult(res);
+    } catch (err) {
+      console.error('Excel parse hatası:', err);
+    } finally {
+      setIsParsingExcel(false);
+    }
+  };
+
+  const handleConfirmImport = () => {
+    if (!excelResult || excelResult.shoots.length === 0) return;
+    excelResult.shoots.forEach((s) => {
+      addCekim(s);
+    });
+    setExcelResult(null);
+    setExcelOpen(false);
+  };
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -157,6 +191,73 @@ export default function CekimlerPage() {
                   <List className="w-3.5 h-3.5 mr-1" /> Liste
                 </Button>
               </div>
+
+              {/* Excel Upload Dialog */}
+              <Dialog open={excelOpen} onOpenChange={setExcelOpen}>
+                <DialogTrigger
+                  render={
+                    <Button variant="outline" className="border-[#2B2D32] bg-[#17181B] hover:bg-[#24262B] text-[#F7F7F8] font-bold text-xs">
+                      <FileSpreadsheet className="w-4 h-4 mr-1.5 text-emerald-400" /> Excel'den İçe Aktar
+                    </Button>
+                  }
+                />
+                <DialogContent className="sm:max-w-[500px] bg-[#17181B] border-[#2B2D32] text-[#F7F7F8]">
+                  <DialogHeader>
+                    <DialogTitle className="text-base font-bold flex items-center gap-2">
+                      <FileSpreadsheet className="w-5 h-5 text-emerald-400" /> Excel / CSV'den Toplu Çekim Yükle
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  <div className="space-y-4 pt-2">
+                    <p className="text-xs text-[#B5B7BD]">
+                      Excel (`.xlsx`, `.xls`) veya CSV dosyanızı yükleyerek toplu çekimlerinizi saniyeler içinde takvime ekleyebilirsiniz.
+                    </p>
+
+                    <div className="border-2 border-dashed border-[#2B2D32] hover:border-emerald-500/50 rounded-xl p-6 text-center bg-[#0D0E10] transition-colors relative">
+                      <input
+                        type="file"
+                        accept=".xlsx, .xls, .csv"
+                        onChange={handleExcelUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <Upload className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-[#F7F7F8]">Excel / CSV Dosyasını Buraya Sürükleyin veya Seçin</p>
+                      <p className="text-[10px] text-[#73767E] mt-1">Desteklenen: .xlsx, .xls, .csv</p>
+                    </div>
+
+                    {isParsingExcel && (
+                      <div className="flex items-center justify-center gap-2 text-xs text-[#B5B7BD] py-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-400" /> Excel Çözümleniyor...
+                      </div>
+                    )}
+
+                    {excelResult && (
+                      <div className="bg-[#111214] border border-[#2B2D32] rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span className="text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="w-4 h-4" /> {excelResult.shoots.length} Adet Çekim Tespit Edildi
+                          </span>
+                          <span className="text-[10px] text-[#73767E]">{excelResult.clientNamesFound.length} Farklı İşletme</span>
+                        </div>
+                        <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 text-[11px] scrollbar-thin">
+                          {excelResult.shoots.map((s, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-[#1D1F23] p-2 rounded border border-[#2B2D32]">
+                              <span><b>{s.client}</b> — {s.title}</span>
+                              <span className="text-[#73767E] text-[10px]">{s.date} @ {s.time}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          onClick={handleConfirmImport}
+                          className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                        >
+                          Tüm Çekimleri Veritabanına Aktar ({excelResult.shoots.length})
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger
