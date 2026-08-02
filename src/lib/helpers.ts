@@ -22,15 +22,31 @@ export function formatDateTr(dateStr: string): string {
   return dateStr;
 }
 
+export function normalizeRoleKey(roleStr: string): string {
+  if (!roleStr) return 'member';
+  const norm = roleStr.trim().toLowerCase();
+  if (norm.includes('super') || norm.includes('süper')) return 'super_admin';
+  if (norm.includes('creative') || norm.includes('kreatif')) return 'creative_director';
+  if (norm.includes('avukat')) return 'avukat';
+  if (norm.includes('ads')) return 'ads_specialist';
+  if (norm.includes('herbokolog')) return 'herbokolog';
+  if (norm.includes('admin') || norm.includes('yönetici')) return 'admin';
+  if (norm.includes('edit') || norm.includes('kurgu')) return 'editor';
+  if (norm === 'member' || norm.includes('üye') || norm.includes('ekip')) return 'member';
+  return norm;
+}
+
 export function formatRoleLabel(roleKey: string): string {
-  switch (roleKey) {
+  const norm = normalizeRoleKey(roleKey);
+  switch (norm) {
+    case 'super_admin':       return 'Süper Admin';
+    case 'admin':             return 'Admin';
     case 'creative_director': return 'Creative Director';
     case 'avukat':            return 'Avukat';
     case 'ads_specialist':    return 'Ads Uzmanı';
     case 'herbokolog':        return 'Herbokolog';
-    case 'super_admin':       return 'Süper Admin';
-    case 'admin':             return 'Admin';
     case 'editor':            return 'Editör / Kurgucu';
+    case 'member':            return 'Ekip Üyesi';
     default:                  return roleKey || 'Ekip Üyesi';
   }
 }

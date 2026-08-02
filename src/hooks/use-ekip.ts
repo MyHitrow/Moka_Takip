@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { EkipUyesi, SystemUser } from '@/types/app';
-import { formatRoleLabel } from '@/lib/helpers';
+import { formatRoleLabel, normalizeRoleKey } from '@/lib/helpers';
 
 interface UseEkipProps {
   ekip: EkipUyesi[];
@@ -42,7 +42,15 @@ export function createEkipActions({
       item.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
     const autoPassword = customPassword || undefined;
 
-    const newItem: EkipUyesi = { ...item, id: Date.now().toString(), initials, username: autoUsername };
+    const normalizedRole = normalizeRoleKey(item.role);
+
+    const newItem: EkipUyesi = {
+      ...item,
+      id: Date.now().toString(),
+      initials,
+      username: autoUsername,
+      role: formatRoleLabel(normalizedRole),
+    };
     const updatedEkip = [...ekip, newItem];
     setEkip(updatedEkip);
 
@@ -51,14 +59,14 @@ export function createEkipActions({
       username: autoUsername,
       ...(autoPassword ? { password: autoPassword } : {}),
       name: item.name,
-      role: item.role,
+      role: normalizedRole,
       permissions: {
         canManageFinance: true,
         canManageShoots: true,
         canManageEdits: true,
         canManageTakvim: true,
         canManageTeam: true,
-        canManageUsers: false,
+        canManageUsers: normalizedRole === 'super_admin',
       },
     };
 
@@ -94,8 +102,9 @@ export function createEkipActions({
     );
     if (exists) return false;
 
-    const newUser: SystemUser = { ...user, id: Date.now().toString() };
-    const roleLabel = formatRoleLabel(user.role);
+    const normalizedRole = normalizeRoleKey(user.role);
+    const newUser: SystemUser = { ...user, role: normalizedRole, id: Date.now().toString() };
+    const roleLabel = formatRoleLabel(normalizedRole);
     const parts = user.name.trim().split(' ');
     const initials =
       parts.length >= 2
@@ -124,9 +133,15 @@ export function createEkipActions({
     if (currentUser.role !== 'super_admin' && hasSuperAdmin) return;
     const targetUser = systemUsers.find((u) => u.id === id);
 
+    const normalizedRole = updatedFields.role ? normalizeRoleKey(updatedFields.role) : undefined;
+
     const updatedUsers = systemUsers.map((u) => {
       if (u.id === id) {
-        const updated = { ...u, ...updatedFields };
+        const updated = {
+          ...u,
+          ...updatedFields,
+          ...(normalizedRole ? { role: normalizedRole } : {}),
+        };
         if (currentUser.id === id) setCurrentUser(updated);
         return updated;
       }
@@ -135,15 +150,15 @@ export function createEkipActions({
 
     const updatedEkip = ekip.map((member) => {
       if (
-        (targetUser && member.username === targetUser.username) ||
+        (targetUser && member.username && member.username.toLowerCase() === targetUser.username.toLowerCase()) ||
         (targetUser && member.name.toLowerCase() === targetUser.name.toLowerCase())
       ) {
-        const newRole = updatedFields.role || targetUser?.role || 'member';
+        const finalRoleKey = normalizedRole || targetUser?.role || 'member';
         return {
           ...member,
           name: updatedFields.name || member.name,
           username: updatedFields.username || member.username,
-          role: formatRoleLabel(newRole),
+          role: formatRoleLabel(finalRoleKey),
         };
       }
       return member;

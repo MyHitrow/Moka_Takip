@@ -111,12 +111,14 @@ export default function EkipPage() {
                       onChange={(e) => setRole(e.target.value)}
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
                     >
-                      <option value="Creative Director">✨ Creative Director</option>
-                      <option value="Avukat">⚖️ Avukat</option>
-                      <option value="Ads Uzmanı">📢 Ads Uzmanı</option>
-                      <option value="Herbokolog">🔥 Herbokolog</option>
-                      <option value="Süper Admin">👑 Süper Admin</option>
-                      <option value="Admin">🏢 Admin (Yönetici)</option>
+                      <option value="creative_director">✨ Creative Director</option>
+                      <option value="avukat">⚖️ Avukat</option>
+                      <option value="ads_specialist">📢 Ads Uzmanı</option>
+                      <option value="herbokolog">🔥 Herbokolog</option>
+                      <option value="super_admin">👑 Süper Admin</option>
+                      <option value="admin">🏢 Admin (Yönetici)</option>
+                      <option value="editor">🎬 Editör / Kurgucu</option>
+                      <option value="member">👤 Ekip Üyesi</option>
                     </select>
                   </div>
                   <div className="space-y-2">

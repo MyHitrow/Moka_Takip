@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Settings, ShieldCheck, Plus, Trash2, Edit, AlertTriangle, Sparkles, Scale, Megaphone, Flame, User } from 'lucide-react';
 import { useData, SystemUser, formatRoleLabel } from '@/context/data-context';
+import { normalizeRoleKey } from '@/lib/helpers';
 
 export default function AyarlarPage() {
   const { systemUsers, currentUser, addSystemUser, updateSystemUser, deleteSystemUser, logout } = useData();
@@ -70,7 +71,7 @@ export default function AyarlarPage() {
     setEditName(user.name);
     setEditUsername(user.username);
     setEditPassword(user.password || '');
-    setEditRole(user.role);
+    setEditRole(normalizeRoleKey(user.role));
     setOpenEditModal(true);
   };
 
@@ -439,6 +440,8 @@ export default function AyarlarPage() {
                 <option value="herbokolog">🔥 Herbokolog</option>
                 <option value="super_admin">👑 Süper Admin</option>
                 <option value="admin">🏢 Admin (Yönetici)</option>
+                <option value="editor">🎬 Editör / Kurgucu</option>
+                <option value="member">👤 Ekip Üyesi (Member)</option>
               </select>
             </div>
 
