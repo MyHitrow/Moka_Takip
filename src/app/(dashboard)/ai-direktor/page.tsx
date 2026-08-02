@@ -277,6 +277,18 @@ export default function AiDirektorPage() {
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#2B2D32]">
             <span className="text-[10px] text-[#73767E] font-bold uppercase">Hızlı Sorular:</span>
             <button
+              onClick={() => handleSendMessage('Düşük getiri sağlayan işletmeleri göster')}
+              className="text-[10px] bg-[#1D1F23] hover:bg-[#24262B] text-amber-400 border border-[#2B2D32] px-2.5 py-1 rounded-md font-semibold transition-colors flex items-center gap-1"
+            >
+              📊 Düşük Getirili Müşteriler
+            </button>
+            <button
+              onClick={() => handleSendMessage('Kaybetmemem gereken hayati müşteriler hangileri?')}
+              className="text-[10px] bg-[#1D1F23] hover:bg-[#24262B] text-emerald-400 border border-[#2B2D32] px-2.5 py-1 rounded-md font-semibold transition-colors flex items-center gap-1"
+            >
+              💎 Kaybetmemem Gereken Müşteriler
+            </button>
+            <button
               onClick={() => handleSendMessage('Hangi müşterilerin ödemesi gecikti?')}
               className="text-[10px] bg-[#1D1F23] hover:bg-[#24262B] text-[#B5B7BD] border border-[#2B2D32] px-2 py-1 rounded-md transition-colors"
             >

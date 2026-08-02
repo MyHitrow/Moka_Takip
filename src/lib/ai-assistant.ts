@@ -208,7 +208,82 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return `Selamlar! Ben MOKA CREATIVE AGENCY canlı veritabanı hafızasına sahip AI Asistanınızım. 🤖\n\nŞu an sistemde <b>${data.isletmeler.length} işletmeniz</b> (${activeCount} aktif), planlı çekimleriniz ve kurgularınız güncel olarak zihnimdedir.\n\nBana <i>"İşletmelerimizi listele"</i>, <i>"Editör yükü nasıl?"</i> veya <i>"Yarın 10'a X çekimi yaz"</i> diyebilirsiniz!`;
   }
 
-  // 2. İşletme / Müşteri Listesi Sorgusu (Örn: "işletmeleri listeler misin", "müşterilerimizi göster", "kaç işletmem var")
+  // 2. STKATEJİK ANALİZ: Düşük Getiri / Düşük Ciro / Zahmetli İşletmeler
+  if (
+    query.includes('düşük getiri') ||
+    query.includes('düşük ciro') ||
+    query.includes('az kazandıran') ||
+    query.includes('verimsiz') ||
+    query.includes('zahmetli') ||
+    query.includes('yükü fazla')
+  ) {
+    if (data.isletmeler.length === 0) {
+      return `Veritabanında kayıtlı işletme bulunmuyor.`;
+    }
+
+    // Sort clients by numeric fee ascending
+    const parsedClients = data.isletmeler.map((biz) => {
+      const numFee = Number(biz.fee.replace(/[^0-9.]/g, '')) || 0;
+      const reelsTarget = biz.monthlyReelsTarget || 10;
+      const costPerReel = reelsTarget > 0 ? Math.round(numFee / reelsTarget) : numFee;
+      return { ...biz, numFee, costPerReel };
+    });
+
+    parsedClients.sort((a, b) => a.numFee - b.numFee);
+    const lowReturnClients = parsedClients.slice(0, 5);
+
+    let res = `📊 <b>İçerik & Planlama Açısından Düşük Getiri / Yüksek Efor Sağlayan İşletmeler:</b>\n\n`;
+    lowReturnClients.forEach((c, idx) => {
+      res += `${idx + 1}. <b>${c.name}</b> — Aylık Paket: <b>${c.fee}</b>\n`;
+      res += `   • Aylık Reels Hedefi: ${c.monthlyReelsTarget || 10} adet (Video başına ~₺${c.costPerReel})\n`;
+      if (c.notes) res += `   • 🧠 AI Notu: "${c.notes}"\n`;
+      res += `\n`;
+    });
+
+    res += `💡 <b>Stratejik AI Tavsiyesi:</b> Bu işletmelerin prodüksiyon ve kurgu yükü paket ücretlerine kıyasla ajans marjınızı düşürüyor olabilir. Yenileme döneminde fiyat revizesi yapılmasını veya içerik adedinin opsiyonel sunulmasını öneririm.`;
+    return res;
+  }
+
+  // 3. STRATEJİK ANALİZ: Kaybetmememiz Gereken / Hayati Önemdeki / Yüksek Cirolu Müşteriler
+  if (
+    query.includes('kaybetmemem') ||
+    query.includes('kaybetmemek') ||
+    query.includes('zora girmemek') ||
+    query.includes('en önemli') ||
+    query.includes('kritik müşteri') ||
+    query.includes('yüksek ciro') ||
+    query.includes('en çok kazandıran')
+  ) {
+    if (data.isletmeler.length === 0) {
+      return `Veritabanında kayıtlı işletme bulunmuyor.`;
+    }
+
+    const parsedClients = data.isletmeler.map((biz) => {
+      const numFee = Number(biz.fee.replace(/[^0-9.]/g, '')) || 0;
+      return { ...biz, numFee };
+    });
+
+    // Sort clients by fee descending
+    parsedClients.sort((a, b) => b.numFee - a.numFee);
+    const topClients = parsedClients.slice(0, 5);
+    const totalAgencyRev = parsedClients.reduce((acc, c) => acc + c.numFee, 0);
+
+    let res = `💎 <b>MOKA CREATIVE AGENCY İçin Finansal Hayati Önem Taşıyan Müşteriler:</b>\n`;
+    res += `<i>(Ajans nakit akışınızın temel direği olan en yüksek cirolu işletmeler)</i>\n\n`;
+
+    topClients.forEach((c, idx) => {
+      const share = totalAgencyRev > 0 ? Math.round((c.numFee / totalAgencyRev) * 100) : 0;
+      res += `${idx + 1}. 🌟 <b>${c.name}</b> — Aylık Ciro: <b>${c.fee}</b> (Ajans Cirosunun %${share}'i)\n`;
+      res += `   • Yetkili: ${c.contact} (${c.phone})\n`;
+      if (c.notes) res += `   • 🧠 Özel Not: "${c.notes}"\n`;
+      res += `\n`;
+    });
+
+    res += `👑 <b>Stratejik AI Uyarısı:</b> Zora girmemek ve ajans karlılığını korumak için bu müşterilerle VIP iletişim sürdürülmeli, teslimat süreleri ve memnuniyetleri 7/24 yakından takip edilmelidir!`;
+    return res;
+  }
+
+  // 4. İşletme / Müşteri Listesi Sorgusu (Örn: "işletmeleri listeler misin", "müşterilerimizi göster", "kaç işletmem var")
   const isBusinessListIntent =
     query.includes('işletme') ||
     query.includes('isletme') ||
