@@ -18,13 +18,28 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { currentUser, cekimler, editler, gelirler, giderler } = useData();
+  const { currentUser, isletmeler, cekimler, editler, gelirler, giderler } = useData();
 
-  const totalGelir = gelirler.reduce((acc, curr) => acc + curr.amount, 0) || 1250000;
-  const totalGider = giderler.reduce((acc, curr) => acc + curr.amount, 0) || 620000;
+  // Dynamic calculations from Supabase DB state
+  const totalProjects = isletmeler.length;
+  const activeJobs = cekimler.filter((c) => c.status === 'planned' || c.status === 'ready').length +
+                     editler.filter((e) => e.status !== 'ready' && e.status !== 'published').length;
+  const completedJobs = editler.filter((e) => e.status === 'ready' || e.status === 'published').length +
+                        cekimler.filter((c) => c.status === 'completed').length;
+  const pendingApprovals = editler.filter((e) => e.status === 'client_review' || e.status === 'internal_review').length;
+
+  const totalGelir = gelirler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+  const totalGider = giderler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
   const formatCurrency = (val: number) =>
-    `₺${val.toLocaleString('tr-TR')}`;
+    new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(val);
+
+  const todayFormatted = new Date().toLocaleDateString('tr-TR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    weekday: 'long',
+  });
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-0 md:pt-5 bg-[#0D0E10] min-h-screen">
@@ -41,54 +56,53 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Date Selector Dropdown */}
+        {/* Date Selector */}
         <div className="flex items-center gap-2 bg-[#17181B] border border-[#2B2D32] rounded-lg px-3 py-1.5 text-xs text-[#F7F7F8] font-semibold shadow-xs">
           <Calendar className="w-3.5 h-3.5 text-[#73767E]" />
-          <span>24 Mayıs 2024, Cuma</span>
-          <span className="text-[10px] text-[#73767E] ml-1">▼</span>
+          <span>{todayFormatted}</span>
         </div>
       </div>
 
-      {/* Top 6 Stat Cards Grid */}
+      {/* Top 6 Dynamic Stat Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
         <StatCard
           title="Toplam Proje"
-          value="24"
+          value={totalProjects}
           icon={FolderKanban}
           href="/isletmeler"
           trend={{ value: 12, label: 'bu ay' }}
         />
         <StatCard
           title="Devam Eden İş"
-          value="13"
+          value={activeJobs}
           icon={Clock}
           href="/editler"
           trend={{ value: 8, label: 'bu ay' }}
         />
         <StatCard
           title="Tamamlanan İş"
-          value="48"
+          value={completedJobs}
           icon={CheckCircle2}
           href="/editler"
           trend={{ value: 24, label: 'bu ay' }}
         />
         <StatCard
           title="Bekleyen Onay"
-          value="7"
+          value={pendingApprovals}
           icon={AlertCircle}
           href="/editler"
           trend={{ value: 5, label: 'bu ay' }}
         />
         <StatCard
           title="Toplam Gelir"
-          value="₺1.250.000"
+          value={formatCurrency(totalGelir)}
           icon={TrendingUp}
           href="/gelirler"
           trend={{ value: 18, label: 'bu ay' }}
         />
         <StatCard
           title="Toplam Gider"
-          value="₺620.000"
+          value={formatCurrency(totalGider)}
           icon={TrendingDown}
           href="/giderler"
           trend={{ value: 11, label: 'bu ay' }}
