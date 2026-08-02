@@ -26,7 +26,7 @@ export function buildAgencySystemPrompt(data: DataContextPayload): string {
   const totalRevenue = data.gelirler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpenses = data.giderler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  let prompt = `Sen REDLINE MEDYA AJANSI'nın canlı veritabanı hafızasına ve EYLEM/YAZMA yetkisine sahip Otonom AI Asistanısın.\n`;
+  let prompt = `Sen MOKA CREATIVE AGENCY'nin canlı veritabanı hafızasına ve EYLEM/YAZMA yetkisine sahip Otonom AI Asistanısın.\n`;
   prompt += `Aşağıda ajansındaki canlı Supabase veritabanı bilgileri yer almaktadır:\n\n`;
 
   prompt += `📊 GENEL AJANS ÖZETİ:\n`;

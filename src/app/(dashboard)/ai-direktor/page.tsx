@@ -58,7 +58,7 @@ export default function AiDirektorPage() {
     {
       id: 'welcome',
       sender: 'ai',
-      text: `Merhaba! Ben **REDLINE MEDYA** canlı veritabanı hafızasına ve **EYLEM YETKİSİNE** sahip **Otonom AI Asistanınızım**.\n\nSistemdeki **${isletmeler.length} işletmeniz**, çekimleriniz ve kurgularınız zihnimde günceldir.\n\nBana sadece soru sormakla kalmayıp emredebilirsiniz:\n• *"Yarın saat 10'a Luness, 3'e Dutt, 6'ya Sun Brother Pizza çekimi yaz."*\n(Anında veritabanına otomatik eklerim!)`,
+      text: `Merhaba! Ben **MOKA CREATIVE AGENCY** canlı veritabanı hafızasına ve **EYLEM YETKİSİNE** sahip **Otonom AI Asistanınızım**.\n\nSistemdeki **${isletmeler.length} işletmeniz**, çekimleriniz ve kurgularınız zihnimde günceldir.\n\nBana sadece soru sormakla kalmayıp emredebilirsiniz:\n• *"Yarın saat 10'a Luness, 3'e Dutt, 6'ya Sun Brother Pizza çekimi yaz."*\n(Anında veritabanına otomatik eklerim!)`,
       timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
     },
   ]);

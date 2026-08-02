@@ -24,11 +24,11 @@ export function Sidebar() {
       {/* Logo Area */}
       <div className="flex h-20 shrink-0 items-center gap-3 px-6 border-b border-[#2B2D32]">
         <div className="relative w-9 h-9 shrink-0">
-          <Image src="/moka-logo.png" alt="REDLINE Logo" fill className="object-contain" />
+          <Image src="/moka-logo.png" alt="MOKA Logo" fill className="object-contain" />
         </div>
         <div className="flex flex-col">
           <span className="text-base font-black tracking-wider text-[#F7F7F8] leading-none uppercase">
-            REDLINE <span className="text-[#E32636]">MEDYA</span>
+            MOKA <span className="text-[#E32636]">CREATIVE</span>
           </span>
           <span className="text-[10px] text-[#73767E] font-semibold tracking-widest uppercase mt-1">
             CREATIVE AGENCY

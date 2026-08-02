@@ -21,11 +21,11 @@ export function Header({ title, subtitle }: HeaderProps) {
       {/* Mobile view: Logo + Brand */}
       <div className="flex items-center gap-2.5 md:hidden">
         <div className="relative w-7 h-7 shrink-0">
-          <Image src="/moka-logo.png" alt="REDLINE Logo" fill className="object-contain" />
+          <Image src="/moka-logo.png" alt="MOKA Logo" fill className="object-contain" />
         </div>
         <div className="flex flex-col">
           <span className="text-xs font-black tracking-wider text-[#F7F7F8] leading-none uppercase">
-            REDLINE <span className="text-[#E32636]">MEDYA</span>
+            MOKA <span className="text-[#E32636]">CREATIVE</span>
           </span>
           <span className="text-[9px] text-[#73767E] font-medium uppercase tracking-wider mt-0.5">
             {title}
