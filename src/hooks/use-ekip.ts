@@ -85,8 +85,10 @@ export function createEkipActions({
     syncSettingsToCloud(updatedUsers, updatedEkip);
   };
 
+  const hasSuperAdmin = systemUsers.some((u) => u.role === 'super_admin');
+
   const addSystemUser = (user: Omit<SystemUser, 'id'>): boolean => {
-    if (currentUser.role !== 'super_admin') return false;
+    if (currentUser.role !== 'super_admin' && hasSuperAdmin) return false;
     const exists = systemUsers.some(
       (u) => u.username.toLowerCase() === user.username.toLowerCase()
     );
@@ -105,7 +107,7 @@ export function createEkipActions({
       name: user.name,
       role: roleLabel,
       phone: '-',
-      color: 'bg-purple-500',
+      color: 'bg-[#E32636]',
       initials,
       username: user.username,
     };
@@ -119,7 +121,7 @@ export function createEkipActions({
   };
 
   const updateSystemUser = (id: string, updatedFields: Partial<SystemUser>) => {
-    if (currentUser.role !== 'super_admin') return;
+    if (currentUser.role !== 'super_admin' && hasSuperAdmin) return;
     const targetUser = systemUsers.find((u) => u.id === id);
 
     const updatedUsers = systemUsers.map((u) => {
@@ -153,9 +155,8 @@ export function createEkipActions({
   };
 
   const deleteSystemUser = (id: string) => {
-    if (currentUser.role !== 'super_admin') return;
+    if (currentUser.role !== 'super_admin' && hasSuperAdmin) return;
     const target = systemUsers.find((u) => u.id === id);
-    if (target?.username === 'kadorizator') return; // Süper admin silinemez
 
     const updatedUsers = systemUsers.filter((u) => u.id !== id);
     const updatedEkip = ekip.filter((e) => e.username !== target?.username);

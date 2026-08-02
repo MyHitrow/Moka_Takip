@@ -31,7 +31,8 @@ export default function AyarlarPage() {
   const [editPassword, setEditPassword] = useState('');
   const [editRole, setEditRole] = useState<SystemUser['role']>('creative_director');
 
-  const isSuperAdmin = currentUser.role === 'super_admin';
+  const hasSuperAdmin = systemUsers.some((u) => u.role === 'super_admin');
+  const isSuperAdmin = currentUser.role === 'super_admin' || !hasSuperAdmin;
 
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();

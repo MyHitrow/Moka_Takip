@@ -165,7 +165,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (sysRecord?.contact_name) {
         try {
           const parsed = JSON.parse(sysRecord.contact_name);
-          if (parsed.systemUsers && Array.isArray(parsed.systemUsers)) setSystemUsers(parsed.systemUsers);
+          if (parsed.systemUsers && Array.isArray(parsed.systemUsers) && parsed.systemUsers.length > 0) {
+            let loadedUsers: SystemUser[] = parsed.systemUsers;
+            // Güvenlik & Kilitlenme Koruması: Listede hiç süper admin kalmadıysa otomatik olarak ilk kullanıcıyı veya varsayılan kullanıcıyı süper admin yap!
+            const hasSuperAdmin = loadedUsers.some((u) => u.role === 'super_admin');
+            if (!hasSuperAdmin) {
+              loadedUsers[0].role = 'super_admin';
+              loadedUsers[0].permissions = {
+                canManageFinance: true, canManageShoots: true, canManageEdits: true,
+                canManageTakvim: true, canManageTeam: true, canManageUsers: true,
+              };
+            }
+            setSystemUsers(loadedUsers);
+
+            // Aktif oturum açmış kullanıcı varsa rolünü güncel tut
+            setCurrentUser((prev) => {
+              const matched = loadedUsers.find((u) => u.username.toLowerCase() === prev.username.toLowerCase() || u.id === prev.id);
+              return matched || loadedUsers[0];
+            });
+          }
           if (parsed.ekip && Array.isArray(parsed.ekip)) setEkip(parsed.ekip);
           if (parsed.haftalikNotlar && Array.isArray(parsed.haftalikNotlar)) setHaftalikNotlar(parsed.haftalikNotlar);
         } catch (e) {}
