@@ -644,7 +644,13 @@ export default function CekimlerPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {cekimler.map((shoot) => (
+                  {[...cekimler]
+                    .sort((a, b) => {
+                      const da = a.date + (a.time || '00:00');
+                      const db = b.date + (b.time || '00:00');
+                      return da.localeCompare(db);
+                    })
+                    .map((shoot) => (
                     <tr key={shoot.id} className="border-b border-border bg-card">
                       <td className="px-6 py-4">
                         <div className="font-medium text-foreground">{shoot.client}</div>
@@ -688,7 +694,13 @@ export default function CekimlerPage() {
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-3">
-              {cekimler.map((shoot) => (
+              {[...cekimler]
+                .sort((a, b) => {
+                  const da = a.date + (a.time || '00:00');
+                  const db = b.date + (b.time || '00:00');
+                  return da.localeCompare(db);
+                })
+                .map((shoot) => (
                 <Card key={shoot.id} className="bg-card border border-border p-4 shadow-sm">
                   <div className="flex justify-between items-start mb-2">
                     <div>
