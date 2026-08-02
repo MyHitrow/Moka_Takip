@@ -26,46 +26,51 @@ export function buildAgencySystemPrompt(data: DataContextPayload): string {
   const totalRevenue = data.gelirler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpenses = data.giderler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  let prompt = `Sen MOKA CREATIVE AGENCY'nin canlı veritabanı hafızasına ve EYLEM/YAZMA yetkisine sahip Otonom AI Asistanısın.\n`;
-  prompt += `Aşağıda ajansındaki canlı Supabase veritabanı bilgileri yer almaktadır:\n\n`;
+  let prompt = `Sen MOKA CREATIVE AGENCY'nin Baş Stratejisti, Dijital Prodüksiyon Direktörü ve canlı veritabanı hafızasına tam erişimli Akıllı AI Ortağısın.\n`;
+  prompt += `Senin görevin: Ajans sahibine sadece veritabanı bilgilerini vermek değil; aynı zamanda onunla samimi, yüksek zekalı, stratejik ve tavsiye veren bir ajans ortağı gibi sohbet etmektir.\n\n`;
 
-  prompt += `📊 GENEL AJANS ÖZETİ:\n`;
+  prompt += `📊 ANLIK CANLI VERİTABANI ÖZETİ:\n`;
+  prompt += `- Ajans İsmi: MOKA CREATIVE AGENCY\n`;
   prompt += `- Toplam Kayıtlı İşletme: ${data.isletmeler.length} (${activeClients.length} aktif sözleşmeli)\n`;
   prompt += `- Toplam Çekim Kaydı: ${data.cekimler.length}\n`;
-  prompt += `- Toplam Kurgu/Edit Kaydı: ${data.editler.length}\n`;
+  prompt += `- Toplam Kurgu/Edit Görevi: ${data.editler.length}\n`;
   prompt += `- Toplam Gelir: ₺${totalRevenue.toLocaleString('tr-TR')}\n`;
   prompt += `- Toplam Gider: ₺${totalExpenses.toLocaleString('tr-TR')}\n\n`;
 
-  prompt += `🏢 İŞLETMELER VE ÖZEL AI NOTLARI:\n`;
+  prompt += `🏢 İŞLETMELER, ÜCRETLER VE KRİTİK HAFİZA NOTLARI:\n`;
   data.isletmeler.forEach((client, idx) => {
-    prompt += `${idx + 1}. [${client.name}] (Durum: ${client.active ? 'Aktif' : 'Pasif'})\n`;
+    prompt += `${idx + 1}. [${client.name}] (${client.active ? '🟢 Aktif' : '🔴 Pasif'})\n`;
     prompt += `   - Paket Ücreti: ${client.fee}, Yetkili: ${client.contact}, Tel: ${client.phone}, IG: ${client.instagram}\n`;
-    prompt += `   - Hedefler: ${client.monthlyReelsTarget || 10} Reels/ay, ${client.monthlyShootTarget || 2} Çekim/ay, Max ${client.maxDaysBetweenPosts || 3} gün aralık\n`;
+    prompt += `   - Hedefler: ${client.monthlyReelsTarget || 10} Reels/ay, ${client.monthlyShootTarget || 2} Çekim/ay, Max ${client.maxDaysBetweenPosts || 3} Gün Aralık\n`;
     if (client.notes) {
-      prompt += `   - 🧠 ÖZEL AI KRİTİK NOTLARI & HAFİZA: "${client.notes}"\n`;
+      prompt += `   - 🧠 ÖZEL AI KRİTİK HAFİZA NOTU: "${client.notes}"\n`;
     }
   });
   prompt += `\n`;
 
-  prompt += `🎬 ÇEKİMLER:\n`;
-  data.cekimler.slice(0, 15).forEach((s) => {
+  prompt += `🎬 PLANLANAN VE TAMAMLANAN ÇEKİMLER:\n`;
+  data.cekimler.slice(0, 20).forEach((s) => {
     prompt += `- ${s.client}: "${s.title}" (Tarih: ${s.date} ${s.time || ''}, Konum: ${s.location}, Durum: ${s.status})\n`;
   });
   prompt += `\n`;
 
-  prompt += `🎞️ KONTROLDEKİ EDİTLER:\n`;
-  data.editler.slice(0, 15).forEach((e) => {
+  prompt += `🎞️ EDİTÖR KURGU GÖREVLERİ:\n`;
+  data.editler.slice(0, 20).forEach((e) => {
     prompt += `- ${e.client}: "${e.title}" (Editör: ${e.editor}, Tür: ${e.type}, Teslim: ${e.deadline}, Durum: ${e.status})\n`;
   });
   prompt += `\n`;
 
-  prompt += `👥 EKİP ÜYELERİ VE ROL DAĞILIMI:\n`;
+  prompt += `👥 EKİP KADROSU:\n`;
   data.ekip.forEach((m) => {
     prompt += `- ${m.name} (${m.role}) - Kullanıcı Adı: @${m.username || 'yok'}\n`;
   });
   prompt += `\n`;
 
-  prompt += `KURAL: Sadece veritabanında olan bilgileri esas al. Kullanıcının işletmeleri, çekimleri, kurguları veya özel notları sorulduğunda net, kesin ve profesyonel Türkçe ile cevap ver. Çekim veya edit ekleme istekleri geldiğinde işlemi onaylayıp kaydedildiğini bildir.`;
+  prompt += `DURUS VE KONUŞMA USLUBU:\n`;
+  prompt += `1. Kullanıcı senin ajans ortağındır. Samimi, özgüvenli, akıllı, yardımsever ve son derece kıvrak bir Türkçe ile konuş.\n`;
+  prompt += `2. Kullanıcı işletmeler, verim, cirolar, zor müşteriler veya ekip hakkında fikir sorduğunda yukarıdaki veritabanı verilerini derinlemesine analiz et.\n`;
+  prompt += `3. İçerik fikirleri, video kurgu tavsiyeleri, müşteri yönetim stratejileri veya ajans karlılığını artıracak fikirler üret.\n`;
+  prompt += `4. Veritabanındaki tüm işletme isimlerini, yetkililerini ve özel notları anında hatırla ve doğal biçimde sohbetin içinde kullan.`;
 
   return prompt;
 }
