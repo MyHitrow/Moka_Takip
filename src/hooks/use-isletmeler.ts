@@ -29,6 +29,13 @@ export function createIsletmelerActions({
 }: UseIsletmelerProps) {
   const addIsletme = async (item: Omit<Isletme, 'id'>) => {
     const numFee = parseFloat(item.fee.replace(/[^0-9.]/g, '')) || 0;
+    const cleanNotes = item.notes ? item.notes.split('__AI_META__:')[0].trim() : '';
+    const packedNotes = `${cleanNotes}\n__AI_META__:${JSON.stringify({
+      maxDaysBetweenPosts: item.maxDaysBetweenPosts || 3,
+      monthlyReelsTarget: item.monthlyReelsTarget || 10,
+      monthlyShootTarget: item.monthlyShootTarget || 2,
+    })}`;
+
     try {
       const { data, error } = await supabase.from('clients').insert({
         name: item.name.trim(),
@@ -40,6 +47,7 @@ export function createIsletmelerActions({
         max_days_between_posts: item.maxDaysBetweenPosts || 3,
         monthly_reels_target: item.monthlyReelsTarget || 10,
         monthly_shoot_target: item.monthlyShootTarget || 2,
+        notes: packedNotes,
       }).select().single();
 
       if (error) {
@@ -103,7 +111,23 @@ export function createIsletmelerActions({
     }
 
     try {
-      const updateData: Record<string, unknown> = {};
+      const mergedNotes = updatedFields.notes !== undefined ? updatedFields.notes : (target?.notes || '');
+      const cleanNotes = mergedNotes.split('__AI_META__:')[0].trim();
+
+      const mergedMaxDays = updatedFields.maxDaysBetweenPosts !== undefined ? updatedFields.maxDaysBetweenPosts : (target?.maxDaysBetweenPosts || 3);
+      const mergedReelsTarget = updatedFields.monthlyReelsTarget !== undefined ? updatedFields.monthlyReelsTarget : (target?.monthlyReelsTarget || 10);
+      const mergedShootTarget = updatedFields.monthlyShootTarget !== undefined ? updatedFields.monthlyShootTarget : (target?.monthlyShootTarget || 2);
+
+      const packedNotes = `${cleanNotes}\n__AI_META__:${JSON.stringify({
+        maxDaysBetweenPosts: mergedMaxDays,
+        monthlyReelsTarget: mergedReelsTarget,
+        monthlyShootTarget: mergedShootTarget,
+      })}`;
+
+      const updateData: Record<string, unknown> = {
+        notes: packedNotes,
+      };
+
       if (updatedFields.name !== undefined) updateData.name = newName;
       if (updatedFields.contact !== undefined) updateData.contact_name = updatedFields.contact;
       if (updatedFields.phone !== undefined) updateData.phone = updatedFields.phone;
