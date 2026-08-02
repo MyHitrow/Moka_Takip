@@ -63,10 +63,15 @@ export default function AiDirektorPage() {
     },
   ]);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
   }, [messages]);
 
   const handleSendMessage = async (customPrompt?: string) => {
@@ -225,7 +230,7 @@ export default function AiDirektorPage() {
 
         <CardContent className="p-4 space-y-4">
           {/* Chat Messages History */}
-          <div className="h-64 md:h-72 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
+          <div ref={chatContainerRef} className="h-64 md:h-72 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -270,7 +275,6 @@ export default function AiDirektorPage() {
                 <span>AI Veritabanını Tarıyor ve Yanıt Hazırlıyor...</span>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Quick Prompts Bar (Mobile & Desktop) */}
