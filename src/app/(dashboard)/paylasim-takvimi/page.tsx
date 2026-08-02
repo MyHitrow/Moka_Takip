@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2, Clock, CheckCircle2, FileSpreadsheet, Upload, Loader2 } from 'lucide-react';
 import { useData } from '@/context/data-context';
-import { parseExcelFile, ParsedExcelResult } from '@/lib/excel-importer';
+import { parseExcelFile, ParsedExcelResult, downloadSampleExcelTemplate } from '@/lib/excel-importer';
 
 export default function PaylasimTakvimiPage() {
   const { takvimPosts, isletmeler, addTakvimPost, deleteTakvimPost, updateTakvimPostStatus, formatDateTr } = useData();
@@ -183,6 +183,18 @@ export default function PaylasimTakvimiPage() {
                   </DialogHeader>
 
                   <div className="space-y-4 pt-2">
+                    <div className="flex justify-between items-center bg-[#111214] border border-[#2B2D32] p-2.5 rounded-lg text-xs">
+                      <span className="text-[#B5B7BD]">Hazır Excel şablonu kullanın:</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadSampleExcelTemplate}
+                        className="text-[11px] h-7 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-bold"
+                      >
+                        📥 Örnek Şablonu İndir (.xlsx)
+                      </Button>
+                    </div>
+
                     <p className="text-xs text-[#B5B7BD]">
                       Excel (`.xlsx`, `.xls`) veya CSV dosyanızı yükleyerek toplu içerik paylaşım planlarınızı saniyeler içinde takvime ekleyebilirsiniz.
                     </p>

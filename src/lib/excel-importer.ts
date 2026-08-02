@@ -10,6 +10,59 @@ export interface ParsedExcelResult {
 }
 
 /**
+ * Generates and downloads a pre-formatted sample Excel file for the user
+ */
+export function downloadSampleExcelTemplate(): void {
+  const sampleData = [
+    {
+      'İşletme Adı': 'Luness',
+      'Çekim Başlığı': 'Yaz Koleksiyonu Reels Çekimi',
+      'Tarih': '05.08.2026',
+      'Saat': '10:00',
+      'Konum': 'Luness Mağaza / Nişantaşı',
+      'Platform': 'Instagram Reels',
+    },
+    {
+      'İşletme Adı': 'Dutt',
+      'Çekim Başlığı': 'Ürün Tanıtımı & Röportaj',
+      'Tarih': '05.08.2026',
+      'Saat': '15:00',
+      'Konum': 'Dutt Stüdyo',
+      'Platform': 'Instagram Reels',
+    },
+    {
+      'İşletme Adı': 'Sun Brother Pizza',
+      'Çekim Başlığı': 'Mutfak Arkası Video Çekimi',
+      'Tarih': '05.08.2026',
+      'Saat': '18:00',
+      'Konum': 'Şişli Şubesi',
+      'Platform': 'Instagram Reels',
+    },
+    {
+      'İşletme Adı': 'ModaPlus',
+      'Çekim Başlığı': 'Eylül Kataloğu Çekimleri',
+      'Tarih': '06.08.2026',
+      'Saat': '11:30',
+      'Konum': 'Dış Mekan / Kadıköy',
+      'Platform': 'Instagram Reels',
+    },
+    {
+      'İşletme Adı': 'TechMarket',
+      'Çekim Başlığı': 'Kutu Açılımı & İnceleme',
+      'Tarih': '07.08.2026',
+      'Saat': '14:00',
+      'Konum': 'Ajans Stüdyosu',
+      'Platform': 'YouTube Shorts',
+    },
+  ];
+
+  const worksheet = XLSX.utils.json_to_sheet(sampleData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Çekim Takvimi');
+  XLSX.writeFile(workbook, 'moka_ornek_cekim_takvimi.xlsx');
+}
+
+/**
  * Parses relative date or various Excel date representations into YYYY-MM-DD
  */
 function normalizeExcelDate(val: any): string {
