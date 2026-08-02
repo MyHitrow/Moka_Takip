@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     }));
 
     // AI Sentinel Audit Çalıştır
-    const aiInsights = runAISentinelAudit({
+    const { insights: aiInsights } = runAISentinelAudit({
       isletmeler,
       cekimler,
       editler,

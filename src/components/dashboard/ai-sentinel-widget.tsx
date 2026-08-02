@@ -13,7 +13,8 @@ export function AiSentinelWidget() {
   const { isletmeler, cekimler, editler, takvimPosts } = useData();
 
   const insights = useMemo<AISentinelInsight[]>(() => {
-    return runAISentinelAudit({ isletmeler, cekimler, editler, takvimPosts });
+    const { insights: res } = runAISentinelAudit({ isletmeler, cekimler, editler, takvimPosts });
+    return res;
   }, [isletmeler, cekimler, editler, takvimPosts]);
 
   const highCount = insights.filter((i) => i.severity === 'high').length;

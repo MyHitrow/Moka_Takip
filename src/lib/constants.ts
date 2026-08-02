@@ -13,6 +13,7 @@ import {
   Home,
   DollarSign,
   Menu,
+  Bot,
 } from 'lucide-react';
 
 // ============================================================
@@ -21,6 +22,7 @@ import {
 
 export const SIDEBAR_ITEMS = [
   { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { label: 'AI Direktör', href: '/ai-direktor', icon: Bot },
   { label: 'İşletmeler', href: '/isletmeler', icon: Building2 },
   { label: 'Çekimler', href: '/cekimler', icon: Camera },
   { label: 'Editler', href: '/editler', icon: Film },
