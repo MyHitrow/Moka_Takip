@@ -164,7 +164,9 @@ function PaylasimTakvimiPageContent() {
   const selectedDayStr = String(selectedDay).padStart(2, '0');
   const selectedDateStr = `${year}-${selectedMonthStr}-${selectedDayStr}`;
 
-  const selectedDayPosts = takvimPosts.filter((p) => p.date === selectedDateStr);
+  const selectedDayPosts = takvimPosts
+    .filter((p) => p.date === selectedDateStr)
+    .sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
 
   return (
     <div>
@@ -638,7 +640,9 @@ function PaylasimTakvimiPageContent() {
                 }
 
                 const isToday = item.dateStr === todayStr;
-                const dayPosts = takvimPosts.filter((p) => p.date === item.dateStr);
+                const dayPosts = takvimPosts
+                  .filter((p) => p.date === item.dateStr)
+                  .sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
 
                 return (
                   <div

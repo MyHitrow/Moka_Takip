@@ -171,7 +171,9 @@ function CekimlerPageContent() {
   const selectedDayStr = String(selectedDay).padStart(2, '0');
   const selectedDateStr = `${year}-${selectedMonthStr}-${selectedDayStr}`;
 
-  const selectedDayShoots = cekimler.filter((c) => c.date === selectedDateStr);
+  const selectedDayShoots = cekimler
+    .filter((c) => c.date === selectedDateStr)
+    .sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
 
   return (
     <div>
@@ -578,7 +580,9 @@ function CekimlerPageContent() {
                     }
 
                     const isToday = item.dateStr === todayStr;
-                    const dayShoots = cekimler.filter((c) => c.date === item.dateStr);
+                    const dayShoots = cekimler
+                      .filter((c) => c.date === item.dateStr)
+                      .sort((a, b) => (a.time || '00:00').localeCompare(b.time || '00:00'));
 
                     return (
                       <div
