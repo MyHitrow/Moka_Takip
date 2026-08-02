@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { useData } from '@/context/data-context';
 import { runAISentinelAudit } from '@/lib/ai-sentinel';
-import { processLocalAIChat } from '@/lib/ai-assistant';
+import { parseAICommandsAndIntent } from '@/lib/ai-assistant';
 
 interface ChatMessage {
   id: string;
@@ -37,7 +37,20 @@ interface ChatMessage {
 }
 
 export default function AiDirektorPage() {
-  const { isletmeler, cekimler, editler, takvimPosts, gelirler, giderler, haftalikNotlar, ekip, currentUser } = useData();
+  const {
+    isletmeler,
+    cekimler,
+    editler,
+    takvimPosts,
+    gelirler,
+    giderler,
+    haftalikNotlar,
+    ekip,
+    currentUser,
+    addCekim,
+    addEdit,
+    addHaftalikNot,
+  } = useData();
 
   const [chatInput, setChatInput] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -45,7 +58,7 @@ export default function AiDirektorPage() {
     {
       id: 'welcome',
       sender: 'ai',
-      text: `Merhaba! Ben **REDLINE MEDYA** canlı veritabanı hafızasına tam erişimli **Otonom AI Asistanınızım**.\n\nSistemde kayıtlı **${isletmeler.length} işletmeniz**, aktif kurgularınız, çekimleriniz ve özel **AI Müşteri Notlarınız** zihnimde anlık olarak günceldir.\n\nBana ajansınızdaki işler, müşteriler, çekimler veya editör iş yükü hakkında ne isterseniz sorabilirsiniz!`,
+      text: `Merhaba! Ben **REDLINE MEDYA** canlı veritabanı hafızasına ve **EYLEM YETKİSİNE** sahip **Otonom AI Asistanınızım**.\n\nSistemdeki **${isletmeler.length} işletmeniz**, çekimleriniz ve kurgularınız zihnimde günceldir.\n\nBana sadece soru sormakla kalmayıp emredebilirsiniz:\n• *"Yarın saat 10'a Luness, 3'e Dutt, 6'ya Sun Brother Pizza çekimi yaz."*\n(Anında veritabanına otomatik eklerim!)`,
       timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -72,9 +85,37 @@ export default function AiDirektorPage() {
     setIsSending(true);
 
     try {
+      // 1. First parse local commands (e.g. create shoots, edits, notes)
+      const payloadData = { isletmeler, cekimler, editler, gelirler, giderler, takvimPosts, haftalikNotlar, ekip };
+      const { actions, textReply } = parseAICommandsAndIntent(query, payloadData);
+
+      if (actions.length > 0) {
+        // Execute dynamic database mutations directly in Supabase context!
+        actions.forEach((act) => {
+          if (act.type === 'ADD_SHOOT') {
+            addCekim(act.payload);
+          } else if (act.type === 'ADD_EDIT') {
+            addEdit(act.payload);
+          } else if (act.type === 'ADD_NOTE') {
+            addHaftalikNot(act.payload.content, act.payload.client);
+          }
+        });
+
+        const aiMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: textReply,
+          timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+        setIsSending(false);
+        return;
+      }
+
+      // 2. Standard AI query processing via API route or local fallback
       const payload = {
         message: query,
-        data: { isletmeler, cekimler, editler, gelirler, giderler, takvimPosts, haftalikNotlar, ekip },
+        data: payloadData,
       };
 
       const res = await fetch('/api/ai/chat', {
@@ -93,24 +134,22 @@ export default function AiDirektorPage() {
         };
         setMessages((prev) => [...prev, aiMsg]);
       } else {
-        // Fallback to local engine
-        const fallbackText = processLocalAIChat(query, payload.data);
         const aiMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
           sender: 'ai',
-          text: fallbackText,
+          text: textReply,
           timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
         };
         setMessages((prev) => [...prev, aiMsg]);
       }
     } catch (e) {
-      const fallbackText = processLocalAIChat(query, { isletmeler, cekimler, editler, gelirler, giderler, takvimPosts, haftalikNotlar, ekip });
+      const { textReply } = parseAICommandsAndIntent(query, { isletmeler, cekimler, editler, gelirler, giderler, takvimPosts, haftalikNotlar, ekip });
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender: 'ai',
-          text: fallbackText,
+          text: textReply,
           timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
         },
       ]);

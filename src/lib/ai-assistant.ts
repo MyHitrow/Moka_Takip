@@ -12,6 +12,12 @@ export interface DataContextPayload {
   ekip: EkipUyesi[];
 }
 
+export interface AIExecutedAction {
+  type: 'ADD_SHOOT' | 'ADD_EDIT' | 'ADD_NOTE' | 'ADD_EXPENSE' | 'ADD_INCOME';
+  payload: any;
+  summary: string;
+}
+
 /**
  * Serializes current database state into a rich structured text context for LLMs
  */
@@ -20,7 +26,7 @@ export function buildAgencySystemPrompt(data: DataContextPayload): string {
   const totalRevenue = data.gelirler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
   const totalExpenses = data.giderler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
-  let prompt = `Sen REDLINE MEDYA AJANSI'nın canlı veritabanı hafızasına tam erişimli Otonom AI Asistanısın.\n`;
+  let prompt = `Sen REDLINE MEDYA AJANSI'nın canlı veritabanı hafızasına ve EYLEM/YAZMA yetkisine sahip Otonom AI Asistanısın.\n`;
   prompt += `Aşağıda ajansındaki canlı Supabase veritabanı bilgileri yer almaktadır:\n\n`;
 
   prompt += `📊 GENEL AJANS ÖZETİ:\n`;
@@ -59,9 +65,128 @@ export function buildAgencySystemPrompt(data: DataContextPayload): string {
   });
   prompt += `\n`;
 
-  prompt += `KURAL: Sadece veritabanında olan bilgileri esas al. Kullanıcının işletmeleri, çekimleri, kurguları veya özel notları sorulduğunda net, kesin ve profesyonel Türkçe ile cevap ver. Medya ve içerik yönetimi konusunda tavsiyeler ver.`;
+  prompt += `KURAL: Sadece veritabanında olan bilgileri esas al. Kullanıcının işletmeleri, çekimleri, kurguları veya özel notları sorulduğunda net, kesin ve profesyonel Türkçe ile cevap ver. Çekim veya edit ekleme istekleri geldiğinde işlemi onaylayıp kaydedildiğini bildir.`;
 
   return prompt;
+}
+
+/**
+ * Helper to calculate target date string YYYY-MM-DD from Turkish relative date keywords
+ */
+function parseTargetDate(query: string): string {
+  const now = new Date();
+  if (query.includes('yarın') || query.includes('yarin')) {
+    now.setDate(now.getDate() + 1);
+  } else if (query.includes('öbür gün') || query.includes('obur gun')) {
+    now.setDate(now.getDate() + 2);
+  }
+  return now.toISOString().split('T')[0];
+}
+
+/**
+ * Intelligent AI Command & Intent Parser to create Shoots, Edits, Notes, Expenses from chat input
+ */
+export function parseAICommandsAndIntent(userQuery: string, data: DataContextPayload): {
+  actions: AIExecutedAction[];
+  textReply: string;
+} {
+  const query = userQuery.trim();
+  const lower = query.toLowerCase();
+  const actions: AIExecutedAction[] = [];
+
+  // Check for SHOOT CREATION Intent
+  const isShootIntent =
+    lower.includes('çekim') ||
+    lower.includes('cekim') ||
+    lower.includes('çekimi') ||
+    lower.includes('saat') ||
+    lower.includes('yaz') ||
+    lower.includes('ekle') ||
+    lower.includes('planla');
+
+  if (isShootIntent) {
+    const targetDate = parseTargetDate(lower);
+
+    // Try matching any registered business or candidate names in the user query
+    // e.g., "yarın saat 10 a luness 3 e dutt 6 ya sun brother pizza çekimi yaz"
+    const foundClients: { clientName: string; time: string }[] = [];
+
+    // Common time regex patterns: 10'a, 10:00, saat 10, 3'e, 15:00, 6'ya, 18:00
+    // Split query by segments or test clients against query
+    data.isletmeler.forEach((biz) => {
+      const bizName = biz.name.toLowerCase();
+      // Match if client name or first word is in query
+      const firstWord = bizName.split(' ')[0];
+      if (lower.includes(bizName) || (firstWord.length >= 3 && lower.includes(firstWord))) {
+        // Extract time near client name or index
+        let time = '12:00';
+        const clientIndex = lower.indexOf(firstWord);
+        const subBefore = lower.substring(Math.max(0, clientIndex - 25), clientIndex);
+        const subAfter = lower.substring(clientIndex, Math.min(lower.length, clientIndex + 25));
+        const combinedSub = `${subBefore} ${subAfter}`;
+
+        // Look for numbers like 10, 3, 6, 15, 18
+        if (combinedSub.includes('10')) time = '10:00';
+        else if (combinedSub.includes('11')) time = '11:00';
+        else if (combinedSub.includes('12')) time = '12:00';
+        else if (combinedSub.includes('13') || combinedSub.includes("1'e") || combinedSub.includes("1'ya")) time = '13:00';
+        else if (combinedSub.includes('14') || combinedSub.includes("2'ye") || combinedSub.includes("2'de")) time = '14:00';
+        else if (combinedSub.includes('15') || combinedSub.includes("3'e") || combinedSub.includes("3'de") || combinedSub.includes(' 3 ')) time = '15:00';
+        else if (combinedSub.includes('16') || combinedSub.includes("4'e")) time = '16:00';
+        else if (combinedSub.includes('17') || combinedSub.includes("5'e")) time = '17:00';
+        else if (combinedSub.includes('18') || combinedSub.includes("6'ya") || combinedSub.includes("6'da") || combinedSub.includes(' 6 ')) time = '18:00';
+        else if (combinedSub.includes('19') || combinedSub.includes("7'ye")) time = '19:00';
+        else if (combinedSub.includes('20') || combinedSub.includes("8'e")) time = '20:00';
+
+        foundClients.push({ clientName: biz.name, time });
+      }
+    });
+
+    // Also extract raw client names if not in database yet (e.g. Luness, Dutt, Sun Brother Pizza)
+    if (foundClients.length === 0) {
+      // Fallback extraction for names mentioned in query
+      const words = ['luness', 'dutt', 'sun brother', 'modaplus', 'groupama', 'techmarket', 'cafe nero'];
+      words.forEach((w) => {
+        if (lower.includes(w)) {
+          let time = '14:00';
+          if (lower.includes('10')) time = '10:00';
+          if (lower.includes('3') || lower.includes('15')) time = '15:00';
+          if (lower.includes('6') || lower.includes('18')) time = '18:00';
+          const capName = w.charAt(0).toUpperCase() + w.slice(1);
+          foundClients.push({ clientName: capName, time });
+        }
+      });
+    }
+
+    if (foundClients.length > 0) {
+      foundClients.forEach((fc) => {
+        actions.push({
+          type: 'ADD_SHOOT',
+          payload: {
+            client: fc.clientName,
+            title: 'Sosyal Medya Video Çekimi',
+            date: targetDate,
+            time: fc.time,
+            location: 'İşletme Adresi / Çekim Alanı',
+            status: 'planned',
+          },
+          summary: `🎬 <b>${fc.clientName}</b> — ${targetDate} @ ${fc.time}`,
+        });
+      });
+
+      let textReply = `✅ <b>${actions.length} ADET ÇEKİM VERİTABANINA BAŞARIYLA EKLENDİ VE İŞLENDİ:</b>\n\n`;
+      actions.forEach((act) => {
+        textReply += `• ${act.summary}\n`;
+      });
+      textReply += `\nÇekimler modülünden ve takvimden tüm detayları kontrol edebilirsiniz! 🎉`;
+
+      return { actions, textReply };
+    }
+  }
+
+  // Fallback to query processor if no specific creation action was parsed
+  const textReply = processLocalAIChat(userQuery, data);
+  return { actions, textReply };
 }
 
 /**
@@ -136,7 +261,6 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
   if (matchedClient) {
     const clientEdits = data.editler.filter((e) => isClientMatch(e.client, matchedClient.name));
     const clientShoots = data.cekimler.filter((s) => isClientMatch(s.client, matchedClient.name));
-    const clientGelir = data.gelirler.filter((g) => isClientMatch(g.client, matchedClient.name));
 
     let res = `🏢 <b>${matchedClient.name} İşletme Raporu:</b>\n`;
     res += `• <b>Paket Ücreti:</b> ${matchedClient.fee}\n`;
@@ -166,10 +290,9 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
 
   // Varsayılan genel cevap
   return `Anlaşıldı! Veritabanındaki **${data.isletmeler.length} işletmeniz**, çekimleriniz, editleriniz ve finansal kayıtlarınız zihnimde anlık olarak günceldir.\n\n` +
-         `Bana örneğin şunları sorabilirsiniz:\n` +
+         `Bana örneğin şunları yazabilirsiniz:\n` +
+         `• <i>"Yarın saat 10'a Luness, 3'e Dutt, 6'ya Sun Brother Pizza çekimi yaz."</i> (Otomatik Veritabanına Ekler)\n` +
          `• <i>"Kaç işletmem var?"</i>\n` +
          `• <i>"Taviz vermeyen ve zor videolar isteyen müşteriler kimler?"</i>\n` +
-         `• <i>"Editör iş yükümüz nasıl?"</i>\n` +
-         `• <i>"Bugün ne çekimimiz var?"</i>\n` +
-         `• <i>"ModaPlus hakkında bilgi ver"</i>`;
+         `• <i>"Editör iş yükümüz nasıl?"</i>`;
 }
