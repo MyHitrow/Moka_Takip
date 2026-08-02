@@ -12,6 +12,7 @@ export interface Isletme {
   monthlyReelsTarget?: number; // e.g. 10 Reels/month
   monthlyPostTarget?: number;  // e.g. 4 Posts/month
   monthlyShootTarget?: number; // e.g. 2 Shoots/month
+  notes?: string;              // 🧠 AI Hafıza & Kritik İşletme Notları
 }
 
 export interface Cekim {

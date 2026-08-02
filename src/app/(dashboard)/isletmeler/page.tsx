@@ -25,6 +25,7 @@ export default function IsletmelerPage() {
   const [maxDaysBetweenPosts, setMaxDaysBetweenPosts] = useState<number>(3);
   const [monthlyReelsTarget, setMonthlyReelsTarget] = useState<number>(10);
   const [monthlyShootTarget, setMonthlyShootTarget] = useState<number>(2);
+  const [notes, setNotes] = useState('');
 
   // Edit Business Modal State
   const [openEdit, setOpenEdit] = useState(false);
@@ -38,6 +39,7 @@ export default function IsletmelerPage() {
   const [editMaxDaysBetweenPosts, setEditMaxDaysBetweenPosts] = useState<number>(3);
   const [editMonthlyReelsTarget, setEditMonthlyReelsTarget] = useState<number>(10);
   const [editMonthlyShootTarget, setEditMonthlyShootTarget] = useState<number>(2);
+  const [editNotes, setEditNotes] = useState('');
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +54,7 @@ export default function IsletmelerPage() {
       maxDaysBetweenPosts: Number(maxDaysBetweenPosts) || 3,
       monthlyReelsTarget: Number(monthlyReelsTarget) || 10,
       monthlyShootTarget: Number(monthlyShootTarget) || 2,
+      notes,
     });
     setName('');
     setContact('');
@@ -61,6 +64,7 @@ export default function IsletmelerPage() {
     setMaxDaysBetweenPosts(3);
     setMonthlyReelsTarget(10);
     setMonthlyShootTarget(2);
+    setNotes('');
     setOpenCreate(false);
   };
 
@@ -75,6 +79,7 @@ export default function IsletmelerPage() {
     setEditMaxDaysBetweenPosts(biz.maxDaysBetweenPosts || 3);
     setEditMonthlyReelsTarget(biz.monthlyReelsTarget || 10);
     setEditMonthlyShootTarget(biz.monthlyShootTarget || 2);
+    setEditNotes(biz.notes || '');
     setOpenEdit(true);
   };
 
@@ -92,6 +97,7 @@ export default function IsletmelerPage() {
       maxDaysBetweenPosts: Number(editMaxDaysBetweenPosts) || 3,
       monthlyReelsTarget: Number(editMonthlyReelsTarget) || 10,
       monthlyShootTarget: Number(editMonthlyShootTarget) || 2,
+      notes: editNotes,
     });
 
     setOpenEdit(false);
@@ -208,6 +214,17 @@ export default function IsletmelerPage() {
                         min={1}
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-1 mt-3">
+                    <Label htmlFor="notesInput" className="text-xs font-bold text-[#F7F7F8]">🧠 AI Hafıza & Kritik Notlar</Label>
+                    <textarea
+                      id="notesInput"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Örn: Taviz vermeyen müşteri, Çekim günlerimiz Salı/Cuma, zor Reels videoları, Ads reklamı gerekli..."
+                      className="w-full h-20 rounded-lg border border-[#2B2D32] bg-[#0D0E10] p-2.5 text-xs text-[#F7F7F8] placeholder:text-[#73767E] outline-none focus:border-[#E32636]"
+                    />
                   </div>
                 </div>
 
@@ -405,6 +422,17 @@ export default function IsletmelerPage() {
                 <option value="active">🟢 Aktif Sözleşme</option>
                 <option value="inactive">🔴 Pasif / İptal</option>
               </select>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="editNotesInput" className="text-xs font-bold text-[#F7F7F8]">🧠 AI Hafıza & Kritik Notlar</Label>
+              <textarea
+                id="editNotesInput"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Örn: Taviz vermeyen müşteri, Çekim günlerimiz Salı/Cuma, zor Reels videoları, Ads reklamı gerekli..."
+                className="w-full h-20 rounded-lg border border-[#2B2D32] bg-[#0D0E10] p-2.5 text-xs text-[#F7F7F8] placeholder:text-[#73767E] outline-none focus:border-[#E32636]"
+              />
             </div>
 
             <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 font-bold">

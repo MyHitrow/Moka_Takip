@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Bot,
   CheckCircle2,
@@ -18,12 +19,105 @@ import {
   ShieldCheck,
   Building2,
   SlidersHorizontal,
+  Send,
+  Sparkles,
+  MessageSquare,
+  User,
+  Loader2,
 } from 'lucide-react';
 import { useData } from '@/context/data-context';
 import { runAISentinelAudit } from '@/lib/ai-sentinel';
+import { processLocalAIChat } from '@/lib/ai-assistant';
+
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  timestamp: string;
+}
 
 export default function AiDirektorPage() {
-  const { isletmeler, cekimler, editler, takvimPosts, gelirler } = useData();
+  const { isletmeler, cekimler, editler, takvimPosts, gelirler, giderler, haftalikNotlar, ekip, currentUser } = useData();
+
+  const [chatInput, setChatInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome',
+      sender: 'ai',
+      text: `Merhaba! Ben **REDLINE MEDYA** canlı veritabanı hafızasına tam erişimli **Otonom AI Asistanınızım**.\n\nSistemde kayıtlı **${isletmeler.length} işletmeniz**, aktif kurgularınız, çekimleriniz ve özel **AI Müşteri Notlarınız** zihnimde anlık olarak günceldir.\n\nBana ajansınızdaki işler, müşteriler, çekimler veya editör iş yükü hakkında ne isterseniz sorabilirsiniz!`,
+      timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    },
+  ]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async (customPrompt?: string) => {
+    const query = customPrompt || chatInput;
+    if (!query.trim() || isSending) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: query,
+      timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    if (!customPrompt) setChatInput('');
+    setIsSending(true);
+
+    try {
+      const payload = {
+        message: query,
+        data: { isletmeler, cekimler, editler, gelirler, giderler, takvimPosts, haftalikNotlar, ekip },
+      };
+
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const aiMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: json.reply || 'Yanıt alınamadı.',
+          timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } else {
+        // Fallback to local engine
+        const fallbackText = processLocalAIChat(query, payload.data);
+        const aiMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: fallbackText,
+          timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      }
+    } catch (e) {
+      const fallbackText = processLocalAIChat(query, { isletmeler, cekimler, editler, gelirler, giderler, takvimPosts, haftalikNotlar, ekip });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          sender: 'ai',
+          text: fallbackText,
+          timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const { insights, clientReports, agencyHealthScore } = useMemo(() => {
     return runAISentinelAudit({ isletmeler, cekimler, editler, takvimPosts, gelirler });
@@ -41,6 +135,153 @@ export default function AiDirektorPage() {
         subtitle="İşletmelerinizin Reels kotalarını, çekim hedeflerini ve paylaşım aralıklarını 7/24 denetler."
         icon={Bot}
       />
+
+      {/* 💬 AI AJANS ASİSTANI (CANLI VERİTABANI HAFIZALI CHAT) */}
+      <Card className="bg-[#17181B] border border-[#2B2D32] panel-shadow rounded-xl overflow-hidden">
+        <CardHeader className="pb-3 border-b border-[#2B2D32] flex flex-row items-center justify-between bg-[#111214]">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-[#E32636]/15 text-[#E32636] border border-[#E32636]/30">
+              <Bot className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-bold text-[#F7F7F8] flex items-center gap-2">
+                <span>💬 Ajans AI Asistanı</span>
+                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono">
+                  CANLI DB HAFIZASI AKTİF
+                </Badge>
+              </CardTitle>
+              <p className="text-[11px] text-[#73767E]">
+                Ajansınızdaki {isletmeler.length} işletmeyi, çekimleri, editleri ve özel AI notlarınızı en ince detayına kadar bilir.
+              </p>
+            </div>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1.5">
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => handleSendMessage('Kaç işletmem var?')}
+              className="text-[11px] border-[#2B2D32] bg-[#1D1F23] hover:bg-[#24262B] text-[#B5B7BD]"
+            >
+              🏢 İşletme Sayısı
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => handleSendMessage('Taviz vermeyen ve kritik notu olan müşteriler kimler?')}
+              className="text-[11px] border-[#2B2D32] bg-[#1D1F23] hover:bg-[#24262B] text-[#B5B7BD]"
+            >
+              🧠 Özel Notlar
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => handleSendMessage('Editör iş yükümüz nasıl?')}
+              className="text-[11px] border-[#2B2D32] bg-[#1D1F23] hover:bg-[#24262B] text-[#B5B7BD]"
+            >
+              🎬 Editör Yükü
+            </Button>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 space-y-4">
+          {/* Chat Messages History */}
+          <div className="h-64 md:h-72 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex gap-3 text-xs ${
+                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                {msg.sender === 'ai' && (
+                  <div className="w-7 h-7 rounded-full bg-[#E32636]/15 border border-[#E32636]/40 text-[#E32636] flex items-center justify-center shrink-0 mt-0.5 font-bold">
+                    AI
+                  </div>
+                )}
+
+                <div
+                  className={`max-w-[85%] md:max-w-[75%] p-3 rounded-xl leading-relaxed ${
+                    msg.sender === 'user'
+                      ? 'bg-[#E32636] text-white font-medium rounded-tr-none red-button-shadow'
+                      : 'bg-[#1D1F23] border border-[#2B2D32] text-[#F7F7F8] rounded-tl-none whitespace-pre-wrap'
+                  }`}
+                >
+                  <p dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br/>') }} />
+                  <span
+                    className={`block text-[9px] mt-1.5 text-right font-mono ${
+                      msg.sender === 'user' ? 'text-white/80' : 'text-[#73767E]'
+                    }`}
+                  >
+                    {msg.timestamp}
+                  </span>
+                </div>
+
+                {msg.sender === 'user' && (
+                  <div className="w-7 h-7 rounded-full bg-[#24262B] border border-[#34363C] text-[#F7F7F8] flex items-center justify-center shrink-0 mt-0.5 font-extrabold text-[10px]">
+                    {currentUser.name.substring(0, 2).toUpperCase()}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {isSending && (
+              <div className="flex items-center gap-2 text-xs text-[#73767E] py-1">
+                <Loader2 className="w-4 h-4 animate-spin text-[#E32636]" />
+                <span>AI Veritabanını Tarıyor ve Yanıt Hazırlıyor...</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Quick Prompts Bar (Mobile & Desktop) */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#2B2D32]">
+            <span className="text-[10px] text-[#73767E] font-bold uppercase">Hızlı Sorular:</span>
+            <button
+              onClick={() => handleSendMessage('Hangi müşterilerin ödemesi gecikti?')}
+              className="text-[10px] bg-[#1D1F23] hover:bg-[#24262B] text-[#B5B7BD] border border-[#2B2D32] px-2 py-1 rounded-md transition-colors"
+            >
+              💸 Geciken Ödemeler?
+            </button>
+            <button
+              onClick={() => handleSendMessage('Bugün ne çekimimiz var?')}
+              className="text-[10px] bg-[#1D1F23] hover:bg-[#24262B] text-[#B5B7BD] border border-[#2B2D32] px-2 py-1 rounded-md transition-colors"
+            >
+              📸 Bugünkü Çekimler?
+            </button>
+            <button
+              onClick={() => handleSendMessage('Müşterilerimizin özel notlarını getir')}
+              className="text-[10px] bg-[#1D1F23] hover:bg-[#24262B] text-[#B5B7BD] border border-[#2B2D32] px-2 py-1 rounded-md transition-colors"
+            >
+              🧠 Müşteri Hafıza Notları?
+            </button>
+          </div>
+
+          {/* Input Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+            className="flex items-center gap-2 pt-1"
+          >
+            <Input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="AI Asistanınıza sorun... (ör. Kaç işletmem var?, ModaPlus nasıl bir müşteri?)"
+              className="bg-[#0D0E10] border-[#2B2D32] text-xs h-10 text-[#F7F7F8] placeholder:text-[#73767E]"
+              disabled={isSending}
+            />
+            <Button
+              type="submit"
+              disabled={isSending || !chatInput.trim()}
+              className="bg-[#E32636] hover:bg-[#FF3545] text-white shrink-0 h-10 px-4 font-bold text-xs red-button-shadow"
+            >
+              <Send className="w-3.5 h-3.5 mr-1" /> Gönder
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Top Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

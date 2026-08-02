@@ -92,6 +92,29 @@ export default function IsletmeDetayPage({ params }: { params: Promise<{ id: str
             </Card>
           </div>
 
+          {/* 🧠 AI Müşteri Hafızası & Kritik Notlar Kartı */}
+          <Card className="p-5 bg-[#17181B] border border-[#2B2D32] panel-shadow rounded-xl">
+            <div className="flex items-center justify-between pb-2 border-b border-[#2B2D32]">
+              <h3 className="font-bold text-sm text-[#F7F7F8] flex items-center gap-2">
+                <span>🧠 AI Müşteri Hafızası & Özel Notlar</span>
+              </h3>
+              <Badge className="bg-[#E32636]/15 text-[#E32636] border border-[#E32636]/30 text-[10px] font-bold">
+                CANLI AI ZİHNİNE BAĞLI
+              </Badge>
+            </div>
+            <div className="mt-3">
+              {business.notes ? (
+                <p className="text-xs text-[#F7F7F8] bg-[#0D0E10] border border-[#2B2D32] p-3 rounded-lg leading-relaxed whitespace-pre-wrap">
+                  {business.notes}
+                </p>
+              ) : (
+                <p className="text-xs text-[#73767E] bg-[#0D0E10] border border-[#2B2D32] p-3 rounded-lg italic">
+                  Henüz bu işletmeye ait özel AI notu veya davranış profili girilmedi. İşletmeler sayfasındaki "Düzenle" butonundan *"Taviz vermeyen müşteri, Çekim günümüz Salı/Cuma, zor Reels videoları..."* gibi notlar ekleyebilirsiniz.
+                </p>
+              )}
+            </div>
+          </Card>
+
           {/* Activity Sections */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Shoots */}
