@@ -28,6 +28,8 @@ import {
 import { SHOOT_STATUS_LABELS, SHOOT_STATUS_COLORS } from '@/lib/constants';
 import { useData } from '@/context/data-context';
 import { parseExcelFile, ParsedExcelResult, downloadSampleShootsExcelTemplate } from '@/lib/excel-importer';
+import { generateSingleCekimIcal, generateBulkCekimlerIcal, downloadIcsCalendarFile } from '@/lib/ical-generator';
+import { Cekim } from '@/types/app';
 
 import { PermissionGuard } from '@/components/shared/permission-guard';
 
@@ -91,6 +93,17 @@ function CekimlerPageContent() {
     });
     setExcelResult(null);
     setExcelOpen(false);
+  };
+
+  const handleExportSingleToAppleCalendar = (shoot: Cekim) => {
+    const icsContent = generateSingleCekimIcal(shoot);
+    downloadIcsCalendarFile(`cekim_${shoot.client}_${shoot.date}`, icsContent);
+  };
+
+  const handleExportAllToAppleCalendar = () => {
+    if (!cekimler || cekimler.length === 0) return;
+    const icsContent = generateBulkCekimlerIcal(cekimler);
+    downloadIcsCalendarFile(`moka_tum_cekimler_${year}_${month + 1}`, icsContent);
   };
 
   const year = currentDate.getFullYear();
@@ -203,6 +216,15 @@ function CekimlerPageContent() {
                   <List className="w-3.5 h-3.5 mr-1" /> Liste
                 </Button>
               </div>
+
+              {/* Apple Calendar Export */}
+              <Button
+                variant="outline"
+                onClick={handleExportAllToAppleCalendar}
+                className="border-red-500/40 bg-[#17181B] hover:bg-red-500/10 text-red-400 font-bold text-xs"
+              >
+                <Calendar className="w-4 h-4 mr-1.5 text-red-400" /> Apple Takvime Aktar (.ics)
+              </Button>
 
               {/* Excel Upload Dialog */}
               <Dialog open={excelOpen} onOpenChange={setExcelOpen}>
@@ -524,7 +546,13 @@ function CekimlerPageContent() {
                           </span>
                         </div>
                         <div className="pt-2 border-t border-border flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Durum:</span>
+                          <button
+                            onClick={() => handleExportSingleToAppleCalendar(shoot)}
+                            className="text-[11px] text-red-400 hover:text-red-300 font-semibold flex items-center gap-1 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-md transition-colors"
+                            title="Apple / iOS Takvime Ekle"
+                          >
+                            <Calendar className="w-3 h-3 text-red-400" /> Apple Takvime Ekle
+                          </button>
                           <select
                             value={shoot.status}
                             onChange={(e) => updateCekimStatus(shoot.id, e.target.value)}
