@@ -100,6 +100,15 @@ export const downloadSampleExcelTemplate = downloadSampleShootsExcelTemplate;
 function normalizeExcelDate(val: any): string {
   if (!val) return new Date().toISOString().split('T')[0];
 
+  // If val is a Date object from XLSX
+  if (val instanceof Date || (typeof val === 'object' && val !== null && typeof val.getFullYear === 'function')) {
+    if (isNaN(val.getTime())) return new Date().toISOString().split('T')[0];
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   const rawStr = String(val).trim();
 
   // If already YYYY-MM-DD
@@ -148,14 +157,20 @@ function normalizeExcelDate(val: any): string {
   if (typeof val === 'number') {
     const jsDate = new Date(Math.round((val - 25569) * 86400 * 1000));
     if (!isNaN(jsDate.getTime())) {
-      return jsDate.toISOString().split('T')[0];
+      const y = jsDate.getUTCFullYear();
+      const m = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(jsDate.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
   }
 
   // General Date parse
   const d = new Date(val);
   if (!isNaN(d.getTime())) {
-    return d.toISOString().split('T')[0];
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   return new Date().toISOString().split('T')[0];
