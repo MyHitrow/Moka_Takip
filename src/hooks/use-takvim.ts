@@ -111,31 +111,76 @@ export function createTakvimActions({
   const addTakvimPostsBulk = async (items: Omit<TakvimPost, 'id'>[]) => {
     if (!items || items.length === 0) return;
     try {
-      const calendarRows = items.map((item) => ({
-        client_name: item.client.trim(),
-        title: item.title,
-        content_type: item.platform,
-        platform: item.platform,
-        publish_date: item.date,
-        publish_time: item.time || null,
-        status: item.status || 'scheduled',
-      }));
+      // 1. Fetch existing clients to get valid client_id UUIDs
+      const { data: clients } = await supabase.from('clients').select('id, name');
+      const clientMap: Record<string, string> = {};
+
+      if (clients && clients.length > 0) {
+        clients.forEach((c) => {
+          clientMap[c.name.trim().toLowerCase()] = c.id;
+        });
+      }
+
+      const defaultClientId = clients && clients.length > 0 ? clients[0].id : null;
+
+      // 2. Build calendarRows with resolved client_id
+      const calendarRows = items.map((item) => {
+        const normName = item.client.trim().toLowerCase();
+        let cId = clientMap[normName];
+
+        if (!cId && clients) {
+          const match = clients.find((c) => normName.includes(c.name.trim().toLowerCase()));
+          if (match) cId = match.id;
+        }
+
+        const row: Record<string, any> = {
+          client_name: item.client.trim(),
+          title: item.title,
+          content_type: item.platform || 'Instagram Reels',
+          platform: item.platform || 'Instagram Reels',
+          publish_date: item.date,
+          publish_time: item.time || null,
+          status: item.status || 'scheduled',
+        };
+
+        if (cId || defaultClientId) {
+          row.client_id = cId || defaultClientId;
+        }
+
+        return row;
+      });
 
       const { error: calErr } = await supabase.from('content_calendar').insert(calendarRows);
       if (calErr) {
         logger.error('Toplu takvim post ekleme hatası:', calErr.message);
       }
 
-      // Otomatik Edit Görevleri Toplu Oluşturma
-      const editRows = items.map((item) => ({
-        client_name: item.client.trim(),
-        title: `${item.title} Editi`,
-        content_type: normalizeContentType(item.platform || 'Reels'),
-        content_type_label: item.platform || 'Instagram Reels',
-        editor_name: 'Atanmadı',
-        deadline: calculateEditDeadlineForPost(item.client, item.date),
-        status: 'waiting',
-      }));
+      // 3. Build editRows with resolved client_id
+      const editRows = items.map((item) => {
+        const normName = item.client.trim().toLowerCase();
+        let cId = clientMap[normName];
+
+        if (!cId && clients) {
+          const match = clients.find((c) => normName.includes(c.name.trim().toLowerCase()));
+          if (match) cId = match.id;
+        }
+
+        const row: Record<string, any> = {
+          client_name: item.client.trim(),
+          title: `${item.title} Editi`,
+          content_type: normalizeContentType(item.platform || 'Reels'),
+          content_type_label: item.platform || 'Instagram Reels',
+          editor_name: 'Atanmadı',
+          deadline: calculateEditDeadlineForPost(item.client, item.date),
+          status: 'waiting',
+        };
+
+        if (cId || defaultClientId) {
+          row.client_id = cId || defaultClientId;
+        }
+
+        return row;
+      });
 
       const { error: editErr } = await supabase.from('edits').insert(editRows);
       if (editErr) {
