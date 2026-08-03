@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import { SHOOT_STATUS_LABELS, SHOOT_STATUS_COLORS } from '@/lib/constants';
 import { useData } from '@/context/data-context';
-import { parseExcelFile, ParsedExcelResult, downloadSampleExcelTemplate } from '@/lib/excel-importer';
+import { parseExcelFile, ParsedExcelResult, downloadSampleShootsExcelTemplate } from '@/lib/excel-importer';
 
 import { PermissionGuard } from '@/components/shared/permission-guard';
 
@@ -226,7 +226,7 @@ function CekimlerPageContent() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={downloadSampleExcelTemplate}
+                        onClick={downloadSampleShootsExcelTemplate}
                         className="text-[11px] h-7 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-bold"
                       >
                         📥 Örnek Şablonu İndir (.xlsx)

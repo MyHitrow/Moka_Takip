@@ -10,57 +10,89 @@ export interface ParsedExcelResult {
 }
 
 /**
- * Generates and downloads a pre-formatted sample Excel file for the user
+ * Generates and downloads a pre-formatted sample Excel file for ÇEKİMLER (Video Shoots)
  */
-export function downloadSampleExcelTemplate(): void {
-  const sampleData = [
+export function downloadSampleShootsExcelTemplate(): void {
+  const sampleShoots = [
     {
       'İşletme Adı': 'Luness',
       'Çekim Başlığı': 'Yaz Koleksiyonu Reels Çekimi',
       'Tarih': '05.08.2026',
       'Saat': '10:00',
-      'Konum': 'Luness Mağaza / Nişantaşı',
-      'Platform': 'Instagram Reels',
+      'Çekim Yeri / Mekan': 'Nişantaşı Mağaza',
     },
     {
       'İşletme Adı': 'Dutt',
-      'Çekim Başlığı': 'Ürün Tanıtımı & Röportaj',
+      'Çekim Başlığı': 'Etkinlik Gecesi Röportajı',
       'Tarih': '05.08.2026',
       'Saat': '15:00',
-      'Konum': 'Dutt Stüdyo',
-      'Platform': 'Instagram Reels',
+      'Çekim Yeri / Mekan': 'Dutt Sahne / Stüdyo',
     },
     {
       'İşletme Adı': 'Sun Brother Pizza',
-      'Çekim Başlığı': 'Mutfak Arkası Video Çekimi',
+      'Çekim Başlığı': 'Mutfak Arkası & Lezzet Çekimi',
       'Tarih': '05.08.2026',
       'Saat': '18:00',
-      'Konum': 'Şişli Şubesi',
-      'Platform': 'Instagram Reels',
+      'Çekim Yeri / Mekan': 'Şişli Şubesi',
     },
     {
-      'İşletme Adı': 'ModaPlus',
-      'Çekim Başlığı': 'Eylül Kataloğu Çekimleri',
-      'Tarih': '06.08.2026',
-      'Saat': '11:30',
-      'Konum': 'Dış Mekan / Kadıköy',
-      'Platform': 'Instagram Reels',
-    },
-    {
-      'İşletme Adı': 'TechMarket',
-      'Çekim Başlığı': 'Kutu Açılımı & İnceleme',
+      'İşletme Adı': 'Savaş Ticaret',
+      'Çekim Başlığı': 'Ürün Lansman Video Çekimi',
       'Tarih': '07.08.2026',
-      'Saat': '14:00',
-      'Konum': 'Ajans Stüdyosu',
-      'Platform': 'YouTube Shorts',
+      'Saat': '11:30',
+      'Çekim Yeri / Mekan': 'Savaş Ticaret Depo',
     },
   ];
 
-  const worksheet = XLSX.utils.json_to_sheet(sampleData);
+  const worksheet = XLSX.utils.json_to_sheet(sampleShoots);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Çekim Takvimi');
   XLSX.writeFile(workbook, 'moka_ornek_cekim_takvimi.xlsx');
 }
+
+/**
+ * Generates and downloads a pre-formatted sample Excel file for PAYLAŞIM TAKVİMİ (Content Calendar)
+ */
+export function downloadSampleTakvimExcelTemplate(): void {
+  const samplePosts = [
+    {
+      'İşletme Adı': 'Luness',
+      'Gönderi Başlığı': 'Yeni Sezon Elbise Tanıtım Reels',
+      'Paylaşım Tarihi': '07.08.2026',
+      'Paylaşım Saati': '18:00',
+      'Platform': 'Instagram Reels',
+    },
+    {
+      'İşletme Adı': 'Savaş Ticaret',
+      'Gönderi Başlığı': 'Haftalık Fırsat Ürünleri Duyurusu',
+      'Paylaşım Tarihi': '07.08.2026',
+      'Paylaşım Saati': '19:30',
+      'Platform': 'Instagram Post',
+    },
+    {
+      'İşletme Adı': 'Dutt',
+      'Gönderi Başlığı': 'Cuma Gecesi Etkinlik Tanıtım Videosu',
+      'Paylaşım Tarihi': '07.08.2026',
+      'Paylaşım Saati': '20:00',
+      'Platform': 'Instagram Reels',
+    },
+    {
+      'İşletme Adı': 'Sun Brother Pizza',
+      'Gönderi Başlığı': 'Hafta Sonu Kampanya Story',
+      'Paylaşım Tarihi': '08.08.2026',
+      'Paylaşım Saati': '12:00',
+      'Platform': 'Story',
+    },
+  ];
+
+  const worksheet = XLSX.utils.json_to_sheet(samplePosts);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Paylaşım Takvimi');
+  XLSX.writeFile(workbook, 'moka_ornek_paylasim_takvimi.xlsx');
+}
+
+// Geriye dönük uyumluluk için alias
+export const downloadSampleExcelTemplate = downloadSampleShootsExcelTemplate;
 
 /**
  * Parses relative date or various Excel date representations into YYYY-MM-DD

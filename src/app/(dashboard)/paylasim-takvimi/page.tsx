@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2, Clock, CheckCircle2, FileSpreadsheet, Upload, Loader2 } from 'lucide-react';
 import { useData } from '@/context/data-context';
-import { parseExcelFile, ParsedExcelResult, downloadSampleExcelTemplate } from '@/lib/excel-importer';
+import { parseExcelFile, ParsedExcelResult, downloadSampleTakvimExcelTemplate } from '@/lib/excel-importer';
 
 import { PermissionGuard } from '@/components/shared/permission-guard';
 
@@ -200,7 +200,7 @@ function PaylasimTakvimiPageContent() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={downloadSampleExcelTemplate}
+                        onClick={downloadSampleTakvimExcelTemplate}
                         className="text-[11px] h-7 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-bold"
                       >
                         📥 Örnek Şablonu İndir (.xlsx)
