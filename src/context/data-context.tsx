@@ -392,6 +392,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const savedUser = localStorage.getItem('app_currentUser');
       if (savedUser) setCurrentUser(JSON.parse(savedUser));
+
+      const savedPosts = localStorage.getItem('app_takvimPosts');
+      if (savedPosts) {
+        const parsed = JSON.parse(savedPosts);
+        if (Array.isArray(parsed) && parsed.length > 0) setTakvimPosts(parsed);
+      }
+
+      const savedEdits = localStorage.getItem('app_editler');
+      if (savedEdits) {
+        const parsed = JSON.parse(savedEdits);
+        if (Array.isArray(parsed) && parsed.length > 0) setEditler(parsed);
+      }
     } catch (e) {}
 
     fetchCloudData();
@@ -407,6 +419,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isMounted) localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
   }, [currentUser, isMounted]);
+
+  useEffect(() => {
+    if (isMounted && takvimPosts.length > 0) {
+      localStorage.setItem('app_takvimPosts', JSON.stringify(takvimPosts));
+    }
+  }, [takvimPosts, isMounted]);
+
+  useEffect(() => {
+    if (isMounted && editler.length > 0) {
+      localStorage.setItem('app_editler', JSON.stringify(editler));
+    }
+  }, [editler, isMounted]);
 
   // ─── Auth ──────────────────────────────────────────────────────────────────
 

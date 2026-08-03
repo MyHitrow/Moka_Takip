@@ -91,6 +91,9 @@ export function createTakvimActions({
       const { error: calErr } = await supabase.from('content_calendar').insert(calendarRow);
       if (calErr) {
         logger.error('Takvim post ekleme hatası:', calErr.message);
+        // Fallback insert without client_id
+        const { client_id: _omit, ...fallbackRow } = calendarRow;
+        await supabase.from('content_calendar').insert(fallbackRow);
       }
 
       // Otomatik Edit Görevi Oluşturma
@@ -127,6 +130,8 @@ export function createTakvimActions({
       const { error: editErr } = await supabase.from('edits').insert(editRow);
       if (editErr) {
         logger.error('Otomatik edit görevi oluşturma hatası:', editErr.message);
+        const { client_id: _omit, ...fallbackEditRow } = editRow;
+        await supabase.from('edits').insert(fallbackEditRow);
       }
 
       await fetchCloudData();
@@ -230,6 +235,10 @@ export function createTakvimActions({
       const { error: calErr } = await supabase.from('content_calendar').insert(calendarRows);
       if (calErr) {
         logger.error('Toplu takvim post ekleme hatası:', calErr.message);
+        // Fallback insert without client_id if FK constraint fails
+        const fallbackCalRows = calendarRows.map(({ client_id: _omit, ...rest }) => rest);
+        const { error: calErr2 } = await supabase.from('content_calendar').insert(fallbackCalRows);
+        if (calErr2) logger.error('Fallback takvim post ekleme hatası:', calErr2.message);
       }
 
       // 5. Build editRows for database insert with GUARANTEED client_id
@@ -247,6 +256,9 @@ export function createTakvimActions({
       const { error: editErr } = await supabase.from('edits').insert(editRows);
       if (editErr) {
         logger.error('Toplu otomatik edit görevi oluşturma hatası:', editErr.message);
+        const fallbackEditRows = editRows.map(({ client_id: _omit, ...rest }) => rest);
+        const { error: editErr2 } = await supabase.from('edits').insert(fallbackEditRows);
+        if (editErr2) logger.error('Fallback edit görevi oluşturma hatası:', editErr2.message);
       }
 
       await fetchCloudData();
