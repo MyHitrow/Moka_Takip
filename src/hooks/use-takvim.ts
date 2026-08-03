@@ -1,11 +1,12 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { TakvimPost } from '@/types/app';
+import { TakvimPost, EditItem } from '@/types/app';
 import { isUUID, calculateEditDeadlineForPost, normalizeContentType } from '@/lib/helpers';
 import { logger } from '@/lib/logger';
 
 interface UseTakvimProps {
   takvimPosts: TakvimPost[];
   setTakvimPosts: React.Dispatch<React.SetStateAction<TakvimPost[]>>;
+  setEditler?: React.Dispatch<React.SetStateAction<EditItem[]>>;
   supabase: SupabaseClient;
   fetchCloudData: () => Promise<void>;
 }
@@ -13,30 +14,53 @@ interface UseTakvimProps {
 export function createTakvimActions({
   takvimPosts,
   setTakvimPosts,
+  setEditler,
   supabase,
   fetchCloudData,
 }: UseTakvimProps) {
-  const resolveClientId = async (clientName: string): Promise<string | null> => {
+  /**
+   * Resolves or auto-creates a client in Supabase 'clients' table to ensure valid UUID client_id
+   */
+  const ensureClientId = async (clientName: string): Promise<string> => {
+    const trimmed = clientName.trim();
+    const norm = trimmed.toLowerCase();
     try {
-      const norm = clientName.trim().toLowerCase();
       const { data: clients } = await supabase.from('clients').select('id, name');
       if (clients && clients.length > 0) {
         const found = clients.find(
           (c) => c.name.trim().toLowerCase() === norm || norm.includes(c.name.trim().toLowerCase())
         );
-        return found ? found.id : clients[0].id;
+        if (found) return found.id;
+      }
+
+      // Auto-create missing client record in DB
+      const { data: newClient, error: createErr } = await supabase
+        .from('clients')
+        .insert({ name: trimmed })
+        .select('id')
+        .single();
+
+      if (!createErr && newClient) {
+        return newClient.id;
       }
     } catch (e) {
-      logger.error('Client ID resolve hatasi:', e);
+      logger.error('ensureClientId error:', e);
     }
-    return null;
+    return '00000000-0000-0000-0000-000000000000';
   };
 
   const addTakvimPost = async (item: Omit<TakvimPost, 'id'>) => {
     try {
-      const clientId = await resolveClientId(item.client);
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const newPost: TakvimPost = { ...item, id: tempId };
+
+      // Optimistic State Update
+      setTakvimPosts((prev) => [newPost, ...prev]);
+
+      const clientId = await ensureClientId(item.client);
 
       const calendarRow: Record<string, any> = {
+        client_id: clientId,
         client_name: item.client.trim(),
         title: item.title,
         content_type: item.platform || 'Instagram Reels',
@@ -45,18 +69,34 @@ export function createTakvimActions({
         publish_time: item.time || null,
         status: item.status || 'scheduled',
       };
-      if (clientId) calendarRow.client_id = clientId;
 
-      const { error } = await supabase.from('content_calendar').insert(calendarRow);
-      if (error) {
-        logger.error('Takvim post ekleme hatası:', error.message);
+      const { error: calErr } = await supabase.from('content_calendar').insert(calendarRow);
+      if (calErr) {
+        logger.error('Takvim post ekleme hatası:', calErr.message);
       }
 
       // Otomatik Edit Görevi Oluşturma
       const editDeadline = calculateEditDeadlineForPost(item.client, item.date);
       const editTitle = `${item.title} Editi`;
 
+      if (setEditler) {
+        const tempEditId = `temp-edit-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        setEditler((prev) => [
+          {
+            id: tempEditId,
+            title: editTitle,
+            client: item.client.trim(),
+            type: item.platform || 'Reels',
+            editor: 'Atanmadı',
+            deadline: editDeadline,
+            status: 'waiting',
+          },
+          ...prev,
+        ]);
+      }
+
       const editRow: Record<string, any> = {
+        client_id: clientId,
         client_name: item.client.trim(),
         title: editTitle,
         content_type: normalizeContentType(item.platform || 'Reels'),
@@ -65,7 +105,6 @@ export function createTakvimActions({
         deadline: editDeadline,
         status: 'waiting',
       };
-      if (clientId) editRow.client_id = clientId;
 
       const { error: editErr } = await supabase.from('edits').insert(editRow);
       if (editErr) {
@@ -111,7 +150,27 @@ export function createTakvimActions({
   const addTakvimPostsBulk = async (items: Omit<TakvimPost, 'id'>[]) => {
     if (!items || items.length === 0) return;
     try {
-      // 1. Fetch existing clients to get valid client_id UUIDs
+      // 1. Optimistic State Update for all items (UI updates INSTANTLY!)
+      const tempPosts: TakvimPost[] = items.map((item, idx) => ({
+        ...item,
+        id: `bulk-temp-${Date.now()}-${idx}`,
+      }));
+      setTakvimPosts((prev) => [...tempPosts, ...prev]);
+
+      if (setEditler) {
+        const tempEdits: EditItem[] = items.map((item, idx) => ({
+          id: `bulk-edit-temp-${Date.now()}-${idx}`,
+          title: `${item.title} Editi`,
+          client: item.client.trim(),
+          type: item.platform || 'Reels',
+          editor: 'Atanmadı',
+          deadline: calculateEditDeadlineForPost(item.client, item.date),
+          status: 'waiting',
+        }));
+        setEditler((prev) => [...tempEdits, ...prev]);
+      }
+
+      // 2. Fetch existing clients & auto-create any missing client records in DB
       const { data: clients } = await supabase.from('clients').select('id, name');
       const clientMap: Record<string, string> = {};
 
@@ -121,19 +180,36 @@ export function createTakvimActions({
         });
       }
 
-      const defaultClientId = clients && clients.length > 0 ? clients[0].id : null;
+      const uniqueNames = Array.from(new Set(items.map((i) => i.client.trim())));
+      for (const name of uniqueNames) {
+        const norm = name.toLowerCase();
+        if (!clientMap[norm]) {
+          const match = clients?.find((c) => norm.includes(c.name.trim().toLowerCase()));
+          if (match) {
+            clientMap[norm] = match.id;
+          } else {
+            // Auto create missing client in DB
+            const { data: newC } = await supabase
+              .from('clients')
+              .insert({ name })
+              .select('id')
+              .single();
+            if (newC) {
+              clientMap[norm] = newC.id;
+            }
+          }
+        }
+      }
 
-      // 2. Build calendarRows with resolved client_id
+      const fallbackClientId = clients && clients.length > 0 ? clients[0].id : '00000000-0000-0000-0000-000000000000';
+
+      // 3. Build calendarRows with 100% valid client_id UUIDs
       const calendarRows = items.map((item) => {
         const normName = item.client.trim().toLowerCase();
-        let cId = clientMap[normName];
+        const cId = clientMap[normName] || fallbackClientId;
 
-        if (!cId && clients) {
-          const match = clients.find((c) => normName.includes(c.name.trim().toLowerCase()));
-          if (match) cId = match.id;
-        }
-
-        const row: Record<string, any> = {
+        return {
+          client_id: cId,
           client_name: item.client.trim(),
           title: item.title,
           content_type: item.platform || 'Instagram Reels',
@@ -142,12 +218,6 @@ export function createTakvimActions({
           publish_time: item.time || null,
           status: item.status || 'scheduled',
         };
-
-        if (cId || defaultClientId) {
-          row.client_id = cId || defaultClientId;
-        }
-
-        return row;
       });
 
       const { error: calErr } = await supabase.from('content_calendar').insert(calendarRows);
@@ -155,17 +225,13 @@ export function createTakvimActions({
         logger.error('Toplu takvim post ekleme hatası:', calErr.message);
       }
 
-      // 3. Build editRows with resolved client_id
+      // 4. Build editRows with 100% valid client_id UUIDs
       const editRows = items.map((item) => {
         const normName = item.client.trim().toLowerCase();
-        let cId = clientMap[normName];
+        const cId = clientMap[normName] || fallbackClientId;
 
-        if (!cId && clients) {
-          const match = clients.find((c) => normName.includes(c.name.trim().toLowerCase()));
-          if (match) cId = match.id;
-        }
-
-        const row: Record<string, any> = {
+        return {
+          client_id: cId,
           client_name: item.client.trim(),
           title: `${item.title} Editi`,
           content_type: normalizeContentType(item.platform || 'Reels'),
@@ -174,12 +240,6 @@ export function createTakvimActions({
           deadline: calculateEditDeadlineForPost(item.client, item.date),
           status: 'waiting',
         };
-
-        if (cId || defaultClientId) {
-          row.client_id = cId || defaultClientId;
-        }
-
-        return row;
       });
 
       const { error: editErr } = await supabase.from('edits').insert(editRows);

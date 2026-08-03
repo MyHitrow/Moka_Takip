@@ -492,7 +492,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   });
 
   const takvimActions = createTakvimActions({
-    takvimPosts, setTakvimPosts, supabase, fetchCloudData,
+    takvimPosts, setTakvimPosts, setEditler, supabase, fetchCloudData,
   });
 
   const ekipActions = createEkipActions({

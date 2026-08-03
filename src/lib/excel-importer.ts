@@ -265,7 +265,8 @@ export async function parseExcelFile(file: File): Promise<ParsedExcelResult> {
       else if (
         k.includes('tarih') ||
         k.includes('date') ||
-        k.includes('gün')
+        k === 'gün' ||
+        k === 'gun'
       ) {
         dateVal = strVal;
       }
