@@ -319,18 +319,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }));
 
         setEditler((prev) => {
-          const temps = prev.filter((item) => String(item.id).startsWith('temp-') || String(item.id).startsWith('bulk-edit-temp-'));
+          if (cloudEdits.length === 0) return prev;
           const combined = [...cloudEdits];
-          temps.forEach((t) => {
-            if (!combined.some((c) => c.title === t.title && c.client === t.client)) {
-              combined.push(t);
+          prev.forEach((p) => {
+            if (!combined.some((c) => c.title === p.title && c.client === p.client)) {
+              combined.push(p);
             }
           });
           return combined;
         });
       }
 
-      // 5. Takvim (Akıllı Birleştirme: Geçici optimistik takvim postlarını silmez)
+      // 5. Takvim (Akıllı Birleştirme: Bulut boşsa yerel/yedek veriyi korur)
       const { data: calData, error: calErr } = await supabase.from('content_calendar').select('*');
       if (calErr) logger.error('Takvim okuma hatası:', calErr.message);
       if (calData) {
@@ -345,11 +345,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }));
 
         setTakvimPosts((prev) => {
-          const temps = prev.filter((item) => String(item.id).startsWith('temp-') || String(item.id).startsWith('bulk-temp-'));
+          if (cloudPosts.length === 0) return prev;
           const combined = [...cloudPosts];
-          temps.forEach((t) => {
-            if (!combined.some((c) => c.title === t.title && c.date === t.date && c.client === t.client)) {
-              combined.push(t);
+          prev.forEach((p) => {
+            if (!combined.some((c) => c.title === p.title && c.date === p.date && c.client === p.client)) {
+              combined.push(p);
             }
           });
           return combined;
