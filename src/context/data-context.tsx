@@ -345,7 +345,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }));
 
         setTakvimPosts((prev) => {
-          if (cloudPosts.length === 0) return prev;
+          if (cloudPosts.length === 0) {
+            if (prev.length > 0) {
+              (async () => {
+                try {
+                  const { data: clients } = await supabase.from('clients').select('id, name');
+                  const defaultClientId = clients && clients.length > 0 ? clients[0].id : null;
+
+                  const rowsToPush = prev.map((p) => {
+                    const matchedC = clients?.find((c) => c.name.trim().toLowerCase() === p.client.trim().toLowerCase());
+                    const row: Record<string, any> = {
+                      client_name: p.client.trim(),
+                      title: p.title,
+                      content_type: p.platform || 'Instagram Reels',
+                      platform: p.platform || 'Instagram Reels',
+                      publish_date: p.date,
+                      publish_time: p.time || '18:00',
+                      status: p.status || 'scheduled',
+                    };
+                    if (matchedC) {
+                      row.client_id = matchedC.id;
+                    } else if (defaultClientId) {
+                      row.client_id = defaultClientId;
+                    }
+                    return row;
+                  });
+
+                  await supabase.from('content_calendar').insert(rowsToPush);
+                } catch (e) {
+                  logger.error('Otomatik veritabanı senkronizasyonu hatası:', e);
+                }
+              })();
+            }
+            return prev;
+          }
           const combined = [...cloudPosts];
           prev.forEach((p) => {
             if (!combined.some((c) => c.title === p.title && c.date === p.date && c.client === p.client)) {
