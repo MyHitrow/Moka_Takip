@@ -460,6 +460,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [editler, isMounted]);
 
+  // Self-Healing Auto-Sync to Cloud for Mobile Devices
+  useEffect(() => {
+    if (isMounted && (takvimPosts.length > 0 || editler.length > 0)) {
+      syncSettingsToCloud();
+    }
+  }, [takvimPosts.length, editler.length, isMounted]);
+
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
   const login = async (usernameInput: string, passInput: string): Promise<boolean> => {
