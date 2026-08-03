@@ -276,11 +276,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })));
       }
 
-      // 4. Editler
+      // 4. Editler (Akıllı Birleştirme: Geçici optimistik editleri silmez)
       const { data: editsData, error: editErr } = await supabase.from('edits').select('*');
       if (editErr) logger.error('Editler okuma hatası:', editErr.message);
       if (editsData) {
-        setEditler(editsData.map((e) => ({
+        const cloudEdits: EditItem[] = editsData.map((e) => ({
           id: e.id,
           title: e.title,
           client: (e.client_name || 'İşletme').trim(),
@@ -288,14 +288,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           editor: e.editor_name || 'Atanmadı',
           deadline: e.deadline || new Date().toISOString().split('T')[0],
           status: e.status || 'waiting',
-        })));
+        }));
+
+        setEditler((prev) => {
+          const temps = prev.filter((item) => String(item.id).startsWith('temp-') || String(item.id).startsWith('bulk-edit-temp-'));
+          const combined = [...cloudEdits];
+          temps.forEach((t) => {
+            if (!combined.some((c) => c.title === t.title && c.client === t.client)) {
+              combined.push(t);
+            }
+          });
+          return combined;
+        });
       }
 
-      // 5. Takvim
+      // 5. Takvim (Akıllı Birleştirme: Geçici optimistik takvim postlarını silmez)
       const { data: calData, error: calErr } = await supabase.from('content_calendar').select('*');
       if (calErr) logger.error('Takvim okuma hatası:', calErr.message);
       if (calData) {
-        setTakvimPosts(calData.map((t) => ({
+        const cloudPosts: TakvimPost[] = calData.map((t) => ({
           id: t.id,
           client: (t.client_name || 'İşletme').trim(),
           title: t.title || t.content_type || 'İçerik',
@@ -303,7 +314,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           date: t.publish_date || new Date().toISOString().split('T')[0],
           time: t.publish_time || '18:00',
           status: t.status || 'scheduled',
-        })));
+        }));
+
+        setTakvimPosts((prev) => {
+          const temps = prev.filter((item) => String(item.id).startsWith('temp-') || String(item.id).startsWith('bulk-temp-'));
+          const combined = [...cloudPosts];
+          temps.forEach((t) => {
+            if (!combined.some((c) => c.title === t.title && c.date === t.date && c.client === t.client)) {
+              combined.push(t);
+            }
+          });
+          return combined;
+        });
       }
 
       // 6. Gelirler (orphan temizliği dahil)
