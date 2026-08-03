@@ -133,7 +133,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const syncSettingsToCloud = async (
     updatedUsers?: SystemUser[],
     updatedEkip?: EkipUyesi[],
-    updatedNotlar?: HaftalikNot[]
+    updatedNotlar?: HaftalikNot[],
+    updatedTakvim?: TakvimPost[],
+    updatedEditler?: EditItem[]
   ) => {
     try {
       // Şifreleri cloud'a göndermeden önce strip et — güvenlik gereği
@@ -142,6 +144,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         systemUsers: usersForCloud,
         ekip: updatedEkip || ekip,
         haftalikNotlar: updatedNotlar || haftalikNotlar,
+        takvimPosts: updatedTakvim || takvimPosts,
+        editler: updatedEditler || editler,
       });
       const { data: existing } = await supabase
         .from('clients')
@@ -161,7 +165,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsCloudConnected(true);
 
-      // 1. Sistem ayarları (kullanıcılar, ekip, notlar)
+      // 1. Sistem ayarları (kullanıcılar, ekip, notlar, takvim, editler yedeklemesi)
       const { data: sysRecord, error: sysErr } = await supabase
         .from('clients').select('*').eq('name', '__SYSTEM_SETTINGS__').maybeSingle();
 
@@ -174,7 +178,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(sysRecord.contact_name);
           if (parsed.systemUsers && Array.isArray(parsed.systemUsers) && parsed.systemUsers.length > 0) {
             let loadedUsers: SystemUser[] = parsed.systemUsers;
-            // Güvenlik & Kilitlenme Koruması: Listede hiç süper admin kalmadıysa otomatik olarak ilk kullanıcıyı veya varsayılan kullanıcıyı süper admin yap!
             const hasSuperAdmin = loadedUsers.some((u) => u.role === 'super_admin');
             if (!hasSuperAdmin) {
               loadedUsers[0].role = 'super_admin';
@@ -186,7 +189,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             }
             setSystemUsers(loadedUsers);
 
-            // Aktif oturum açmış kullanıcı varsa rolünü güncel tut
             setCurrentUser((prev) => {
               const matched = loadedUsers.find((u) => u.username.toLowerCase() === prev.username.toLowerCase() || u.id === prev.id);
               return matched || loadedUsers[0];
@@ -194,6 +196,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           }
           if (parsed.ekip && Array.isArray(parsed.ekip)) setEkip(parsed.ekip);
           if (parsed.haftalikNotlar && Array.isArray(parsed.haftalikNotlar)) setHaftalikNotlar(parsed.haftalikNotlar);
+
+          // Mobile & Cloud Backup Recovery for Takvim Posts
+          if (parsed.takvimPosts && Array.isArray(parsed.takvimPosts) && parsed.takvimPosts.length > 0) {
+            setTakvimPosts((prev) => {
+              const combined = [...parsed.takvimPosts];
+              prev.forEach((localP) => {
+                if (!combined.some((cp) => cp.title === localP.title && cp.date === localP.date && cp.client === localP.client)) {
+                  combined.push(localP);
+                }
+              });
+              return combined;
+            });
+          }
+
+          // Mobile & Cloud Backup Recovery for Editler
+          if (parsed.editler && Array.isArray(parsed.editler) && parsed.editler.length > 0) {
+            setEditler((prev) => {
+              const combined = [...parsed.editler];
+              prev.forEach((localE) => {
+                if (!combined.some((ce) => ce.title === localE.title && ce.client === localE.client)) {
+                  combined.push(localE);
+                }
+              });
+              return combined;
+            });
+          }
         } catch (e) {}
       }
 
@@ -538,7 +566,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   });
 
   const takvimActions = createTakvimActions({
-    takvimPosts, setTakvimPosts, setEditler, supabase, fetchCloudData,
+    takvimPosts, setTakvimPosts, setEditler, supabase, fetchCloudData, syncSettingsToCloud,
   });
 
   const ekipActions = createEkipActions({

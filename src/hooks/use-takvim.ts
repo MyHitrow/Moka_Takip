@@ -9,6 +9,7 @@ interface UseTakvimProps {
   setEditler?: React.Dispatch<React.SetStateAction<EditItem[]>>;
   supabase: SupabaseClient;
   fetchCloudData: () => Promise<void>;
+  syncSettingsToCloud?: (u?: any, e?: any, n?: any, t?: TakvimPost[], ed?: EditItem[]) => Promise<void>;
 }
 
 /**
@@ -55,6 +56,7 @@ export function createTakvimActions({
   setEditler,
   supabase,
   fetchCloudData,
+  syncSettingsToCloud,
 }: UseTakvimProps) {
 
   const addTakvimPost = async (item: Omit<TakvimPost, 'id'>) => {
@@ -261,6 +263,9 @@ export function createTakvimActions({
         if (editErr2) logger.error('Fallback edit görevi oluşturma hatası:', editErr2.message);
       }
 
+      if (syncSettingsToCloud) {
+        await syncSettingsToCloud(undefined, undefined, undefined, [...tempPosts, ...takvimPosts]);
+      }
       await fetchCloudData();
     } catch (e) {
       logger.error('addTakvimPostsBulk beklenmeyen hata:', e);
