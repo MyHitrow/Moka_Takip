@@ -16,27 +16,47 @@ export function createTakvimActions({
   supabase,
   fetchCloudData,
 }: UseTakvimProps) {
+  const resolveClientId = async (clientName: string): Promise<string | null> => {
+    try {
+      const norm = clientName.trim().toLowerCase();
+      const { data: clients } = await supabase.from('clients').select('id, name');
+      if (clients && clients.length > 0) {
+        const found = clients.find(
+          (c) => c.name.trim().toLowerCase() === norm || norm.includes(c.name.trim().toLowerCase())
+        );
+        return found ? found.id : clients[0].id;
+      }
+    } catch (e) {
+      logger.error('Client ID resolve hatasi:', e);
+    }
+    return null;
+  };
+
   const addTakvimPost = async (item: Omit<TakvimPost, 'id'>) => {
     try {
-      const { error } = await supabase.from('content_calendar').insert({
+      const clientId = await resolveClientId(item.client);
+
+      const calendarRow: Record<string, any> = {
         client_name: item.client.trim(),
         title: item.title,
-        content_type: item.platform, // content_type NOT NULL
-        platform: item.platform,
+        content_type: item.platform || 'Instagram Reels',
+        platform: item.platform || 'Instagram Reels',
         publish_date: item.date,
         publish_time: item.time || null,
-        status: item.status || 'preparing',
-      });
+        status: item.status || 'scheduled',
+      };
+      if (clientId) calendarRow.client_id = clientId;
+
+      const { error } = await supabase.from('content_calendar').insert(calendarRow);
       if (error) {
         logger.error('Takvim post ekleme hatası:', error.message);
       }
 
-      // Otomatik Edit Görevi Oluşturma:
-      // Dutt için 7 gün önce, diğer işletmeler için 2 gün önce (örn. 7 Ağustos Cuma postu -> 5 Ağustos Çarşamba editi)
+      // Otomatik Edit Görevi Oluşturma
       const editDeadline = calculateEditDeadlineForPost(item.client, item.date);
       const editTitle = `${item.title} Editi`;
 
-      const { error: editErr } = await supabase.from('edits').insert({
+      const editRow: Record<string, any> = {
         client_name: item.client.trim(),
         title: editTitle,
         content_type: normalizeContentType(item.platform || 'Reels'),
@@ -44,7 +64,10 @@ export function createTakvimActions({
         editor_name: 'Atanmadı',
         deadline: editDeadline,
         status: 'waiting',
-      });
+      };
+      if (clientId) editRow.client_id = clientId;
+
+      const { error: editErr } = await supabase.from('edits').insert(editRow);
       if (editErr) {
         logger.error('Otomatik edit görevi oluşturma hatası:', editErr.message);
       }
