@@ -98,3 +98,23 @@ export function safeExpenseCategory(category: string): string {
     ? category
     : 'other';
 }
+
+/**
+ * Paylaşım Takvimine girilen bir gönderinin otomatik edit teslim tarihini hesaplar.
+ * - Dutt için: 7 gün öncesine (etkinlik gecesi paylaşımları 3-4 gün önceden hazırlandığından 7 gün evvel edite girer).
+ * - Diğer tüm işletmeler için: 2 gün öncesine (Örn: 7 Ağustos Cuma paylaşımı için 5 Ağustos Çarşamba editi).
+ */
+export function calculateEditDeadlineForPost(clientName: string, postDateStr: string): string {
+  if (!postDateStr) return new Date().toISOString().split('T')[0];
+
+  const postDate = new Date(postDateStr);
+  if (isNaN(postDate.getTime())) return postDateStr;
+
+  const normClient = (clientName || '').trim().toLowerCase();
+  const daysToSubtract = normClient.includes('dutt') ? 7 : 2;
+
+  const editDate = new Date(postDate);
+  editDate.setDate(editDate.getDate() - daysToSubtract);
+
+  return editDate.toISOString().split('T')[0];
+}

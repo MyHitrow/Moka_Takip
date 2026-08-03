@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { TakvimPost } from '@/types/app';
-import { isUUID } from '@/lib/helpers';
+import { isUUID, calculateEditDeadlineForPost, normalizeContentType } from '@/lib/helpers';
 import { logger } from '@/lib/logger';
 
 interface UseTakvimProps {
@@ -30,6 +30,25 @@ export function createTakvimActions({
       if (error) {
         logger.error('Takvim post ekleme hatası:', error.message);
       }
+
+      // Otomatik Edit Görevi Oluşturma:
+      // Dutt için 7 gün önce, diğer işletmeler için 2 gün önce (örn. 7 Ağustos Cuma postu -> 5 Ağustos Çarşamba editi)
+      const editDeadline = calculateEditDeadlineForPost(item.client, item.date);
+      const editTitle = `${item.title} Editi`;
+
+      const { error: editErr } = await supabase.from('edits').insert({
+        client_name: item.client.trim(),
+        title: editTitle,
+        content_type: normalizeContentType(item.platform || 'Reels'),
+        content_type_label: item.platform || 'Instagram Reels',
+        editor_name: 'Atanmadı',
+        deadline: editDeadline,
+        status: 'waiting',
+      });
+      if (editErr) {
+        logger.error('Otomatik edit görevi oluşturma hatası:', editErr.message);
+      }
+
       await fetchCloudData();
     } catch (e) {
       logger.error('addTakvimPost beklenmeyen hata:', e);
