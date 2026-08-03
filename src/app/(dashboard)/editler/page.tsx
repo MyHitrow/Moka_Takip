@@ -81,13 +81,36 @@ function EditlerPageContent() {
   const activeIsletmeler = isletmeler.filter((i) => i.active !== false);
   const passiveIsletmeler = isletmeler.filter((i) => i.active === false);
 
-  const pendingEdits = editler.filter((e) => e.status !== 'ready' && e.status !== 'published');
-  const completedEdits = editler.filter((e) => e.status === 'ready' || e.status === 'published');
-
-  const editingEdits = editler.filter((e) => e.status === 'editing' || e.status === 'waiting');
-  const reviewEdits = editler.filter((e) => e.status === 'client_review');
-
   const todayStr = new Date().toISOString().split('T')[0];
+
+  const sortEditsByUrgency = (items: typeof editler) => {
+    return [...items].sort((a, b) => {
+      const isOverdueA = a.deadline && a.deadline < todayStr && a.deadline !== 'Belirtilmedi';
+      const isOverdueB = b.deadline && b.deadline < todayStr && b.deadline !== 'Belirtilmedi';
+
+      const isTodayA = a.deadline === todayStr;
+      const isTodayB = b.deadline === todayStr;
+
+      // 1. Overdue items FIRST
+      if (isOverdueA && !isOverdueB) return -1;
+      if (!isOverdueA && isOverdueB) return 1;
+
+      // 2. Today's items SECOND
+      if (isTodayA && !isTodayB) return -1;
+      if (!isTodayA && isTodayB) return 1;
+
+      // 3. Compare deadline dates ascending
+      const dA = (!a.deadline || a.deadline === 'Belirtilmedi') ? '9999-99-99' : a.deadline;
+      const dB = (!b.deadline || b.deadline === 'Belirtilmedi') ? '9999-99-99' : b.deadline;
+      return dA.localeCompare(dB);
+    });
+  };
+
+  const pendingEdits = sortEditsByUrgency(editler.filter((e) => e.status !== 'ready' && e.status !== 'published'));
+  const completedEdits = sortEditsByUrgency(editler.filter((e) => e.status === 'ready' || e.status === 'published'));
+
+  const editingEdits = sortEditsByUrgency(editler.filter((e) => e.status === 'editing' || e.status === 'waiting'));
+  const reviewEdits = sortEditsByUrgency(editler.filter((e) => e.status === 'client_review'));
 
   return (
     <div>

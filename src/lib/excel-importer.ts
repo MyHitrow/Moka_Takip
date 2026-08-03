@@ -95,23 +95,53 @@ export function downloadSampleTakvimExcelTemplate(): void {
 export const downloadSampleExcelTemplate = downloadSampleShootsExcelTemplate;
 
 /**
- * Parses relative date or various Excel date representations into YYYY-MM-DD
+ * Parses relative date, Turkish month names, slashes, or various Excel date representations into YYYY-MM-DD
  */
 function normalizeExcelDate(val: any): string {
   if (!val) return new Date().toISOString().split('T')[0];
 
+  const rawStr = String(val).trim();
+
   // If already YYYY-MM-DD
-  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
-    return val.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rawStr)) {
+    return rawStr;
   }
 
   // If DD.MM.YYYY
-  if (typeof val === 'string' && /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(val.trim())) {
-    const parts = val.trim().split('.');
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(rawStr)) {
+    const parts = rawStr.split('.');
     const day = parts[0].padStart(2, '0');
     const month = parts[1].padStart(2, '0');
     const year = parts[2];
     return `${year}-${month}-${day}`;
+  }
+
+  // If DD/MM/YYYY or DD-MM-YYYY
+  if (/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/.test(rawStr)) {
+    const parts = rawStr.split(/[\/\-]/);
+    const day = parts[0].padStart(2, '0');
+    const month = parts[1].padStart(2, '0');
+    const year = parts[2];
+    return `${year}-${month}-${day}`;
+  }
+
+  // "01 Temmuz 2026" or "28 Ağustos 2026"
+  const trMonths: Record<string, string> = {
+    ocak: '01', subat: '02', şubat: '02', mart: '03', nisan: '04',
+    mayis: '05', mayıs: '05', haziran: '06', temmuz: '07', agustos: '08',
+    ağustos: '08', eylul: '09', eylül: '09', ekim: '10',
+    kasim: '11', kasım: '11', aralik: '12', aralık: '12',
+  };
+
+  const match = rawStr.toLowerCase().match(/^(\d{1,2})\s+([a-zşğıöç]+)\s+(\d{4})/i);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const monthName = match[2];
+    const year = match[3];
+    const monthNum = trMonths[monthName];
+    if (monthNum) {
+      return `${year}-${monthNum}-${day}`;
+    }
   }
 
   // If Excel Date Serial Number (e.g. 45300)
@@ -231,10 +261,15 @@ export async function parseExcelFile(file: File): Promise<ParsedExcelResult> {
       ) {
         timeVal = strVal;
       }
-      // 6. Title / Başlık / Konu / İçerik
+      // 6. Title / Gönderi / Post / Başlık / Konu / İçerik
       else if (
         k.includes('başlık') ||
         k.includes('baslik') ||
+        k.includes('gönderi') ||
+        k.includes('gonderi') ||
+        k.includes('post') ||
+        k.includes('video') ||
+        k.includes('reels') ||
         k.includes('çekim') ||
         k.includes('cekim') ||
         k.includes('konu') ||
@@ -255,7 +290,7 @@ export async function parseExcelFile(file: File): Promise<ParsedExcelResult> {
     }
 
     if (!title) {
-      title = 'Sosyal Medya Video Çekimi';
+      title = `${clientName} Gönderisi`;
     }
 
     clientNamesSet.add(clientName);
