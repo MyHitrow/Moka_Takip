@@ -60,6 +60,7 @@ interface DataContextType {
   addGider: (item: Omit<Gider, 'id'>) => void;
   deleteGider: (id: string) => void;
   addTakvimPost: (item: Omit<TakvimPost, 'id'>) => void;
+  addTakvimPostsBulk: (items: Omit<TakvimPost, 'id'>[]) => Promise<void> | void;
   deleteTakvimPost: (id: string) => void;
   updateTakvimPostStatus: (id: string, status: TakvimPost['status']) => void;
   addEkipUyesi: (item: Omit<EkipUyesi, 'id' | 'initials'>, customUsername?: string, customPassword?: string) => void;

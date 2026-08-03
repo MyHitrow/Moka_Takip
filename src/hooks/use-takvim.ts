@@ -85,5 +85,45 @@ export function createTakvimActions({
     }
   };
 
-  return { addTakvimPost, deleteTakvimPost, updateTakvimPostStatus };
+  const addTakvimPostsBulk = async (items: Omit<TakvimPost, 'id'>[]) => {
+    if (!items || items.length === 0) return;
+    try {
+      const calendarRows = items.map((item) => ({
+        client_name: item.client.trim(),
+        title: item.title,
+        content_type: item.platform,
+        platform: item.platform,
+        publish_date: item.date,
+        publish_time: item.time || null,
+        status: item.status || 'scheduled',
+      }));
+
+      const { error: calErr } = await supabase.from('content_calendar').insert(calendarRows);
+      if (calErr) {
+        logger.error('Toplu takvim post ekleme hatası:', calErr.message);
+      }
+
+      // Otomatik Edit Görevleri Toplu Oluşturma
+      const editRows = items.map((item) => ({
+        client_name: item.client.trim(),
+        title: `${item.title} Editi`,
+        content_type: normalizeContentType(item.platform || 'Reels'),
+        content_type_label: item.platform || 'Instagram Reels',
+        editor_name: 'Atanmadı',
+        deadline: calculateEditDeadlineForPost(item.client, item.date),
+        status: 'waiting',
+      }));
+
+      const { error: editErr } = await supabase.from('edits').insert(editRows);
+      if (editErr) {
+        logger.error('Toplu otomatik edit görevi oluşturma hatası:', editErr.message);
+      }
+
+      await fetchCloudData();
+    } catch (e) {
+      logger.error('addTakvimPostsBulk beklenmeyen hata:', e);
+    }
+  };
+
+  return { addTakvimPost, addTakvimPostsBulk, deleteTakvimPost, updateTakvimPostStatus };
 }

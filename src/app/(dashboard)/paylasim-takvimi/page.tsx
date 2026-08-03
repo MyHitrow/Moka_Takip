@@ -24,7 +24,7 @@ export default function PaylasimTakvimiPage() {
 }
 
 function PaylasimTakvimiPageContent() {
-  const { takvimPosts, isletmeler, addTakvimPost, deleteTakvimPost, updateTakvimPostStatus, formatDateTr } = useData();
+  const { takvimPosts, isletmeler, addTakvimPost, addTakvimPostsBulk, deleteTakvimPost, updateTakvimPostStatus, formatDateTr } = useData();
 
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // Default Aug 2026
   const [selectedDay, setSelectedDay] = useState<number>(3); // Selected day on mobile carousel
@@ -69,13 +69,13 @@ function PaylasimTakvimiPageContent() {
     }
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (!excelResult || excelResult.posts.length === 0) return;
-    excelResult.posts.forEach((p) => {
-      addTakvimPost(p);
-    });
+    setIsParsingExcel(true);
+    await addTakvimPostsBulk(excelResult.posts);
     setExcelResult(null);
     setExcelOpen(false);
+    setIsParsingExcel(false);
   };
 
   const year = currentDate.getFullYear();
