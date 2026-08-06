@@ -33,25 +33,31 @@ export function createIsletmelerActions({
     const cleanNotes = item.notes ? item.notes.split('__AI_META__:')[0].trim() : '';
     const cleanContact = item.contact ? item.contact.split('__AI_META__:')[0].trim() : '-';
 
+    const aiMeta = JSON.stringify({
+      maxDaysBetweenPosts: item.maxDaysBetweenPosts || 3,
+      monthlyReelsTarget: item.monthlyReelsTarget || 10,
+      monthlyShootTarget: item.monthlyShootTarget || 2,
+      notes: cleanNotes,
+    });
+
+    const fullContact = `${cleanContact} __AI_META__:${aiMeta}`;
+
     try {
       const { data, error } = await supabase.from('clients').insert({
         name: item.name.trim(),
-        contact_name: cleanContact,
-        phone: item.phone,
-        instagram: item.instagram,
+        contact_name: fullContact,
+        phone: item.phone || '-',
+        instagram: item.instagram || '@',
         monthly_fee: numFee,
-        is_active: item.active,
-        max_days_between_posts: item.maxDaysBetweenPosts || 3,
-        monthly_reels_target: item.monthlyReelsTarget || 10,
-        monthly_shoot_target: item.monthlyShootTarget || 2,
-        notes: cleanNotes,
+        is_active: item.active !== false,
       }).select().single();
 
       if (error) {
         logger.error('İşletme ekleme hatası:', error.message);
+        return;
       }
 
-      if (numFee > 0 && item.active) {
+      if (numFee > 0 && item.active !== false) {
         const today = new Date();
         const firstWeekDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-05`;
         const { error: incErr } = await supabase.from('income_records').insert({
@@ -112,9 +118,21 @@ export function createIsletmelerActions({
       const cleanNotes = mergedNotes.split('__AI_META__:')[0].trim();
       const mergedContact = (updatedFields.contact !== undefined ? updatedFields.contact : (target?.contact || '-')).split('__AI_META__:')[0].trim();
 
-      const updateData: Record<string, unknown> = {
-        contact_name: mergedContact,
+      const maxDays = updatedFields.maxDaysBetweenPosts !== undefined ? updatedFields.maxDaysBetweenPosts : (target?.maxDaysBetweenPosts || 3);
+      const reelsTarget = updatedFields.monthlyReelsTarget !== undefined ? updatedFields.monthlyReelsTarget : (target?.monthlyReelsTarget || 10);
+      const shootTarget = updatedFields.monthlyShootTarget !== undefined ? updatedFields.monthlyShootTarget : (target?.monthlyShootTarget || 2);
+
+      const aiMeta = JSON.stringify({
+        maxDaysBetweenPosts: maxDays,
+        monthlyReelsTarget: reelsTarget,
+        monthlyShootTarget: shootTarget,
         notes: cleanNotes,
+      });
+
+      const fullContact = `${mergedContact} __AI_META__:${aiMeta}`;
+
+      const updateData: Record<string, unknown> = {
+        contact_name: fullContact,
       };
 
       if (updatedFields.name !== undefined) updateData.name = newName;
@@ -122,9 +140,6 @@ export function createIsletmelerActions({
       if (updatedFields.instagram !== undefined) updateData.instagram = updatedFields.instagram;
       if (numFee !== undefined) updateData.monthly_fee = numFee;
       if (updatedFields.active !== undefined) updateData.is_active = updatedFields.active;
-      if (updatedFields.maxDaysBetweenPosts !== undefined) updateData.max_days_between_posts = updatedFields.maxDaysBetweenPosts;
-      if (updatedFields.monthlyReelsTarget !== undefined) updateData.monthly_reels_target = updatedFields.monthlyReelsTarget;
-      if (updatedFields.monthlyShootTarget !== undefined) updateData.monthly_shoot_target = updatedFields.monthlyShootTarget;
 
       if (isUUID(id)) {
         const { error } = await supabase.from('clients').update(updateData).eq('id', id);

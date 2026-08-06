@@ -222,10 +222,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         currentClientsList = realClients.map((c) => {
           let rawContact = (c.contact_name || '-').split('__AI_META__:')[0].trim();
           let rawNotes = (c.notes || c.ai_notes || '').split('__AI_META__:')[0].trim();
-          
-          let maxDays = c.max_days_between_posts ? Number(c.max_days_between_posts) : 3;
-          let reelsTarget = c.monthly_reels_target ? Number(c.monthly_reels_target) : 10;
-          let shootTarget = c.monthly_shoot_target ? Number(c.monthly_shoot_target) : 2;
+          let maxDays = 3;
+          let reelsTarget = 10;
+          let shootTarget = 2;
+
+          if (c.contact_name && c.contact_name.includes('__AI_META__:')) {
+            try {
+              const meta = JSON.parse(c.contact_name.split('__AI_META__:')[1]);
+              if (meta.maxDaysBetweenPosts) maxDays = Number(meta.maxDaysBetweenPosts);
+              if (meta.monthlyReelsTarget) reelsTarget = Number(meta.monthlyReelsTarget);
+              if (meta.monthlyShootTarget) shootTarget = Number(meta.monthlyShootTarget);
+              if (meta.notes) rawNotes = meta.notes;
+            } catch (e) {}
+          }
+
+          const rawFee = c.monthly_fee !== undefined && c.monthly_fee !== null ? c.monthly_fee : c.package_fee;
+          const feeStr = rawFee ? `${rawFee} ₺` : '0 ₺';
 
           return {
             id: c.id,
@@ -233,7 +245,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             contact: rawContact || '-',
             phone: c.phone || '-',
             instagram: c.instagram || '-',
-            fee: c.package_fee || '0',
+            fee: feeStr,
             active: c.is_active !== false,
             maxDaysBetweenPosts: maxDays,
             monthlyReelsTarget: reelsTarget,
