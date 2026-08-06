@@ -38,12 +38,9 @@ interface DataContextType {
   giderler: Gider[];
   takvimPosts: TakvimPost[];
   ekip: EkipUyesi[];
-  systemUsers: SystemUser[];
   currentUser: SystemUser;
   haftalikNotlar: HaftalikNot[];
   isCloudConnected: boolean;
-  login: (username: string, pass: string) => Promise<boolean> | boolean;
-  logout: () => void;
   addIsletme: (item: Omit<Isletme, 'id'>) => void;
   updateIsletme: (id: string, updatedFields: Partial<Isletme>) => void;
   deleteIsletme: (id: string) => void;
@@ -63,22 +60,19 @@ interface DataContextType {
   addTakvimPostsBulk: (items: Omit<TakvimPost, 'id'>[]) => Promise<void> | void;
   deleteTakvimPost: (id: string) => void;
   updateTakvimPostStatus: (id: string, status: TakvimPost['status']) => void;
-  addEkipUyesi: (item: Omit<EkipUyesi, 'id' | 'initials'>, customUsername?: string, customPassword?: string) => void;
+  addEkipUyesi: (item: Omit<EkipUyesi, 'id' | 'initials'>) => void;
   deleteEkipUyesi: (id: string) => void;
-  addSystemUser: (user: Omit<SystemUser, 'id'>) => boolean;
-  updateSystemUser: (id: string, updatedFields: Partial<SystemUser>) => void;
-  deleteSystemUser: (id: string) => void;
   addHaftalikNot: (content: string, client?: string) => void;
   deleteHaftalikNot: (id: string) => void;
   formatDateTr: (dateStr: string) => string;
 }
 
-// ─── Varsayılan Kullanıcılar ────────────────────────────────────────────────
+// ─── Varsayılan Sabit Kullanıcı ─────────────────────────────────────────────
 
-const defaultSuperAdmin: SystemUser = {
+const defaultAdmin: SystemUser = {
   id: '1',
-  username: 'kadorizator',
-  name: 'Kadir (Süper Admin)',
+  username: 'admin',
+  name: 'Moka Creative',
   role: 'super_admin',
   permissions: {
     canManageClients: true, canManageShoots: true, canManageEdits: true,
@@ -86,25 +80,6 @@ const defaultSuperAdmin: SystemUser = {
     canManageTeam: true, canManageUsers: true,
   },
 };
-
-const initialSystemUsers: SystemUser[] = [
-  defaultSuperAdmin,
-  {
-    id: '2',
-    username: 'admin',
-    name: 'Ajans Yöneticisi',
-    role: 'admin',
-    permissions: {
-      canManageClients: true, canManageShoots: true, canManageEdits: true,
-      canManageTakvim: true, canManageFinance: true, canManageReports: true,
-      canManageTeam: false, canManageUsers: false,
-    },
-  },
-];
-
-const initialEkip: EkipUyesi[] = [
-  { id: '1', name: 'Kadir (Süper Admin)', initials: 'KS', color: 'bg-purple-500', role: 'Süper Admin', phone: '0555 000 0000', username: 'kadorizator' },
-];
 
 // ─── Context ────────────────────────────────────────────────────────────────
 
@@ -114,8 +89,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
 
-  const [currentUser, setCurrentUser] = useState<SystemUser>(defaultSuperAdmin);
-  const [systemUsers, setSystemUsers] = useState<SystemUser[]>(initialSystemUsers);
+  // Sabit kullanıcı — değişmez
+  const currentUser = defaultAdmin;
+
   const [haftalikNotlar, setHaftalikNotlar] = useState<HaftalikNot[]>([]);
 
   const [isletmeler, setIsletmeler] = useState<Isletme[]>([]);
@@ -124,43 +100,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [gelirler, setGelirler] = useState<Gelir[]>([]);
   const [giderler, setGiderler] = useState<Gider[]>([]);
   const [takvimPosts, setTakvimPosts] = useState<TakvimPost[]>([]);
-  const [ekip, setEkip] = useState<EkipUyesi[]>(initialEkip);
+  const [ekip, setEkip] = useState<EkipUyesi[]>([]);
 
   const supabase = createClient();
 
-  // ─── Cloud Sync ────────────────────────────────────────────────────────────
-
-  // ─── Cloud Sync ────────────────────────────────────────────────────────────
+  // ─── Cloud Sync (Sadece haftalikNotlar için) ──────────────────────────────
 
   const syncSettingsToCloud = async (
-    updatedUsers?: SystemUser[],
-    updatedEkip?: EkipUyesi[],
     updatedNotlar?: HaftalikNot[],
-    updatedTakvim?: TakvimPost[],
-    updatedEditler?: EditItem[]
   ) => {
     try {
-      const nextUsers = updatedUsers || systemUsers;
-      const nextEkip = updatedEkip || ekip;
       const nextNotlar = updatedNotlar || haftalikNotlar;
 
-      // LocalStorage Anında Kayıt (Sayfa Yenilendiğinde Kayıp Olmaması İçin)
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('app_systemUsers', JSON.stringify(nextUsers));
-          localStorage.setItem('app_ekip', JSON.stringify(nextEkip));
-          localStorage.setItem('app_haftalikNotlar', JSON.stringify(nextNotlar));
-        } catch (e) {}
-      }
-
-      // Şifreleri cloud'a göndermeden önce strip et — güvenlik gereği
-      const usersForCloud = nextUsers.map(({ password: _omit, ...rest }) => rest);
       const payload = JSON.stringify({
-        systemUsers: usersForCloud,
-        ekip: nextEkip,
         haftalikNotlar: nextNotlar,
-        takvimPosts: updatedTakvim || takvimPosts,
-        editler: updatedEditler || editler,
       });
 
       const { data: existing } = await supabase
@@ -192,6 +145,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         { data: calData, error: calErr },
         { data: incomeData, error: incErr },
         { data: expData, error: expErr },
+        { data: teamData, error: teamErr },
       ] = await Promise.all([
         supabase.from('clients').select('*').eq('name', '__SYSTEM_SETTINGS__').maybeSingle(),
         supabase.from('clients').select('*'),
@@ -200,6 +154,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         supabase.from('content_calendar').select('*'),
         supabase.from('income_records').select('*'),
         supabase.from('expense_records').select('*'),
+        supabase.from('team_members').select('*'),
       ]);
 
       if (sysErr) logger.error('Sistem ayarları okuma hatası:', sysErr.message);
@@ -209,42 +164,32 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (calErr) logger.error('Takvim okuma hatası:', calErr.message);
       if (incErr) logger.error('Gelirler okuma hatası:', incErr.message);
       if (expErr) logger.error('Giderler okuma hatası:', expErr.message);
+      if (teamErr) logger.warn('Ekip tablosu okuma uyarısı:', teamErr.message);
 
-      // 1. Sistem Ayarları
+      // 1. Sistem ayarları (sadece haftalikNotlar)
       if (sysRecord?.contact_name) {
         try {
           const parsed = JSON.parse(sysRecord.contact_name);
-          if (parsed.systemUsers && Array.isArray(parsed.systemUsers) && parsed.systemUsers.length > 0) {
-            let loadedUsers: SystemUser[] = parsed.systemUsers;
-            const hasSuperAdmin = loadedUsers.some((u) => u.role === 'super_admin');
-            if (!hasSuperAdmin) {
-              loadedUsers[0].role = 'super_admin';
-              loadedUsers[0].permissions = {
-                canManageClients: true, canManageShoots: true, canManageEdits: true,
-                canManageTakvim: true, canManageFinance: true, canManageReports: true,
-                canManageTeam: true, canManageUsers: true,
-              };
-            }
-            setSystemUsers(loadedUsers);
-            if (typeof window !== 'undefined') localStorage.setItem('app_systemUsers', JSON.stringify(loadedUsers));
-
-            setCurrentUser((prev) => {
-              const matched = loadedUsers.find((u) => u.username.toLowerCase() === prev.username.toLowerCase() || u.id === prev.id);
-              return matched || loadedUsers[0];
-            });
-          }
-          if (parsed.ekip && Array.isArray(parsed.ekip) && parsed.ekip.length > 0) {
-            setEkip(parsed.ekip);
-            if (typeof window !== 'undefined') localStorage.setItem('app_ekip', JSON.stringify(parsed.ekip));
-          }
           if (parsed.haftalikNotlar && Array.isArray(parsed.haftalikNotlar)) {
             setHaftalikNotlar(parsed.haftalikNotlar);
-            if (typeof window !== 'undefined') localStorage.setItem('app_haftalikNotlar', JSON.stringify(parsed.haftalikNotlar));
           }
         } catch (e) {}
       }
 
-      // 2. İşletmeler
+      // 2. Ekip — team_members tablosundan
+      if (teamData && Array.isArray(teamData) && teamData.length > 0) {
+        const mappedEkip: EkipUyesi[] = teamData.map((t) => ({
+          id: t.id,
+          name: t.name,
+          role: t.role || 'Ekip Üyesi',
+          phone: t.phone || '-',
+          color: t.color || 'bg-purple-500',
+          initials: t.initials || t.name.substring(0, 2).toUpperCase(),
+        }));
+        setEkip(mappedEkip);
+      }
+
+      // 3. İşletmeler
       let currentClientsList: Isletme[] = [];
       if (clientsData) {
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
@@ -258,22 +203,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
           return {
             id: c.id,
-            name: c.name.trim(),
+            name: c.name?.trim() || 'İşletme',
             contact: rawContact || '-',
             phone: c.phone || '-',
-            instagram: c.instagram || '@-',
-            fee: c.monthly_fee ? `${c.monthly_fee} ₺` : '0 ₺',
-            active: c.is_active ?? true,
+            instagram: c.instagram || '-',
+            fee: c.package_fee || '0',
+            active: c.is_active !== false,
             maxDaysBetweenPosts: maxDays,
             monthlyReelsTarget: reelsTarget,
             monthlyShootTarget: shootTarget,
-            notes: rawNotes,
+            notes: rawNotes || '',
           };
         });
         setIsletmeler(currentClientsList);
       }
 
-      // 3. Çekimler
+      // 4. Çekimler
       if (shootsData) {
         setCekimler(shootsData.map((s) => ({
           id: s.id,
@@ -286,7 +231,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })));
       }
 
-      // 4. Editler
+      // 5. Editler
       if (editsData) {
         const cloudEdits: EditItem[] = editsData.map((e) => ({
           id: e.id,
@@ -310,7 +255,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // 5. Takvim
+      // 6. Takvim
       if (calData) {
         const cloudPosts: TakvimPost[] = calData.map((t) => ({
           id: t.id,
@@ -323,40 +268,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }));
 
         setTakvimPosts((prev) => {
-          if (cloudPosts.length === 0) {
-            if (prev.length > 0) {
-              (async () => {
-                try {
-                  const { data: clients } = await supabase.from('clients').select('id, name');
-                  const defaultClientId = clients && clients.length > 0 ? clients[0].id : null;
-
-                  const rowsToPush = prev.map((p) => {
-                    const matchedC = clients?.find((c) => c.name.trim().toLowerCase() === p.client.trim().toLowerCase());
-                    const row: Record<string, any> = {
-                      client_name: p.client.trim(),
-                      title: p.title,
-                      content_type: p.platform || 'Instagram Reels',
-                      platform: p.platform || 'Instagram Reels',
-                      publish_date: p.date,
-                      publish_time: p.time || '18:00',
-                      status: p.status || 'scheduled',
-                    };
-                    if (matchedC) {
-                      row.client_id = matchedC.id;
-                    } else if (defaultClientId) {
-                      row.client_id = defaultClientId;
-                    }
-                    return row;
-                  });
-
-                  await supabase.from('content_calendar').insert(rowsToPush);
-                } catch (e) {
-                  logger.error('Otomatik veritabanı senkronizasyonu hatası:', e);
-                }
-              })();
-            }
-            return prev;
-          }
+          if (cloudPosts.length === 0) return prev;
           const combined = [...cloudPosts];
           prev.forEach((p) => {
             if (!combined.some((c) => c.title === p.title && c.date === p.date && c.client === p.client)) {
@@ -367,7 +279,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // 6. Gelirler (Güvenli Yükleme — Yetim Kayıtlar Asla Otomatik Silinmez!)
+      // 7. Gelirler
       if (incomeData) {
         const { isClientMatch } = await import('@/lib/helpers');
         const mappedGelirler: Gelir[] = incomeData.map((g) => {
@@ -396,7 +308,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setGelirler(mappedGelirler);
       }
 
-      // 7. Giderler
+      // 8. Giderler
       if (expData) {
         setGiderler(expData.map((e) => ({
           id: e.id,
@@ -417,118 +329,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setIsMounted(true);
-    try {
-      const savedUser = localStorage.getItem('app_currentUser');
-      if (savedUser) setCurrentUser(JSON.parse(savedUser));
-
-      const savedPosts = localStorage.getItem('app_takvimPosts');
-      if (savedPosts) {
-        const parsed = JSON.parse(savedPosts);
-        if (Array.isArray(parsed) && parsed.length > 0) setTakvimPosts(parsed);
-      }
-
-      const savedEdits = localStorage.getItem('app_editler');
-      if (savedEdits) {
-        const parsed = JSON.parse(savedEdits);
-        if (Array.isArray(parsed) && parsed.length > 0) setEditler(parsed);
-      }
-
-      const savedUsers = localStorage.getItem('app_systemUsers');
-      if (savedUsers) setSystemUsers(JSON.parse(savedUsers));
-
-      const savedEkip = localStorage.getItem('app_ekip');
-      if (savedEkip) setEkip(JSON.parse(savedEkip));
-
-      const savedNotlar = localStorage.getItem('app_haftalikNotlar');
-      if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
-    } catch (e) {}
-
     fetchCloudData();
 
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public' }, () => { fetchCloudData(); })
+    // Realtime subscription
+    const channel = supabase.channel('realtime-all')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => fetchCloudData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shoots' }, () => fetchCloudData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'edits' }, () => fetchCloudData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'content_calendar' }, () => fetchCloudData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'income_records' }, () => fetchCloudData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_records' }, () => fetchCloudData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => fetchCloudData())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (isMounted) localStorage.setItem('app_currentUser', JSON.stringify(currentUser));
-  }, [currentUser, isMounted]);
-
-  useEffect(() => {
-    if (isMounted && takvimPosts.length > 0) {
-      localStorage.setItem('app_takvimPosts', JSON.stringify(takvimPosts));
-    }
-  }, [takvimPosts, isMounted]);
-
-  useEffect(() => {
-    if (isMounted && editler.length > 0) {
-      localStorage.setItem('app_editler', JSON.stringify(editler));
-    }
-  }, [editler, isMounted]);
-
-  // Self-Healing Auto-Sync to Cloud for Mobile Devices
-  useEffect(() => {
-    if (isMounted && (takvimPosts.length > 0 || editler.length > 0)) {
-      syncSettingsToCloud();
-    }
-  }, [takvimPosts.length, editler.length, isMounted]);
-
-  // ─── Auth ──────────────────────────────────────────────────────────────────
-
-  const login = async (usernameInput: string, passInput: string): Promise<boolean> => {
-    const cleanUsername = usernameInput.trim().toLowerCase();
-    const user = systemUsers.find(
-      (u) => u.username.toLowerCase() === cleanUsername && (!u.password || u.password === passInput)
-    );
-    if (user) {
-      setCurrentUser(user);
-      if (typeof document !== 'undefined') {
-        document.cookie = 'app_session=true; path=/; max-age=2592000; SameSite=Lax';
-      }
-
-      // Supabase Auth Oturum Senkronizasyonu (Authenticated RLS Yetkilendirmesi İçin)
-      try {
-        const email = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@ajanspanel.local`;
-        const { error: signInErr } = await supabase.auth.signInWithPassword({
-          email,
-          password: passInput,
-        });
-
-        if (signInErr && (signInErr.message.includes('Invalid login credentials') || signInErr.message.includes('user_not_found'))) {
-          // İlk girişte Supabase Auth kaydı yoksa otomatik oluştur ve oturum aç
-          const { error: signUpErr } = await supabase.auth.signUp({
-            email,
-            password: passInput,
-            options: {
-              data: { full_name: user.name, username: user.username },
-            },
-          });
-          if (!signUpErr) {
-            await supabase.auth.signInWithPassword({ email, password: passInput });
-          }
-        }
-      } catch (e) {
-        logger.warn('Supabase auth oturum açma uyarısı:', e);
-      }
-
-      return true;
-    }
-    return false;
-  };
-
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {}
-    setCurrentUser(defaultSuperAdmin);
-    if (typeof document !== 'undefined') {
-      document.cookie = 'app_session=; path=/; max-age=0; SameSite=Lax';
-      window.location.href = '/login';
-    }
-  };
 
   // ─── Haftalık Notlar ───────────────────────────────────────────────────────
 
@@ -547,17 +363,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
     const updatedNotlar = [newNot, ...haftalikNotlar];
     setHaftalikNotlar(updatedNotlar);
-    syncSettingsToCloud(undefined, undefined, updatedNotlar);
+    syncSettingsToCloud(updatedNotlar);
   };
 
   const deleteHaftalikNot = (id: string) => {
     const note = haftalikNotlar.find((n) => n.id === id);
     if (!note) return;
-    if (currentUser.role === 'super_admin' || note.authorUsername === currentUser.username) {
-      const updatedNotlar = haftalikNotlar.filter((n) => n.id !== id);
-      setHaftalikNotlar(updatedNotlar);
-      syncSettingsToCloud(undefined, undefined, updatedNotlar);
-    }
+    // Herkes silebilir (tek kullanıcı modeli)
+    const updatedNotlar = haftalikNotlar.filter((n) => n.id !== id);
+    setHaftalikNotlar(updatedNotlar);
+    syncSettingsToCloud(updatedNotlar);
   };
 
   // ─── Modül Action'ları ─────────────────────────────────────────────────────
@@ -586,9 +401,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   });
 
   const ekipActions = createEkipActions({
-    ekip, systemUsers, currentUser,
-    setEkip, setSystemUsers, setCurrentUser,
-    supabase, syncSettingsToCloud,
+    ekip,
+    setEkip,
+    supabase,
+    syncSettingsToCloud,
   });
 
   // ─── Provider ──────────────────────────────────────────────────────────────
@@ -597,9 +413,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     <DataContext.Provider
       value={{
         isletmeler, cekimler, editler, gelirler, giderler,
-        takvimPosts, ekip, systemUsers, currentUser, haftalikNotlar,
+        takvimPosts, ekip, currentUser, haftalikNotlar,
         isCloudConnected,
-        login, logout,
         ...isletmelerActions,
         ...cekimlerActions,
         ...editlerActions,

@@ -12,47 +12,29 @@ import { Label } from '@/components/ui/label';
 import { Users, Phone, Video, Trash2, Plus, Sparkles, Scale, Megaphone, Flame } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
-import { PermissionGuard } from '@/components/shared/permission-guard';
-
 export default function EkipPage() {
-  return (
-    <PermissionGuard requiredPermission="canManageTeam">
-      <EkipPageContent />
-    </PermissionGuard>
-  );
-}
-
-function EkipPageContent() {
-  const { ekip, editler, systemUsers, addEkipUyesi, deleteEkipUyesi } = useData();
+  const { ekip, editler, addEkipUyesi, deleteEkipUyesi } = useData();
   const [open, setOpen] = useState(false);
 
   const [name, setName] = useState('');
   const [role, setRole] = useState('Creative Director');
   const [phone, setPhone] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('123456');
   const [color, setColor] = useState('bg-purple-500');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
 
-    addEkipUyesi(
-      {
-        name,
-        role: role || 'Creative Director',
-        phone: phone || '-',
-        color,
-      },
-      username.trim(),
-      password
-    );
+    addEkipUyesi({
+      name,
+      role: role || 'Creative Director',
+      phone: phone || '-',
+      color,
+    });
 
     setName('');
     setRole('Creative Director');
     setPhone('');
-    setUsername('');
-    setPassword('123456');
     setColor('bg-purple-500');
     setOpen(false);
   };
@@ -63,14 +45,6 @@ function EkipPageContent() {
         e.editor.toLowerCase().includes(memberName.toLowerCase()) ||
         memberName.toLowerCase().includes(e.editor.toLowerCase())
     ).length;
-  };
-
-  const getMemberUsername = (memberName: string, fallbackUsername?: string) => {
-    if (fallbackUsername) return `@${fallbackUsername}`;
-    const user = systemUsers.find(
-      (u) => u.name.toLowerCase().includes(memberName.toLowerCase()) || memberName.toLowerCase().includes(u.name.toLowerCase())
-    );
-    return user ? `@${user.username}` : '@kullanici';
   };
 
   const getRoleIcon = (roleTitle: string) => {
@@ -86,21 +60,21 @@ function EkipPageContent() {
       <Header title="Ekip" />
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
-          title="Ekip & Özel Rol Yönetimi"
-          subtitle="Creative Director, Avukat, Ads Uzmanı ve Herbokolog rolleri"
+          title="Ekip Yönetimi"
+          subtitle="Ekip üyelerinizi yönetin"
           icon={Users}
           action={
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger
                 render={
                   <Button className="bg-primary hover:bg-primary/90 font-bold">
-                    <Plus className="w-4 h-4 mr-2" /> Yeni Üye & Otomatik Giriş Hesabı
+                    <Plus className="w-4 h-4 mr-2" /> Yeni Üye Ekle
                   </Button>
                 }
               />
               <DialogContent className="sm:max-w-[425px] bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle>Yeni Ekip Üyesi & Özel Rol Ekle</DialogTitle>
+                  <DialogTitle>Yeni Ekip Üyesi Ekle</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 pt-4">
                   <div className="space-y-2">
@@ -114,42 +88,22 @@ function EkipPageContent() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="role">Özel Ünvan / Rol</Label>
+                    <Label htmlFor="role">Rol / Ünvan</Label>
                     <select
                       id="role"
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
                       className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
                     >
-                      <option value="creative_director">✨ Creative Director</option>
-                      <option value="avukat">⚖️ Avukat</option>
-                      <option value="ads_specialist">📢 Ads Uzmanı</option>
-                      <option value="herbokolog">🔥 Herbokolog</option>
-                      <option value="super_admin">👑 Süper Admin</option>
-                      <option value="admin">🏢 Admin (Yönetici)</option>
-                      <option value="editor">🎬 Editör / Kurgucu</option>
-                      <option value="member">👤 Ekip Üyesi</option>
+                      <option value="Creative Director">✨ Creative Director</option>
+                      <option value="Avukat">⚖️ Avukat</option>
+                      <option value="Ads Uzmanı">📢 Ads Uzmanı</option>
+                      <option value="Herbokolog">🔥 Herbokolog</option>
+                      <option value="Süper Admin">👑 Süper Admin</option>
+                      <option value="Yönetici">🏢 Yönetici</option>
+                      <option value="Editör">🎬 Editör / Kurgucu</option>
+                      <option value="Ekip Üyesi">👤 Ekip Üyesi</option>
                     </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="username">Sistem Kullanıcı Adı (Opsiyonel)</Label>
-                    <Input
-                      id="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Boş bırakılırsa isimden üretilir"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Giriş Şifresi</Label>
-                    <Input
-                      id="password"
-                      type="text"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Giriş şifresi"
-                      required
-                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Telefon</Label>
@@ -177,7 +131,7 @@ function EkipPageContent() {
                     </select>
                   </div>
                   <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 font-bold">
-                    Kaydet ve Görevlendir
+                    Kaydet
                   </Button>
                 </form>
               </DialogContent>
@@ -187,7 +141,6 @@ function EkipPageContent() {
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {ekip.map((member) => {
             const activeEdits = getActiveEditsCount(member.name);
-            const userTag = getMemberUsername(member.name, member.username);
 
             return (
               <Card key={member.id} className="p-6 bg-card border-border flex flex-col items-center text-center relative group shadow-sm hover:border-primary/50 transition-colors">
@@ -202,8 +155,7 @@ function EkipPageContent() {
                   {member.initials}
                 </div>
                 <h3 className="font-bold text-lg text-foreground">{member.name}</h3>
-                <span className="text-xs text-primary font-mono font-bold mb-2">{userTag}</span>
-                <Badge variant="secondary" className="mb-4 font-bold text-xs">
+                <Badge variant="secondary" className="mb-4 font-bold text-xs mt-1">
                   {getRoleIcon(member.role)} {member.role}
                 </Badge>
 

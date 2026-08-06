@@ -1,35 +1,23 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { EkipUyesi, SystemUser, HaftalikNot } from '@/types/app';
-import { formatRoleLabel, normalizeRoleKey } from '@/lib/helpers';
+import { EkipUyesi } from '@/types/app';
+import { logger } from '@/lib/logger';
 
 interface UseEkipProps {
   ekip: EkipUyesi[];
-  systemUsers: SystemUser[];
-  currentUser: SystemUser;
   setEkip: React.Dispatch<React.SetStateAction<EkipUyesi[]>>;
-  setSystemUsers: React.Dispatch<React.SetStateAction<SystemUser[]>>;
-  setCurrentUser: React.Dispatch<React.SetStateAction<SystemUser>>;
   supabase: SupabaseClient;
-  syncSettingsToCloud: (
-    updatedUsers?: SystemUser[],
-    updatedEkip?: EkipUyesi[],
-    updatedNotlar?: HaftalikNot[]
-  ) => Promise<void>;
+  syncSettingsToCloud: () => Promise<void>;
 }
 
 export function createEkipActions({
   ekip,
-  systemUsers,
-  currentUser,
   setEkip,
-  setSystemUsers,
-  setCurrentUser,
+  supabase,
   syncSettingsToCloud,
 }: UseEkipProps) {
-  const addEkipUyesi = (
+
+  const addEkipUyesi = async (
     item: Omit<EkipUyesi, 'id' | 'initials'>,
-    customUsername?: string,
-    customPassword?: string
   ) => {
     const parts = item.name.trim().split(' ');
     const initials =
@@ -37,150 +25,61 @@ export function createEkipActions({
         ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
         : item.name.substring(0, 2).toUpperCase();
 
-    const autoUsername =
-      customUsername?.trim().toLowerCase() ||
-      item.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const autoPassword = customPassword || undefined;
-
-    const normalizedRole = normalizeRoleKey(item.role);
-
     const newItem: EkipUyesi = {
       ...item,
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       initials,
-      username: autoUsername,
-      role: formatRoleLabel(normalizedRole),
-    };
-    const updatedEkip = [...ekip, newItem];
-    setEkip(updatedEkip);
-
-    const newSysUser: SystemUser = {
-      id: Date.now().toString(),
-      username: autoUsername,
-      ...(autoPassword ? { password: autoPassword } : {}),
-      name: item.name,
-      role: normalizedRole,
-      permissions: {
-        canManageClients: true,
-        canManageShoots: true,
-        canManageEdits: true,
-        canManageTakvim: true,
-        canManageFinance: normalizedRole !== 'editor' && normalizedRole !== 'member',
-        canManageReports: normalizedRole !== 'editor' && normalizedRole !== 'member',
-        canManageTeam: true,
-        canManageUsers: normalizedRole === 'super_admin',
-      },
     };
 
-    let updatedUsers = systemUsers;
-    const exists = systemUsers.some((u) => u.username === autoUsername);
-    if (!exists) {
-      updatedUsers = [...systemUsers, newSysUser];
-      setSystemUsers(updatedUsers);
-    }
+    // Optimistic UI update
+    setEkip((prev) => [...prev, newItem]);
 
-    syncSettingsToCloud(updatedUsers, updatedEkip);
-  };
+    // Persist to Supabase
+    try {
+      const { error } = await supabase.from('team_members').insert({
+        id: newItem.id,
+        name: newItem.name,
+        role: newItem.role || 'Ekip Üyesi',
+        phone: newItem.phone || '-',
+        color: newItem.color || 'bg-purple-500',
+        initials,
+      });
 
-  const deleteEkipUyesi = (id: string) => {
-    const member = ekip.find((e) => e.id === id);
-    const updatedEkip = ekip.filter((e) => e.id !== id);
-    setEkip(updatedEkip);
-
-    let updatedUsers = systemUsers;
-    if (member?.username) {
-      updatedUsers = systemUsers.filter((u) => u.username !== member.username);
-      setSystemUsers(updatedUsers);
-    }
-    syncSettingsToCloud(updatedUsers, updatedEkip);
-  };
-
-  const hasSuperAdmin = systemUsers.some((u) => u.role === 'super_admin');
-
-  const addSystemUser = (user: Omit<SystemUser, 'id'>): boolean => {
-    if (currentUser.role !== 'super_admin' && hasSuperAdmin) return false;
-    const exists = systemUsers.some(
-      (u) => u.username.toLowerCase() === user.username.toLowerCase()
-    );
-    if (exists) return false;
-
-    const normalizedRole = normalizeRoleKey(user.role);
-    const newUser: SystemUser = { ...user, role: normalizedRole, id: Date.now().toString() };
-    const roleLabel = formatRoleLabel(normalizedRole);
-    const parts = user.name.trim().split(' ');
-    const initials =
-      parts.length >= 2
-        ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-        : user.name.substring(0, 2).toUpperCase();
-
-    const newMember: EkipUyesi = {
-      id: Date.now().toString(),
-      name: user.name,
-      role: roleLabel,
-      phone: '-',
-      color: 'bg-[#E32636]',
-      initials,
-      username: user.username,
-    };
-
-    const updatedUsers = [...systemUsers, newUser];
-    const updatedEkip = [...ekip, newMember];
-    setSystemUsers(updatedUsers);
-    setEkip(updatedEkip);
-    syncSettingsToCloud(updatedUsers, updatedEkip);
-    return true;
-  };
-
-  const updateSystemUser = (id: string, updatedFields: Partial<SystemUser>) => {
-    if (currentUser.role !== 'super_admin' && hasSuperAdmin) return;
-    const targetUser = systemUsers.find((u) => u.id === id);
-
-    const normalizedRole = updatedFields.role ? normalizeRoleKey(updatedFields.role) : undefined;
-
-    const updatedUsers = systemUsers.map((u) => {
-      if (u.id === id) {
-        const updated = {
-          ...u,
-          ...updatedFields,
-          ...(normalizedRole ? { role: normalizedRole } : {}),
-        };
-        if (currentUser.id === id) setCurrentUser(updated);
-        return updated;
+      if (error) {
+        logger.error('Ekip üyesi ekleme hatası:', error.message);
+        // Revert optimistic update on error
+        setEkip((prev) => prev.filter((e) => e.id !== newItem.id));
       }
-      return u;
-    });
+    } catch (e) {
+      logger.error('Ekip üyesi ekleme beklenmeyen hata:', e);
+      setEkip((prev) => prev.filter((e) => e.id !== newItem.id));
+    }
+  };
 
-    const updatedEkip = ekip.map((member) => {
-      if (
-        (targetUser && member.username && member.username.toLowerCase() === targetUser.username.toLowerCase()) ||
-        (targetUser && member.name.toLowerCase() === targetUser.name.toLowerCase())
-      ) {
-        const finalRoleKey = normalizedRole || targetUser?.role || 'member';
-        return {
-          ...member,
-          name: updatedFields.name || member.name,
-          username: updatedFields.username || member.username,
-          role: formatRoleLabel(finalRoleKey),
-        };
+  const deleteEkipUyesi = async (id: string) => {
+    const deletedMember = ekip.find((e) => e.id === id);
+
+    // Optimistic UI update
+    setEkip((prev) => prev.filter((e) => e.id !== id));
+
+    // Persist to Supabase
+    try {
+      const { error } = await supabase.from('team_members').delete().eq('id', id);
+
+      if (error) {
+        logger.error('Ekip üyesi silme hatası:', error.message);
+        // Revert optimistic update on error
+        if (deletedMember) {
+          setEkip((prev) => [...prev, deletedMember]);
+        }
       }
-      return member;
-    });
-
-    setSystemUsers(updatedUsers);
-    setEkip(updatedEkip);
-    syncSettingsToCloud(updatedUsers, updatedEkip);
+    } catch (e) {
+      logger.error('Ekip üyesi silme beklenmeyen hata:', e);
+      if (deletedMember) {
+        setEkip((prev) => [...prev, deletedMember]);
+      }
+    }
   };
 
-  const deleteSystemUser = (id: string) => {
-    if (currentUser.role !== 'super_admin' && hasSuperAdmin) return;
-    const target = systemUsers.find((u) => u.id === id);
-
-    const updatedUsers = systemUsers.filter((u) => u.id !== id);
-    const updatedEkip = ekip.filter((e) => e.username !== target?.username);
-    setSystemUsers(updatedUsers);
-    setEkip(updatedEkip);
-    syncSettingsToCloud(updatedUsers, updatedEkip);
-  };
-
-  return { addEkipUyesi, deleteEkipUyesi, addSystemUser, updateSystemUser, deleteSystemUser };
+  return { addEkipUyesi, deleteEkipUyesi };
 }

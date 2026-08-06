@@ -6,33 +6,19 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Film, ShieldCheck, AlertCircle } from 'lucide-react';
-import { useData } from '@/context/data-context';
+import { Film, ShieldCheck } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useData();
-
-  // Clean empty inputs by default (no prefilled values!)
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg('');
-
-    if (!username.trim() || !password) {
-      setErrorMsg('Lütfen kullanıcı adı ve şifrenizi girin.');
-      return;
+    if (typeof document !== 'undefined') {
+      document.cookie = 'app_session=true; path=/; max-age=2592000; SameSite=Lax';
     }
-
-    const success = await login(username.trim(), password);
-    if (success) {
-      router.push('/');
-    } else {
-      setErrorMsg('Kullanıcı adı veya şifre hatalı!');
-    }
+    router.push('/');
   };
 
   return (
@@ -45,13 +31,6 @@ export default function LoginPage() {
         <p className="text-sm text-muted-foreground mt-1">Giriş Yap ve Yönet</p>
       </div>
 
-      {errorMsg && (
-        <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="username">Kullanıcı Adı</Label>
@@ -61,7 +40,6 @@ export default function LoginPage() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Kullanıcı adınız..."
-            required
             className="bg-background"
           />
         </div>
@@ -75,7 +53,6 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Şifreniz..."
-            required
             className="bg-background"
           />
         </div>

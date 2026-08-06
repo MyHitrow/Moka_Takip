@@ -9,7 +9,7 @@ interface UseTakvimProps {
   setEditler?: React.Dispatch<React.SetStateAction<EditItem[]>>;
   supabase: SupabaseClient;
   fetchCloudData: () => Promise<void>;
-  syncSettingsToCloud?: (u?: any, e?: any, n?: any, t?: TakvimPost[], ed?: EditItem[]) => Promise<void>;
+  syncSettingsToCloud?: () => Promise<void>;
 }
 
 /**

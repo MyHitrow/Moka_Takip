@@ -5,11 +5,11 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { SIDEBAR_ITEMS } from '@/lib/constants';
 import { useData } from '@/context/data-context';
-import { LogOut, CloudOff, Cloud } from 'lucide-react';
+import { CloudOff, Cloud } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { currentUser, isCloudConnected, logout } = useData();
+  const { currentUser, isCloudConnected } = useData();
 
   // İsim baş harflerini al (avatar için)
   const initials = currentUser.name
@@ -47,15 +47,9 @@ export function Sidebar() {
         ANA MENÜ
       </div>
 
-      {/* Nav */}
+      {/* Nav — tüm menü öğeleri görünür */}
       <nav className="flex-1 space-y-1 px-3 overflow-y-auto">
-        {SIDEBAR_ITEMS.filter((item) => {
-          if (currentUser.role === 'super_admin') return true;
-          if ('permissionKey' in item && item.permissionKey) {
-            return !!currentUser.permissions?.[item.permissionKey as keyof typeof currentUser.permissions];
-          }
-          return true;
-        }).map((item) => {
+        {SIDEBAR_ITEMS.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}`));
           const Icon = item.icon;
           return (
@@ -77,23 +71,15 @@ export function Sidebar() {
 
       {/* Alt: Aktif Kullanıcı */}
       <div className="border-t border-[#2B2D32] p-4 bg-[#111214]">
-        <div className="flex items-center gap-3 rounded-lg p-2.5 bg-[#17181B] border border-[#2B2D32] group hover:border-[#34363C] transition-all duration-150">
+        <div className="flex items-center gap-3 rounded-lg p-2.5 bg-[#17181B] border border-[#2B2D32]">
           {/* Avatar */}
           <div className="relative w-8 h-8 shrink-0 rounded-full bg-[#24262B] border border-[#E32636]/40 flex items-center justify-center text-[#E32636] font-extrabold text-xs">
             {initials}
           </div>
           <div className="flex flex-col overflow-hidden flex-1 min-w-0">
             <span className="truncate text-xs font-bold text-[#F7F7F8] leading-tight">{currentUser.name}</span>
-            <span className="truncate text-[10px] text-[#73767E]">@{currentUser.username}</span>
+            <span className="truncate text-[10px] text-[#73767E]">Yönetici</span>
           </div>
-          {/* Çıkış Butonu */}
-          <button
-            onClick={logout}
-            title="Çıkış Yap"
-            className="opacity-70 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-[#E32636]/15 text-[#73767E] hover:text-[#FF3545]"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
     </aside>

@@ -36,7 +36,7 @@ export default function EditlerPage() {
 }
 
 function EditlerPageContent() {
-  const { editler, ekip, systemUsers, isletmeler, addEdit, deleteEdit, updateEditStatus, formatDateTr } = useData();
+  const { editler, ekip, isletmeler, addEdit, deleteEdit, updateEditStatus, formatDateTr } = useData();
   const [open, setOpen] = useState(false);
   const [mainCategory, setMainCategory] = useState<'pending' | 'completed'>('pending');
 
@@ -72,10 +72,7 @@ function EditlerPageContent() {
   };
 
   const availableEditors = Array.from(
-    new Set([
-      ...ekip.map((m) => m.name),
-      ...systemUsers.map((u) => u.name),
-    ])
+    new Set(ekip.map((m) => m.name))
   );
 
   const activeIsletmeler = isletmeler.filter((i) => i.active !== false);

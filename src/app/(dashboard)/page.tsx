@@ -19,6 +19,7 @@ import {
 
 export default function DashboardPage() {
   const { currentUser, isletmeler, cekimler, editler, gelirler, giderler } = useData();
+  const userName = currentUser?.name?.split(' ')[0] || 'Yönetici';
 
   // Dynamic calculations from Supabase DB state
   const totalProjects = isletmeler.length;
@@ -41,7 +42,7 @@ export default function DashboardPage() {
     weekday: 'long',
   });
 
-  const canSeeFinance = currentUser.role === 'super_admin' || currentUser.permissions?.canManageFinance;
+
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-0 md:pt-5 bg-[#0D0E10] min-h-screen">
@@ -51,7 +52,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-1 pb-2">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-[#F7F7F8] tracking-tight">
-            Hoş geldin, {currentUser.name.split(' ')[0]}.
+            Hoş geldin, {userName}.
           </h1>
           <p className="text-xs text-[#73767E] mt-0.5 font-medium">
             Ajansındaki tüm işleri buradan yönetebilirsin.
@@ -66,7 +67,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Top Stat Cards Grid */}
-      <div className={`grid gap-3.5 ${canSeeFinance ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6' : 'grid-cols-2 md:grid-cols-4'}`}>
+      <div className="grid gap-3.5 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         <StatCard
           title="Toplam Proje"
           value={totalProjects}
@@ -95,24 +96,20 @@ export default function DashboardPage() {
           href="/editler"
           trend={{ value: 5, label: 'bu ay' }}
         />
-        {canSeeFinance && (
-          <>
-            <StatCard
-              title="Toplam Gelir"
-              value={formatCurrency(totalGelir)}
-              icon={TrendingUp}
-              href="/gelirler"
-              trend={{ value: 18, label: 'bu ay' }}
-            />
-            <StatCard
-              title="Toplam Gider"
-              value={formatCurrency(totalGider)}
-              icon={TrendingDown}
-              href="/giderler"
-              trend={{ value: 11, label: 'bu ay' }}
-            />
-          </>
-        )}
+        <StatCard
+          title="Toplam Gelir"
+          value={formatCurrency(totalGelir)}
+          icon={TrendingUp}
+          href="/gelirler"
+          trend={{ value: 18, label: 'bu ay' }}
+        />
+        <StatCard
+          title="Toplam Gider"
+          value={formatCurrency(totalGider)}
+          icon={TrendingDown}
+          href="/giderler"
+          trend={{ value: 11, label: 'bu ay' }}
+        />
       </div>
 
       {/* Main 2-Column Dashboard Layout */}
@@ -126,7 +123,7 @@ export default function DashboardPage() {
         {/* Right Column (1/3 width): İş Yükü Dağılımı + Gelir / Gider Özeti (Finans Yetkisi Varsa) */}
         <div className="lg:col-span-1 space-y-6">
           <EditorWorkload />
-          {canSeeFinance && <FinanceChartWidget />}
+          <FinanceChartWidget />
         </div>
       </div>
     </div>
