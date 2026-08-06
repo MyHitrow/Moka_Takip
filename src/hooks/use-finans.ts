@@ -71,11 +71,7 @@ export function createFinansActions({
                 : g.paidAmount || 0
               : 0;
 
-          let desc = g.description;
-          if (status === 'partial' && customPaidAmount !== undefined) {
-            desc = `${g.client} - Aylık Paket Ücreti (Kısmi Ödenen: ${customPaidAmount} ₺)`;
-          }
-          return { ...g, status, description: desc, paidAmount: finalPaid };
+          return { ...g, status, paidAmount: finalPaid };
         }
         return g;
       })
@@ -97,10 +93,7 @@ export function createFinansActions({
           collection_status: status,
           paid_amount: finalPaid,
         };
-        if (status === 'partial' && customPaidAmount !== undefined) {
-          const clientName = item ? item.client : 'Müşteri';
-          updateObj.description = `${clientName} - Aylık Paket Ücreti (Kısmi Ödenen: ${customPaidAmount} ₺)`;
-        }
+
         const { error } = await supabase.from('income_records').update(updateObj).eq('id', id);
         if (error) logger.error('Gelir durumu güncelleme hatası:', error.message);
       }

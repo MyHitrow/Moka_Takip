@@ -130,6 +130,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Cloud Sync ────────────────────────────────────────────────────────────
 
+  // ─── Cloud Sync ────────────────────────────────────────────────────────────
+
   const syncSettingsToCloud = async (
     updatedUsers?: SystemUser[],
     updatedEkip?: EkipUyesi[],
@@ -138,15 +140,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     updatedEditler?: EditItem[]
   ) => {
     try {
+      const nextUsers = updatedUsers || systemUsers;
+      const nextEkip = updatedEkip || ekip;
+      const nextNotlar = updatedNotlar || haftalikNotlar;
+
+      // LocalStorage Anında Kayıt (Sayfa Yenilendiğinde Kayıp Olmaması İçin)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('app_systemUsers', JSON.stringify(nextUsers));
+          localStorage.setItem('app_ekip', JSON.stringify(nextEkip));
+          localStorage.setItem('app_haftalikNotlar', JSON.stringify(nextNotlar));
+        } catch (e) {}
+      }
+
       // Şifreleri cloud'a göndermeden önce strip et — güvenlik gereği
-      const usersForCloud = (updatedUsers || systemUsers).map(({ password: _omit, ...rest }) => rest);
+      const usersForCloud = nextUsers.map(({ password: _omit, ...rest }) => rest);
       const payload = JSON.stringify({
         systemUsers: usersForCloud,
-        ekip: updatedEkip || ekip,
-        haftalikNotlar: updatedNotlar || haftalikNotlar,
+        ekip: nextEkip,
+        haftalikNotlar: nextNotlar,
         takvimPosts: updatedTakvim || takvimPosts,
         editler: updatedEditler || editler,
       });
+
       const { data: existing } = await supabase
         .from('clients')
         .select('id')
@@ -154,25 +170,47 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (existing) {
-        await supabase.from('clients').update({ contact_name: payload }).eq('id', existing.id);
+        const { error: updErr } = await supabase.from('clients').update({ contact_name: payload, is_active: false }).eq('id', existing.id);
+        if (updErr) logger.error('syncSettingsToCloud güncelleme hatası:', updErr.message);
       } else {
-        await supabase.from('clients').insert({ name: '__SYSTEM_SETTINGS__', contact_name: payload, is_active: false });
+        const { error: insErr } = await supabase.from('clients').insert({ name: '__SYSTEM_SETTINGS__', contact_name: payload, is_active: false });
+        if (insErr) logger.error('syncSettingsToCloud ekleme hatası:', insErr.message);
       }
-    } catch (e) { logger.error('syncSettingsToCloud hatası:', e); }
+    } catch (e) { logger.error('syncSettingsToCloud beklenmeyen hata:', e); }
   };
 
   const fetchCloudData = async () => {
     try {
       setIsCloudConnected(true);
 
-      // 1. Sistem ayarları (kullanıcılar, ekip, notlar, takvim, editler yedeklemesi)
-      const { data: sysRecord, error: sysErr } = await supabase
-        .from('clients').select('*').eq('name', '__SYSTEM_SETTINGS__').maybeSingle();
+      // Execute queries in parallel for high performance
+      const [
+        { data: sysRecord, error: sysErr },
+        { data: clientsData, error: clientErr },
+        { data: shootsData, error: shootErr },
+        { data: editsData, error: editErr },
+        { data: calData, error: calErr },
+        { data: incomeData, error: incErr },
+        { data: expData, error: expErr },
+      ] = await Promise.all([
+        supabase.from('clients').select('*').eq('name', '__SYSTEM_SETTINGS__').maybeSingle(),
+        supabase.from('clients').select('*'),
+        supabase.from('shoots').select('*'),
+        supabase.from('edits').select('*'),
+        supabase.from('content_calendar').select('*'),
+        supabase.from('income_records').select('*'),
+        supabase.from('expense_records').select('*'),
+      ]);
 
-      if (sysErr) {
-        logger.error('Sistem ayarları okuma hatası:', sysErr.message);
-      }
+      if (sysErr) logger.error('Sistem ayarları okuma hatası:', sysErr.message);
+      if (clientErr) logger.error('İşletmeler okuma hatası:', clientErr.message);
+      if (shootErr) logger.error('Çekimler okuma hatası:', shootErr.message);
+      if (editErr) logger.error('Editler okuma hatası:', editErr.message);
+      if (calErr) logger.error('Takvim okuma hatası:', calErr.message);
+      if (incErr) logger.error('Gelirler okuma hatası:', incErr.message);
+      if (expErr) logger.error('Giderler okuma hatası:', expErr.message);
 
+      // 1. Sistem Ayarları
       if (sysRecord?.contact_name) {
         try {
           const parsed = JSON.parse(sysRecord.contact_name);
@@ -188,94 +226,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
               };
             }
             setSystemUsers(loadedUsers);
+            if (typeof window !== 'undefined') localStorage.setItem('app_systemUsers', JSON.stringify(loadedUsers));
 
             setCurrentUser((prev) => {
               const matched = loadedUsers.find((u) => u.username.toLowerCase() === prev.username.toLowerCase() || u.id === prev.id);
               return matched || loadedUsers[0];
             });
           }
-          if (parsed.ekip && Array.isArray(parsed.ekip)) setEkip(parsed.ekip);
-          if (parsed.haftalikNotlar && Array.isArray(parsed.haftalikNotlar)) setHaftalikNotlar(parsed.haftalikNotlar);
-
-          // Mobile & Cloud Backup Recovery for Takvim Posts
-          if (parsed.takvimPosts && Array.isArray(parsed.takvimPosts) && parsed.takvimPosts.length > 0) {
-            setTakvimPosts((prev) => {
-              const combined = [...parsed.takvimPosts];
-              prev.forEach((localP) => {
-                if (!combined.some((cp) => cp.title === localP.title && cp.date === localP.date && cp.client === localP.client)) {
-                  combined.push(localP);
-                }
-              });
-              return combined;
-            });
+          if (parsed.ekip && Array.isArray(parsed.ekip) && parsed.ekip.length > 0) {
+            setEkip(parsed.ekip);
+            if (typeof window !== 'undefined') localStorage.setItem('app_ekip', JSON.stringify(parsed.ekip));
           }
-
-          // Mobile & Cloud Backup Recovery for Editler
-          if (parsed.editler && Array.isArray(parsed.editler) && parsed.editler.length > 0) {
-            setEditler((prev) => {
-              const combined = [...parsed.editler];
-              prev.forEach((localE) => {
-                if (!combined.some((ce) => ce.title === localE.title && ce.client === localE.client)) {
-                  combined.push(localE);
-                }
-              });
-              return combined;
-            });
+          if (parsed.haftalikNotlar && Array.isArray(parsed.haftalikNotlar)) {
+            setHaftalikNotlar(parsed.haftalikNotlar);
+            if (typeof window !== 'undefined') localStorage.setItem('app_haftalikNotlar', JSON.stringify(parsed.haftalikNotlar));
           }
         } catch (e) {}
       }
 
-      // 2. İşletmeler (clients)
+      // 2. İşletmeler
       let currentClientsList: Isletme[] = [];
-      const { data: clientsData, error: clientErr } = await supabase.from('clients').select('*');
-      if (clientErr) {
-        logger.error('İşletmeler okuma hatası:', clientErr.message);
-      }
       if (clientsData) {
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
         currentClientsList = realClients.map((c) => {
-          let rawContact = c.contact_name || '-';
-          let cleanContact = rawContact;
-          let notesStr = c.notes || c.ai_notes || '';
-          let maxDays = c.max_days_between_posts !== null && c.max_days_between_posts !== undefined && c.max_days_between_posts !== 0
-            ? Number(c.max_days_between_posts)
-            : 3;
-          let reelsTarget = c.monthly_reels_target !== null && c.monthly_reels_target !== undefined && c.monthly_reels_target !== 0
-            ? Number(c.monthly_reels_target)
-            : 10;
-          let shootTarget = c.monthly_shoot_target !== null && c.monthly_shoot_target !== undefined && c.monthly_shoot_target !== 0
-            ? Number(c.monthly_shoot_target)
-            : 2;
-
-          // 1. contact_name içerisindeki AI META paketini ayrıştır (Garanti Katmanı)
-          if (rawContact.includes('__AI_META__:')) {
-            try {
-              const parts = rawContact.split('__AI_META__:');
-              cleanContact = parts[0].trim();
-              const meta = JSON.parse(parts[1]);
-              if (meta.maxDaysBetweenPosts !== undefined && meta.maxDaysBetweenPosts !== null) maxDays = Number(meta.maxDaysBetweenPosts);
-              if (meta.monthlyReelsTarget !== undefined && meta.monthlyReelsTarget !== null) reelsTarget = Number(meta.monthlyReelsTarget);
-              if (meta.monthlyShootTarget !== undefined && meta.monthlyShootTarget !== null) shootTarget = Number(meta.monthlyShootTarget);
-              if (meta.notes !== undefined && meta.notes !== null) notesStr = meta.notes;
-            } catch (e) {}
-          }
-
-          // 2. notes içerisindeki AI META paketini ayrıştır
-          if (notesStr && notesStr.includes('__AI_META__:')) {
-            try {
-              const parts = notesStr.split('__AI_META__:');
-              notesStr = parts[0].trim();
-              const meta = JSON.parse(parts[1]);
-              if (meta.maxDaysBetweenPosts !== undefined && meta.maxDaysBetweenPosts !== null) maxDays = Number(meta.maxDaysBetweenPosts);
-              if (meta.monthlyReelsTarget !== undefined && meta.monthlyReelsTarget !== null) reelsTarget = Number(meta.monthlyReelsTarget);
-              if (meta.monthlyShootTarget !== undefined && meta.monthlyShootTarget !== null) shootTarget = Number(meta.monthlyShootTarget);
-            } catch (e) {}
-          }
+          let rawContact = (c.contact_name || '-').split('__AI_META__:')[0].trim();
+          let rawNotes = (c.notes || c.ai_notes || '').split('__AI_META__:')[0].trim();
+          
+          let maxDays = c.max_days_between_posts ? Number(c.max_days_between_posts) : 3;
+          let reelsTarget = c.monthly_reels_target ? Number(c.monthly_reels_target) : 10;
+          let shootTarget = c.monthly_shoot_target ? Number(c.monthly_shoot_target) : 2;
 
           return {
             id: c.id,
             name: c.name.trim(),
-            contact: cleanContact || '-',
+            contact: rawContact || '-',
             phone: c.phone || '-',
             instagram: c.instagram || '@-',
             fee: c.monthly_fee ? `${c.monthly_fee} ₺` : '0 ₺',
@@ -283,15 +267,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             maxDaysBetweenPosts: maxDays,
             monthlyReelsTarget: reelsTarget,
             monthlyShootTarget: shootTarget,
-            notes: notesStr,
+            notes: rawNotes,
           };
         });
         setIsletmeler(currentClientsList);
       }
 
       // 3. Çekimler
-      const { data: shootsData, error: shootErr } = await supabase.from('shoots').select('*');
-      if (shootErr) logger.error('Çekimler okuma hatası:', shootErr.message);
       if (shootsData) {
         setCekimler(shootsData.map((s) => ({
           id: s.id,
@@ -304,9 +286,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })));
       }
 
-      // 4. Editler (Akıllı Birleştirme: Geçici optimistik editleri silmez)
-      const { data: editsData, error: editErr } = await supabase.from('edits').select('*');
-      if (editErr) logger.error('Editler okuma hatası:', editErr.message);
+      // 4. Editler
       if (editsData) {
         const cloudEdits: EditItem[] = editsData.map((e) => ({
           id: e.id,
@@ -330,9 +310,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // 5. Takvim (Akıllı Birleştirme: Bulut boşsa yerel/yedek veriyi korur)
-      const { data: calData, error: calErr } = await supabase.from('content_calendar').select('*');
-      if (calErr) logger.error('Takvim okuma hatası:', calErr.message);
+      // 5. Takvim
       if (calData) {
         const cloudPosts: TakvimPost[] = calData.map((t) => ({
           id: t.id,
@@ -389,47 +367,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // 6. Gelirler (orphan temizliği dahil)
-      const { data: incomeData, error: incErr } = await supabase.from('income_records').select('*');
-      if (incErr) logger.error('Gelirler okuma hatası:', incErr.message);
+      // 6. Gelirler (Güvenli Yükleme — Yetim Kayıtlar Asla Otomatik Silinmez!)
       if (incomeData) {
         const { isClientMatch } = await import('@/lib/helpers');
-        const mappedGelirler: Gelir[] = [];
-        for (const g of incomeData) {
+        const mappedGelirler: Gelir[] = incomeData.map((g) => {
           const rawClient = (g.client_name || 'Müşteri').trim();
           const matchedBiz = currentClientsList.find((biz) => isClientMatch(biz.name, rawClient));
-          if (!matchedBiz) {
-            supabase.from('income_records').delete().eq('id', g.id).then(() => {});
-            continue;
-          }
-          const clientName = matchedBiz.name;
-          const numFee = parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount);
+          const clientName = matchedBiz ? matchedBiz.name : rawClient;
+
+          const numFee = matchedBiz ? (parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount)) : Number(g.amount);
           const finalAmount = g.collection_status !== 'paid' && numFee > 0 ? numFee : Number(g.amount);
 
           let paidAmt = g.paid_amount !== undefined && g.paid_amount !== null ? Number(g.paid_amount) : 0;
           if (g.collection_status === 'paid' && paidAmt === 0) {
             paidAmt = finalAmount;
-          } else if (g.collection_status === 'partial' && paidAmt === 0) {
-            const match = g.description ? g.description.match(/(?:Kısmi Ödenen:\s*|kısmi:\s*)(\d+)/i) : null;
-            if (match) paidAmt = parseFloat(match[1]) || 0;
           }
 
-          mappedGelirler.push({
+          return {
             id: g.id,
             client: clientName,
-            description: g.description || `${clientName} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
+            description: g.description || `${clientName} - Aylık Paket Ücreti`,
             amount: finalAmount,
             paidAmount: paidAmt,
             date: g.due_date || new Date().toISOString().split('T')[0],
             status: g.collection_status || 'pending',
-          });
-        }
+          };
+        });
         setGelirler(mappedGelirler);
       }
 
       // 7. Giderler
-      const { data: expData, error: expErr } = await supabase.from('expense_records').select('*');
-      if (expErr) logger.error('Giderler okuma hatası:', expErr.message);
       if (expData) {
         setGiderler(expData.map((e) => ({
           id: e.id,
@@ -465,6 +432,15 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(savedEdits);
         if (Array.isArray(parsed) && parsed.length > 0) setEditler(parsed);
       }
+
+      const savedUsers = localStorage.getItem('app_systemUsers');
+      if (savedUsers) setSystemUsers(JSON.parse(savedUsers));
+
+      const savedEkip = localStorage.getItem('app_ekip');
+      if (savedEkip) setEkip(JSON.parse(savedEkip));
+
+      const savedNotlar = localStorage.getItem('app_haftalikNotlar');
+      if (savedNotlar) setHaftalikNotlar(JSON.parse(savedNotlar));
     } catch (e) {}
 
     fetchCloudData();

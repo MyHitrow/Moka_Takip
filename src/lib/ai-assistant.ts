@@ -157,20 +157,21 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
       }
     });
 
-    // Also extract raw client names if not in database yet (e.g. Luness, Dutt, Sun Brother Pizza)
+    // Also extract raw client names dynamically if not registered yet
     if (foundClients.length === 0) {
-      // Fallback extraction for names mentioned in query
-      const words = ['luness', 'dutt', 'sun brother', 'modaplus', 'groupama', 'techmarket', 'cafe nero'];
-      words.forEach((w) => {
-        if (lower.includes(w)) {
+      // Dynamic extraction of words near 'çekimi' or time indicators
+      const parts = lower.split(/çekimi|çekim|yaz|ekle|planla/);
+      if (parts.length > 0) {
+        const potentialName = parts[0].replace(/yarın|yarin|obur|öbür|gun|gün|saat|\d+('a|'e|'ya|'ye|:00)?/gi, '').trim();
+        if (potentialName.length >= 2) {
+          const capName = potentialName.charAt(0).toUpperCase() + potentialName.slice(1);
           let time = '14:00';
           if (lower.includes('10')) time = '10:00';
-          if (lower.includes('3') || lower.includes('15')) time = '15:00';
-          if (lower.includes('6') || lower.includes('18')) time = '18:00';
-          const capName = w.charAt(0).toUpperCase() + w.slice(1);
+          else if (lower.includes('15') || lower.includes("3'e")) time = '15:00';
+          else if (lower.includes('18') || lower.includes("6'ya")) time = '18:00';
           foundClients.push({ clientName: capName, time });
         }
-      });
+      }
     }
 
     if (foundClients.length > 0) {

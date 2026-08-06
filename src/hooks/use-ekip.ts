@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { EkipUyesi, SystemUser } from '@/types/app';
+import { EkipUyesi, SystemUser, HaftalikNot } from '@/types/app';
 import { formatRoleLabel, normalizeRoleKey } from '@/lib/helpers';
 
 interface UseEkipProps {
@@ -13,7 +13,7 @@ interface UseEkipProps {
   syncSettingsToCloud: (
     updatedUsers?: SystemUser[],
     updatedEkip?: EkipUyesi[],
-    updatedNotlar?: never[]
+    updatedNotlar?: HaftalikNot[]
   ) => Promise<void>;
 }
 

@@ -31,16 +31,12 @@ export function createIsletmelerActions({
   const addIsletme = async (item: Omit<Isletme, 'id'>) => {
     const numFee = parseFloat(item.fee.replace(/[^0-9.]/g, '')) || 0;
     const cleanNotes = item.notes ? item.notes.split('__AI_META__:')[0].trim() : '';
-    const packedNotes = `${cleanNotes}\n__AI_META__:${JSON.stringify({
-      maxDaysBetweenPosts: item.maxDaysBetweenPosts || 3,
-      monthlyReelsTarget: item.monthlyReelsTarget || 10,
-      monthlyShootTarget: item.monthlyShootTarget || 2,
-    })}`;
+    const cleanContact = item.contact ? item.contact.split('__AI_META__:')[0].trim() : '-';
 
     try {
       const { data, error } = await supabase.from('clients').insert({
         name: item.name.trim(),
-        contact_name: item.contact,
+        contact_name: cleanContact,
         phone: item.phone,
         instagram: item.instagram,
         monthly_fee: numFee,
@@ -48,7 +44,7 @@ export function createIsletmelerActions({
         max_days_between_posts: item.maxDaysBetweenPosts || 3,
         monthly_reels_target: item.monthlyReelsTarget || 10,
         monthly_shoot_target: item.monthlyShootTarget || 2,
-        notes: packedNotes,
+        notes: cleanNotes,
       }).select().single();
 
       if (error) {
@@ -93,7 +89,7 @@ export function createIsletmelerActions({
             return {
               ...g,
               client: newName,
-              description: `${newName} - Aylık Paket Ücreti (Ayın İlk Haftası)`,
+              description: `${newName} - Aylık Paket Ücreti`,
               amount: numFee !== undefined && g.status !== 'paid' ? numFee : g.amount,
             };
           }
@@ -114,29 +110,11 @@ export function createIsletmelerActions({
     try {
       const mergedNotes = updatedFields.notes !== undefined ? updatedFields.notes : (target?.notes || '');
       const cleanNotes = mergedNotes.split('__AI_META__:')[0].trim();
-
-      const mergedMaxDays = updatedFields.maxDaysBetweenPosts !== undefined ? updatedFields.maxDaysBetweenPosts : (target?.maxDaysBetweenPosts || 3);
-      const mergedReelsTarget = updatedFields.monthlyReelsTarget !== undefined ? updatedFields.monthlyReelsTarget : (target?.monthlyReelsTarget || 10);
-      const mergedShootTarget = updatedFields.monthlyShootTarget !== undefined ? updatedFields.monthlyShootTarget : (target?.monthlyShootTarget || 2);
-
-      const packedNotes = `${cleanNotes}\n__AI_META__:${JSON.stringify({
-        maxDaysBetweenPosts: mergedMaxDays,
-        monthlyReelsTarget: mergedReelsTarget,
-        monthlyShootTarget: mergedShootTarget,
-      })}`;
-
       const mergedContact = (updatedFields.contact !== undefined ? updatedFields.contact : (target?.contact || '-')).split('__AI_META__:')[0].trim();
 
-      const packedMetaString = `__AI_META__:${JSON.stringify({
-        maxDaysBetweenPosts: mergedMaxDays,
-        monthlyReelsTarget: mergedReelsTarget,
-        monthlyShootTarget: mergedShootTarget,
-        notes: cleanNotes,
-      })}`;
-
       const updateData: Record<string, unknown> = {
-        contact_name: `${mergedContact} ${packedMetaString}`,
-        notes: packedNotes,
+        contact_name: mergedContact,
+        notes: cleanNotes,
       };
 
       if (updatedFields.name !== undefined) updateData.name = newName;
@@ -151,28 +129,12 @@ export function createIsletmelerActions({
       if (isUUID(id)) {
         const { error } = await supabase.from('clients').update(updateData).eq('id', id);
         if (error) {
-          logger.warn('Tam güncelleme uyardısı, sadece contact_name deneniyor:', error.message);
-          // Kolon yoksa sadece contact_name ile kaydet
-          await supabase.from('clients').update({
-            name: newName,
-            contact_name: `${mergedContact} ${packedMetaString}`,
-            phone: updatedFields.phone || target?.phone,
-            instagram: updatedFields.instagram || target?.instagram,
-            monthly_fee: numFee !== undefined ? numFee : target?.fee,
-            is_active: updatedFields.active !== undefined ? updatedFields.active : target?.active,
-          }).eq('id', id);
+          logger.error('İşletme güncelleme hatası:', error.message);
         }
       } else if (target) {
         const { error } = await supabase.from('clients').update(updateData).eq('name', target.name);
         if (error) {
-          await supabase.from('clients').update({
-            name: newName,
-            contact_name: `${mergedContact} ${packedMetaString}`,
-            phone: updatedFields.phone || target.phone,
-            instagram: updatedFields.instagram || target.instagram,
-            monthly_fee: numFee !== undefined ? numFee : target.fee,
-            is_active: updatedFields.active !== undefined ? updatedFields.active : target.active,
-          }).eq('name', target.name);
+          logger.error('İşletme güncelleme hatası (name):', error.message);
         }
       }
 

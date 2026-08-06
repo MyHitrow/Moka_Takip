@@ -70,10 +70,7 @@ export function isClientMatch(nameA: string, nameB: string): boolean {
   const normA = normalizeClientName(nameA);
   const normB = normalizeClientName(nameB);
   if (!normA || !normB) return false;
-  if (normA === normB) return true;
-  // "Villa Kursları" vs "Villa Koleji" gibi varyasyonlar
-  if (normA.startsWith('villa') && normB.startsWith('villa')) return true;
-  return false;
+  return normA === normB;
 }
 
 export function normalizeContentType(type: string): string {
