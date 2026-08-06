@@ -66,7 +66,8 @@ interface DataContextType {
   updateTakvimPostStatus: (id: string, status: TakvimPost['status']) => void;
   addEkipUyesi: (item: Omit<EkipUyesi, 'id' | 'initials'>) => void;
   deleteEkipUyesi: (id: string) => void;
-  addSystemUser: (user: Omit<SystemUser, 'id'>) => Promise<boolean>;
+  addSystemUser: (user: Omit<SystemUser, 'id'>) => Promise<{ success: boolean; message?: string }>;
+  updateSystemUser: (id: string, updatedFields: Partial<SystemUser>) => Promise<{ success: boolean; message?: string }>;
   deleteSystemUser: (id: string) => Promise<void>;
   addHaftalikNot: (content: string, client?: string) => void;
   deleteHaftalikNot: (id: string) => void;

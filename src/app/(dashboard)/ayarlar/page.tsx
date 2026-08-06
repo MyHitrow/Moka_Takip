@@ -9,14 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Settings, ShieldCheck, Plus, Trash2, Eye, EyeOff, Copy, Check, Cloud, Database, AlertTriangle, Key } from 'lucide-react';
-import { useData } from '@/context/data-context';
+import { Settings, ShieldCheck, Plus, Trash2, Edit, Eye, EyeOff, Copy, Check, Cloud, Database, AlertTriangle, Key } from 'lucide-react';
+import { useData, SystemUser } from '@/context/data-context';
 
 export default function AyarlarPage() {
-  const { systemUsers, currentUser, isCloudConnected, addSystemUser, deleteSystemUser } = useData();
+  const { systemUsers, currentUser, isCloudConnected, addSystemUser, updateSystemUser, deleteSystemUser } = useData();
 
   const [openUserModal, setOpenUserModal] = useState(false);
+  const [openEditModal, setOpenEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
+
   const [errorMsg, setErrorMsg] = useState('');
+  const [editErrorMsg, setEditErrorMsg] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -26,11 +30,17 @@ export default function AyarlarPage() {
   const [name, setName] = useState('');
   const [role, setRole] = useState('admin');
 
+  // Form states for user editing
+  const [editName, setEditName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editRole, setEditRole] = useState('admin');
+
   const togglePasswordVisibility = (id: string) => {
     setVisiblePasswords((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const copyCredentials = (user: typeof systemUsers[0]) => {
+  const copyCredentials = (user: SystemUser) => {
     const text = `Panel Giriş Bilgileri:\nKullanıcı Adı: ${user.username}\nŞifre: ${user.password || '123456'}`;
     navigator.clipboard.writeText(text);
     setCopiedId(user.id);
@@ -42,7 +52,7 @@ export default function AyarlarPage() {
     setErrorMsg('');
     if (!username.trim() || !password || !name.trim()) return;
 
-    const success = await addSystemUser({
+    const result = await addSystemUser({
       username: username.trim(),
       password,
       name: name.trim(),
@@ -59,14 +69,44 @@ export default function AyarlarPage() {
       },
     });
 
-    if (success) {
+    if (result.success) {
       setUsername('');
       setPassword('');
       setName('');
       setRole('admin');
       setOpenUserModal(false);
     } else {
-      setErrorMsg('Bu kullanıcı adı zaten kullanılıyor veya bir hata oluştu!');
+      setErrorMsg(result.message || 'Kullanıcı eklenirken bir hata oluştu!');
+    }
+  };
+
+  const handleStartEdit = (user: SystemUser) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setEditUsername(user.username);
+    setEditPassword(user.password || '');
+    setEditRole(user.role || 'admin');
+    setEditErrorMsg('');
+    setOpenEditModal(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditErrorMsg('');
+    if (!editingUser || !editName.trim() || !editUsername.trim() || !editPassword) return;
+
+    const result = await updateSystemUser(editingUser.id, {
+      name: editName.trim(),
+      username: editUsername.trim(),
+      password: editPassword,
+      role: editRole,
+    });
+
+    if (result.success) {
+      setOpenEditModal(false);
+      setEditingUser(null);
+    } else {
+      setEditErrorMsg(result.message || 'Kullanıcı güncellenirken bir hata oluştu!');
     }
   };
 
@@ -76,7 +116,7 @@ export default function AyarlarPage() {
 
       <PageHeader
         title="Sistem & Kullanıcı Hesap Ayarları"
-        subtitle="Panele giriş yetkisi olan kişileri görün, şifrelerini kopyalayın ve yeni kullanıcı ekleyin."
+        subtitle="Panele giriş yetkisi olan kişileri görün, şifre/isimlerini düzenleyin, kopyalayın ve yeni kullanıcı ekleyin."
         icon={Settings}
       />
 
@@ -89,7 +129,7 @@ export default function AyarlarPage() {
                 <Key className="w-5 h-5 text-primary" /> Panel Giriş Hesapları & Şifreler
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Panele erişim vereceğiniz kişiler için kullanıcı adı ve şifre oluşturun veya kopyalayın.
+                Panele erişim vereceğiniz kişiler için kullanıcı adı ve şifre oluşturun, düzenleyin veya kopyalayın.
               </p>
             </div>
 
@@ -128,7 +168,7 @@ export default function AyarlarPage() {
                       id="addUsername"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder="Örn: caner"
+                      placeholder="Örn: ardagode"
                       required
                     />
                   </div>
@@ -199,7 +239,7 @@ export default function AyarlarPage() {
                     </div>
                   </div>
 
-                  {/* Password & Copy Controls */}
+                  {/* Password & Controls */}
                   <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-border/40 justify-between md:justify-end">
                     <div className="flex items-center gap-2 bg-muted/40 border border-border px-3 py-1.5 rounded-lg text-xs font-mono">
                       <span className="text-muted-foreground">Şifre:</span>
@@ -214,6 +254,16 @@ export default function AyarlarPage() {
                         {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleStartEdit(user)}
+                      className="text-xs border-border bg-background hover:bg-muted font-semibold gap-1.5 h-8"
+                      title="Kullanıcı adını ve şifresini düzenle"
+                    >
+                      <Edit className="w-3.5 h-3.5 text-primary" /> Düzenle
+                    </Button>
 
                     <Button
                       variant="outline"
@@ -250,6 +300,72 @@ export default function AyarlarPage() {
             })}
           </div>
         </Card>
+
+        {/* EDIT USER MODAL */}
+        <Dialog open={openEditModal} onOpenChange={setOpenEditModal}>
+          <DialogContent className="sm:max-w-[425px] bg-card border-border">
+            <DialogHeader>
+              <DialogTitle>Kullanıcı Bilgilerini & Şifreyi Düzenle</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSaveEdit} className="space-y-4 pt-4">
+              {editErrorMsg && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{editErrorMsg}</span>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="editNameInput">Ad Soyad / İsim</Label>
+                <Input
+                  id="editNameInput"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Ad Soyad"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editUsernameInput">Kullanıcı Adı</Label>
+                <Input
+                  id="editUsernameInput"
+                  value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value)}
+                  placeholder="Kullanıcı adı"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editPasswordInput">Giriş Şifresi</Label>
+                <Input
+                  id="editPasswordInput"
+                  type="text"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="Yeni şifre"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="editRoleSelect">Kullanıcı Rolü</Label>
+                <select
+                  id="editRoleSelect"
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold text-foreground"
+                >
+                  <option value="super_admin">👑 Süper Admin</option>
+                  <option value="admin">🏢 Yönetici (Admin)</option>
+                  <option value="editor">🎬 Editör / Kurgucu</option>
+                  <option value="member">👤 Ekip Üyesi</option>
+                </select>
+              </div>
+
+              <Button type="submit" className="w-full mt-2 bg-primary hover:bg-primary/90 font-bold">
+                Değişiklikleri Kaydet
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* System & Database Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
