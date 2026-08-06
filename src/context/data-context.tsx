@@ -27,6 +27,7 @@ import { createEditlerActions } from '@/hooks/use-editler';
 import { createFinansActions } from '@/hooks/use-finans';
 import { createTakvimActions } from '@/hooks/use-takvim';
 import { createEkipActions } from '@/hooks/use-ekip';
+import { createUsersActions } from '@/hooks/use-users';
 
 // ─── Context Tipi ───────────────────────────────────────────────────────────
 
@@ -38,9 +39,12 @@ interface DataContextType {
   giderler: Gider[];
   takvimPosts: TakvimPost[];
   ekip: EkipUyesi[];
+  systemUsers: SystemUser[];
   currentUser: SystemUser;
   haftalikNotlar: HaftalikNot[];
   isCloudConnected: boolean;
+  login: (username: string, pass: string) => Promise<boolean>;
+  logout: () => void;
   addIsletme: (item: Omit<Isletme, 'id'>) => void;
   updateIsletme: (id: string, updatedFields: Partial<Isletme>) => void;
   deleteIsletme: (id: string) => void;
@@ -62,17 +66,19 @@ interface DataContextType {
   updateTakvimPostStatus: (id: string, status: TakvimPost['status']) => void;
   addEkipUyesi: (item: Omit<EkipUyesi, 'id' | 'initials'>) => void;
   deleteEkipUyesi: (id: string) => void;
+  addSystemUser: (user: Omit<SystemUser, 'id'>) => Promise<boolean>;
+  deleteSystemUser: (id: string) => Promise<void>;
   addHaftalikNot: (content: string, client?: string) => void;
   deleteHaftalikNot: (id: string) => void;
   formatDateTr: (dateStr: string) => string;
 }
 
-// ─── Varsayılan Sabit Kullanıcı ─────────────────────────────────────────────
+// ─── Varsayılan Kullanıcı ───────────────────────────────────────────────────
 
 const defaultAdmin: SystemUser = {
   id: '1',
   username: 'admin',
-  name: 'Moka Creative',
+  name: 'Moka Admin',
   role: 'super_admin',
   permissions: {
     canManageClients: true, canManageShoots: true, canManageEdits: true,
@@ -89,9 +95,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
 
-  // Sabit kullanıcı — değişmez
-  const currentUser = defaultAdmin;
-
+  const [currentUser, setCurrentUser] = useState<SystemUser>(defaultAdmin);
+  const [systemUsers, setSystemUsers] = useState<SystemUser[]>([defaultAdmin]);
   const [haftalikNotlar, setHaftalikNotlar] = useState<HaftalikNot[]>([]);
 
   const [isletmeler, setIsletmeler] = useState<Isletme[]>([]);
@@ -146,6 +151,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         { data: incomeData, error: incErr },
         { data: expData, error: expErr },
         { data: teamData, error: teamErr },
+        { data: usersData, error: usersErr },
       ] = await Promise.all([
         supabase.from('clients').select('*').eq('name', '__SYSTEM_SETTINGS__').maybeSingle(),
         supabase.from('clients').select('*'),
@@ -155,6 +161,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         supabase.from('income_records').select('*'),
         supabase.from('expense_records').select('*'),
         supabase.from('team_members').select('*'),
+        supabase.from('system_users').select('*'),
       ]);
 
       if (sysErr) logger.error('Sistem ayarları okuma hatası:', sysErr.message);
@@ -165,6 +172,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (incErr) logger.error('Gelirler okuma hatası:', incErr.message);
       if (expErr) logger.error('Giderler okuma hatası:', expErr.message);
       if (teamErr) logger.warn('Ekip tablosu okuma uyarısı:', teamErr.message);
+      if (usersErr) logger.warn('Kullanıcılar tablosu okuma uyarısı:', usersErr.message);
 
       // 1. Sistem ayarları (sadece haftalikNotlar)
       if (sysRecord?.contact_name) {
@@ -176,7 +184,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         } catch (e) {}
       }
 
-      // 2. Ekip — team_members tablosundan
+      // 2. Sistem Kullanıcıları
+      if (usersData && Array.isArray(usersData) && usersData.length > 0) {
+        const mappedUsers: SystemUser[] = usersData.map((u) => ({
+          id: u.id,
+          username: u.username,
+          password: u.password,
+          name: u.name,
+          role: u.role || 'admin',
+          permissions: {
+            canManageClients: true, canManageShoots: true, canManageEdits: true,
+            canManageTakvim: true, canManageFinance: true, canManageReports: true,
+            canManageTeam: true, canManageUsers: true,
+          },
+        }));
+        setSystemUsers(mappedUsers);
+      }
+
+      // 3. Ekip — team_members tablosundan
       if (teamData && Array.isArray(teamData) && teamData.length > 0) {
         const mappedEkip: EkipUyesi[] = teamData.map((t) => ({
           id: t.id,
@@ -189,7 +214,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setEkip(mappedEkip);
       }
 
-      // 3. İşletmeler
+      // 4. İşletmeler
       let currentClientsList: Isletme[] = [];
       if (clientsData) {
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
@@ -218,7 +243,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setIsletmeler(currentClientsList);
       }
 
-      // 4. Çekimler
+      // 5. Çekimler
       if (shootsData) {
         setCekimler(shootsData.map((s) => ({
           id: s.id,
@@ -231,7 +256,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         })));
       }
 
-      // 5. Editler
+      // 6. Editler
       if (editsData) {
         const cloudEdits: EditItem[] = editsData.map((e) => ({
           id: e.id,
@@ -255,7 +280,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // 6. Takvim
+      // 7. Takvim
       if (calData) {
         const cloudPosts: TakvimPost[] = calData.map((t) => ({
           id: t.id,
@@ -279,7 +304,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      // 7. Gelirler
+      // 8. Gelirler
       if (incomeData) {
         const { isClientMatch } = await import('@/lib/helpers');
         const mappedGelirler: Gelir[] = incomeData.map((g) => {
@@ -308,7 +333,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         setGelirler(mappedGelirler);
       }
 
-      // 8. Giderler
+      // 9. Giderler
       if (expData) {
         setGiderler(expData.map((e) => ({
           id: e.id,
@@ -331,6 +356,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     setIsMounted(true);
     fetchCloudData();
 
+    // Check session user in localStorage
+    try {
+      const savedUser = localStorage.getItem('app_currentUser');
+      if (savedUser) setCurrentUser(JSON.parse(savedUser));
+    } catch (e) {}
+
     // Realtime subscription
     const channel = supabase.channel('realtime-all')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => fetchCloudData())
@@ -340,11 +371,68 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'income_records' }, () => fetchCloudData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_records' }, () => fetchCloudData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'team_members' }, () => fetchCloudData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'system_users' }, () => fetchCloudData())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ─── Auth (Supabase system_users doğrulama) ────────────────────────────────
+
+  const login = async (usernameInput: string, passInput: string): Promise<boolean> => {
+    const cleanUsername = usernameInput.trim().toLowerCase();
+    
+    // Direct Supabase query for clean & instant auth
+    const { data: dbUser, error } = await supabase
+      .from('system_users')
+      .select('*')
+      .eq('username', cleanUsername)
+      .single();
+
+    if (error || !dbUser) {
+      logger.warn('Giriş başarısız: kullanıcı bulunamadı veya hata', error?.message);
+      return false;
+    }
+
+    if (dbUser.password !== passInput) {
+      logger.warn('Giriş başarısız: şifre hatalı');
+      return false;
+    }
+
+    const sysUser: SystemUser = {
+      id: dbUser.id,
+      username: dbUser.username,
+      name: dbUser.name,
+      role: dbUser.role || 'admin',
+      permissions: {
+        canManageClients: true, canManageShoots: true, canManageEdits: true,
+        canManageTakvim: true, canManageFinance: true, canManageReports: true,
+        canManageTeam: true, canManageUsers: true,
+      },
+    };
+
+    setCurrentUser(sysUser);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('app_currentUser', JSON.stringify(sysUser));
+    }
+    if (typeof document !== 'undefined') {
+      document.cookie = 'app_session=true; path=/; max-age=2592000; SameSite=Lax';
+    }
+
+    return true;
+  };
+
+  const logout = () => {
+    setCurrentUser(defaultAdmin);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('app_currentUser');
+    }
+    if (typeof document !== 'undefined') {
+      document.cookie = 'app_session=; path=/; max-age=0; SameSite=Lax';
+      window.location.href = '/login';
+    }
+  };
 
   // ─── Haftalık Notlar ───────────────────────────────────────────────────────
 
@@ -369,7 +457,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const deleteHaftalikNot = (id: string) => {
     const note = haftalikNotlar.find((n) => n.id === id);
     if (!note) return;
-    // Herkes silebilir (tek kullanıcı modeli)
     const updatedNotlar = haftalikNotlar.filter((n) => n.id !== id);
     setHaftalikNotlar(updatedNotlar);
     syncSettingsToCloud(updatedNotlar);
@@ -407,20 +494,29 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     syncSettingsToCloud,
   });
 
+  const usersActions = createUsersActions({
+    systemUsers,
+    setSystemUsers,
+    supabase,
+    fetchCloudData,
+  });
+
   // ─── Provider ──────────────────────────────────────────────────────────────
 
   return (
     <DataContext.Provider
       value={{
         isletmeler, cekimler, editler, gelirler, giderler,
-        takvimPosts, ekip, currentUser, haftalikNotlar,
+        takvimPosts, ekip, systemUsers, currentUser, haftalikNotlar,
         isCloudConnected,
+        login, logout,
         ...isletmelerActions,
         ...cekimlerActions,
         ...editlerActions,
         ...finansActions,
         ...takvimActions,
         ...ekipActions,
+        ...usersActions,
         addHaftalikNot, deleteHaftalikNot,
         formatDateTr,
       }}
