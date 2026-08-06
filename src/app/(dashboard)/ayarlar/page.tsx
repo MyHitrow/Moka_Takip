@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Settings, ShieldCheck, Plus, Trash2, User, Cloud, Database, AlertTriangle } from 'lucide-react';
+import { Settings, ShieldCheck, Plus, Trash2, Eye, EyeOff, Copy, Check, Cloud, Database, AlertTriangle, Key } from 'lucide-react';
 import { useData } from '@/context/data-context';
 
 export default function AyarlarPage() {
@@ -17,12 +17,25 @@ export default function AyarlarPage() {
 
   const [openUserModal, setOpenUserModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Form states for new user creation
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState('admin');
+
+  const togglePasswordVisibility = (id: string) => {
+    setVisiblePasswords((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const copyCredentials = (user: typeof systemUsers[0]) => {
+    const text = `Panel Giriş Bilgileri:\nKullanıcı Adı: ${user.username}\nŞifre: ${user.password || '123456'}`;
+    navigator.clipboard.writeText(text);
+    setCopiedId(user.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,32 +76,34 @@ export default function AyarlarPage() {
 
       <PageHeader
         title="Sistem & Kullanıcı Hesap Ayarları"
-        subtitle="Panel kullanıcı hesaplarını yönetin, yeni yetkili ekleyin veya silin."
+        subtitle="Panele giriş yetkisi olan kişileri görün, şifrelerini kopyalayın ve yeni kullanıcı ekleyin."
         icon={Settings}
       />
 
       <div className="grid grid-cols-1 gap-6">
         {/* Kullanıcı Yönetimi Kartı */}
         <Card className="p-6 bg-[#111214] border-[#2B2D32]">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-lg font-bold text-foreground">Sistem Kullanıcı Hesapları</h2>
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Key className="w-5 h-5 text-primary" /> Panel Giriş Hesapları & Şifreler
+              </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Panele giriş yapabilecek kullanıcı hesaplarını yönetin.
+                Panele erişim vereceğiniz kişiler için kullanıcı adı ve şifre oluşturun veya kopyalayın.
               </p>
             </div>
 
             <Dialog open={openUserModal} onOpenChange={setOpenUserModal}>
               <DialogTrigger
                 render={
-                  <Button className="bg-primary hover:bg-primary/90 text-white font-bold text-xs">
-                    <Plus className="w-4 h-4 mr-1.5" /> Yeni Kullanıcı Ekle
+                  <Button className="bg-primary hover:bg-primary/90 text-white font-bold text-xs shrink-0">
+                    <Plus className="w-4 h-4 mr-1.5" /> Yeni Kullanıcı Hesabı Ekle
                   </Button>
                 }
               />
               <DialogContent className="sm:max-w-[425px] bg-card border-border">
                 <DialogHeader>
-                  <DialogTitle>Yeni Panel Kullanıcısı Ekle</DialogTitle>
+                  <DialogTitle>Yeni Panel Giriş Hesabı Ekle</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleAddUser} className="space-y-4 pt-4">
                   {errorMsg && (
@@ -98,7 +113,7 @@ export default function AyarlarPage() {
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label htmlFor="addName">Ad Soyad</Label>
+                    <Label htmlFor="addName">Ad Soyad / İsim</Label>
                     <Input
                       id="addName"
                       value={name}
@@ -124,7 +139,7 @@ export default function AyarlarPage() {
                       type="text"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Giriş şifresi"
+                      placeholder="Giriş şifresi (Örn: 123456)"
                       required
                     />
                   </div>
@@ -144,23 +159,29 @@ export default function AyarlarPage() {
                   </div>
 
                   <Button type="submit" className="w-full mt-2 bg-primary hover:bg-primary/90 font-bold">
-                    Kullanıcıyı Kaydet
+                    Kullanıcı Hesabını Oluştur
                   </Button>
                 </form>
               </DialogContent>
             </Dialog>
           </div>
 
-          {/* User List */}
+          {/* User List Table */}
           <div className="space-y-3">
             {systemUsers.map((user) => {
               const isSelf = user.username === currentUser.username;
               const isProtected = user.username === 'admin';
+              const showPass = visiblePasswords[user.id] || false;
+              const userPass = user.password || '123456';
 
               return (
-                <div key={user.id} className="p-4 rounded-xl border border-border bg-card/50 flex items-center justify-between">
+                <div
+                  key={user.id}
+                  className="p-4 rounded-xl border border-border bg-card/60 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-primary/40"
+                >
+                  {/* User info */}
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                       {user.name.substring(0, 2).toUpperCase()}
                     </div>
                     <div>
@@ -170,21 +191,60 @@ export default function AyarlarPage() {
                           {user.role === 'super_admin' ? '👑 Süper Admin' : '🏢 Admin'}
                         </Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground">@{user.username}</span>
+                      <div className="flex items-center gap-3 mt-1 text-xs">
+                        <span className="text-muted-foreground font-mono">
+                          Kullanıcı Adı: <strong className="text-foreground">@{user.username}</strong>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  {!isProtected && !isSelf && (
+                  {/* Password & Copy Controls */}
+                  <div className="flex items-center gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-border/40 justify-between md:justify-end">
+                    <div className="flex items-center gap-2 bg-muted/40 border border-border px-3 py-1.5 rounded-lg text-xs font-mono">
+                      <span className="text-muted-foreground">Şifre:</span>
+                      <span className="font-bold text-foreground">
+                        {showPass ? userPass : '••••••••'}
+                      </span>
+                      <button
+                        onClick={() => togglePasswordVisibility(user.id)}
+                        className="text-muted-foreground hover:text-foreground ml-1 p-0.5"
+                        title={showPass ? 'Şifreyi Gizle' : 'Şifreyi Göster'}
+                      >
+                        {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={() => deleteSystemUser(user.id)}
-                      className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                      title="Kullanıcıyı Sil"
+                      onClick={() => copyCredentials(user)}
+                      className="text-xs border-border bg-background hover:bg-muted font-semibold gap-1.5 h-8"
+                      title="Giriş bilgilerini kopyala"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {copiedId === user.id ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" /> Kopyalandı!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-muted-foreground" /> Kopyala
+                        </>
+                      )}
                     </Button>
-                  )}
+
+                    {!isProtected && !isSelf && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteSystemUser(user.id)}
+                        className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10 h-8 w-8 p-0"
+                        title="Kullanıcıyı Sil"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -218,7 +278,7 @@ export default function AyarlarPage() {
               </div>
               <div>
                 <h2 className="text-base font-bold text-foreground">Veri Güvenliği</h2>
-                <p className="text-xs text-muted-foreground">system_users & team_members Tablosu</p>
+                <p className="text-xs text-muted-foreground">system_users Tablosu</p>
               </div>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
