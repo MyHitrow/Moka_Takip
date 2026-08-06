@@ -144,6 +144,13 @@ function matchClientNameFromQuery(query: string, clients: Isletme[]): string | n
 }
 
 /**
+ * Flexible Turkish Synonym Checker
+ */
+function containsAny(text: string, keywords: string[]): boolean {
+  return keywords.some((kw) => text.includes(kw));
+}
+
+/**
  * Intelligent AI Command & Intent Parser to create Shoots, Edits, Notes, Expenses, Incomes from chat input
  */
 export function parseAICommandsAndIntent(userQuery: string, data: DataContextPayload): {
@@ -155,49 +162,65 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
   const actions: AIExecutedAction[] = [];
   const todayStr = new Date().toISOString().split('T')[0];
 
+  // Synonyms for Income (Gelir / Tahsilat)
+  const incomeKeywords = [
+    'gelir', 'ödeme', 'odeme', 'tahsilat', 'para geldi', 'para aldık', 'para aldik',
+    'ödendi', 'odendi', 'ödedi', 'odedi', 'ücret aldık', 'ucret aldik', 'hesaba yattı',
+    'hesaba yatti', 'para yattı', 'para yatti', 'havale geldi', 'eft geldi', 'paket ücreti'
+  ];
+
+  // Synonyms for Expense (Gider / Harcama)
+  const expenseKeywords = [
+    'gider', 'harcama', 'yakıt', 'yakit', 'benzin', 'avans', 'aldım', 'aldim', 'aldık', 'aldik',
+    'ödedim', 'odedim', 'ödedik', 'odedik', 'harcadım', 'harcadim', 'harcadık', 'harcadik',
+    'fatura', 'kira', 'satın aldım', 'satin aldim', 'ücret ödedik', 'ucret odedik'
+  ];
+
+  // Synonyms for Edit & Revision (Edit / Revize / Kurgu)
+  const editKeywords = [
+    'revize', 'revizesi', 'kurgu', 'kurgusu', 'edit', 'editi', 'montaj', 'montajı',
+    'düzenlenecek', 'duzenlenecek', 'düzeltilecek', 'duzeltilecek', 'kurgulanacak', 'video yapılacak'
+  ];
+
+  // Synonyms for Shoot (Çekim)
+  const shootKeywords = [
+    'çekim', 'cekim', 'çekimi', 'saat', 'planla', 'çekilecek', 'cekilecek', 'çekeceğiz',
+    'cekecegiz', 'çekmeye gideceğiz', 'cekmeye gidecegiz', 'çekim var', 'cekim var'
+  ];
+
   // ─── 1. GİDER EKLEME NİYETİ (EXPENSE INTENT) ──────────────────────────────
-  const isExpenseIntent =
-    lower.includes('gider') ||
-    lower.includes('harcama') ||
-    lower.includes('yakıt') ||
-    lower.includes('benzin') ||
-    lower.includes('avans') ||
-    (lower.includes('tl') && (lower.includes('aldım') || lower.includes('ödedim') || lower.includes('harcadım')));
+  const isExpenseIntent = containsAny(lower, expenseKeywords) && (lower.includes('gider') || lower.includes('harcam') || lower.includes('yakıt') || lower.includes('avans') || lower.includes('tl') || lower.includes('lira') || lower.includes('₺'));
 
   if (isExpenseIntent) {
-    // Extract amount: e.g. "1200 tl", "1200tl", "1200 ₺", "1200 lira"
     const amountMatch = lower.match(/(\d+)\s*(tl|₺|lira)?/);
     const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
 
     if (amount > 0) {
       let category = 'office';
-      if (lower.includes('yakıt') || lower.includes('benzin') || lower.includes('araba') || lower.includes('taksi') || lower.includes('ulaşım')) {
+      if (containsAny(lower, ['yakıt', 'yakit', 'benzin', 'araba', 'taksi', 'ulaşım', 'ulasim'])) {
         category = 'transportation';
-      } else if (lower.includes('avans') || lower.includes('maaş') || lower.includes('personel')) {
+      } else if (containsAny(lower, ['avans', 'maaş', 'maas', 'personel', 'prim'])) {
         category = 'personnel';
-      } else if (lower.includes('yemek') || lower.includes('restoran') || lower.includes('kahve')) {
+      } else if (containsAny(lower, ['yemek', 'restoran', 'kahve', 'kurye', 'gıda'])) {
         category = 'food';
-      } else if (lower.includes('ekipman') || lower.includes('kamera') || lower.includes('lens')) {
+      } else if (containsAny(lower, ['ekipman', 'kamera', 'lens', 'ışık', 'isik', 'tripod'])) {
         category = 'equipment';
-      } else if (lower.includes('yazılım') || lower.includes('lisans') || lower.includes('adobe')) {
+      } else if (containsAny(lower, ['yazılım', 'yazilim', 'lisans', 'adobe', 'plugin', 'sunucu'])) {
         category = 'software';
       }
 
-      // Extract paidBy
       let paidBy = 'Şirket Hesabı';
       if (lower.includes('kadir')) paidBy = 'Kadir';
       else if (lower.includes('caner')) paidBy = 'Caner';
       else if (lower.includes('alim')) paidBy = 'Alim';
 
-      // Title creation
-      let title = 'General Harcama';
-      if (lower.includes('yakıt') || lower.includes('benzin')) title = 'Yakıt / Benzin Gideri';
-      else if (lower.includes('avans')) title = 'Personel Avans Ödemesi';
-      else if (lower.includes('yemek')) title = 'Yemek Gideri';
-      else if (lower.includes('kira')) title = 'Ofis Kirası';
+      let title = 'Genel Harcama';
+      if (containsAny(lower, ['yakıt', 'yakit', 'benzin'])) title = 'Yakıt / Benzin Gideri';
+      else if (containsAny(lower, ['avans'])) title = 'Personel Avans Ödemesi';
+      else if (containsAny(lower, ['yemek'])) title = 'Yemek Gideri';
+      else if (containsAny(lower, ['kira'])) title = 'Ofis Kirası';
       else title = query.length < 50 ? query : 'Ofis / Operasyon Gideri';
 
-      // If user mentioned car or person in query, include in title
       if (lower.includes('kadirin araba') || lower.includes('kadir araba')) {
         title = "Kadir'in Araba - Yakıt Gideri";
         paidBy = 'Kadir';
@@ -228,11 +251,43 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
     }
   }
 
-  // ─── 2. EDİT & REVİZE EKLEME NİYETİ (EDIT INTENT) ─────────────────────────
-  const isEditIntent =
-    lower.includes('revize') ||
-    lower.includes('kurgu') ||
-    (lower.includes('edit') && (lower.includes('ekle') || lower.includes('yapılacak') || lower.includes('düzenlenecek') || lower.includes('acil')));
+  // ─── 2. GELİR EKLEME NİYETİ (INCOME INTENT) ───────────────────────────────
+  const isIncomeIntent = containsAny(lower, incomeKeywords) && (lower.includes('para') || lower.includes('ödeme') || lower.includes('odeme') || lower.includes('tahsilat') || lower.includes('gelir') || lower.includes('yattı') || lower.includes('yatti') || lower.includes('aldık') || lower.includes('aldik'));
+
+  if (isIncomeIntent) {
+    const amountMatch = lower.match(/(\d+)\s*(tl|₺|lira)?/);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+    const matchedClient = matchClientNameFromQuery(query, data.isletmeler);
+    const clientName = matchedClient || 'Müşteri';
+
+    if (amount > 0) {
+      const isPaid = containsAny(lower, ['yaptı', 'yapti', 'ödendi', 'odendi', 'geldi', 'yattı', 'yatti', 'aldık', 'aldik', 'ödedi', 'odedi']);
+
+      actions.push({
+        type: 'ADD_INCOME',
+        payload: {
+          client: clientName,
+          description: `${clientName} - Tahsilat / Ödeme`,
+          amount,
+          date: todayStr,
+          status: isPaid ? 'paid' : 'pending',
+          paidAmount: isPaid ? amount : 0,
+        },
+        summary: `💰 <b>${clientName}</b> — ₺${amount.toLocaleString('tr-TR')}`,
+      });
+
+      let textReply = `✅ <b>GELİR KAYDI VERİTABANINA EKLENDİ:</b>\n\n`;
+      textReply += `• Müşteri: <b>${clientName}</b>\n`;
+      textReply += `• Tutar: <b>₺${amount.toLocaleString('tr-TR')}</b>\n`;
+      textReply += `• Durum: <b>${isPaid ? '🟢 Ödendi' : '🟡 Bekliyor'}</b>\n\n`;
+      textReply += `Gelirler modülünden finansal detayları inceleyebilirsiniz! 💵`;
+
+      return { actions, textReply };
+    }
+  }
+
+  // ─── 3. EDİT & REVİZE EKLEME NİYETİ (EDIT INTENT) ─────────────────────────
+  const isEditIntent = containsAny(lower, editKeywords);
 
   if (isEditIntent) {
     const matchedClient = matchClientNameFromQuery(query, data.isletmeler);
@@ -240,13 +295,13 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
     const targetDate = parseTargetDate(lower);
 
     let editType = 'Reels';
-    if (lower.includes('sinematik')) editType = 'Kurumsal Video';
+    if (containsAny(lower, ['sinematik', 'kurumsal'])) editType = 'Kurumsal Video';
     else if (lower.includes('post')) editType = 'Post';
     else if (lower.includes('story')) editType = 'Story';
     else if (lower.includes('youtube')) editType = 'YouTube';
 
     let title = `${clientName} Video Editi`;
-    if (lower.includes('revize')) {
+    if (containsAny(lower, ['revize', 'revizesi'])) {
       title = `${clientName} Sinematik Video Revizesi`;
     }
 
@@ -258,7 +313,7 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
         type: editType,
         editor: 'Atanmadı',
         deadline: targetDate,
-        status: lower.includes('revize') ? 'revision' : 'editing',
+        status: containsAny(lower, ['revize', 'revizesi']) ? 'revision' : 'editing',
       },
       summary: `🎬 <b>${clientName}</b> — "${title}" (Teslim: ${targetDate})`,
     });
@@ -267,19 +322,14 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
     textReply += `• İşletme: <b>${clientName}</b>\n`;
     textReply += `• Görev: <b>${title}</b>\n`;
     textReply += `• Teslim Tarihi: <b>${targetDate}</b>\n`;
-    textReply += `• Durum: <b>${lower.includes('revize') ? '🔴 Revizede' : '🎬 Kurguda'}</b>\n\n`;
+    textReply += `• Durum: <b>${containsAny(lower, ['revize', 'revizesi']) ? '🔴 Revizede' : '🎬 Kurguda'}</b>\n\n`;
     textReply += `Editler modülünüzden kurgu durumunu ve editör atamasını yönetebilirsiniz! 🍿`;
 
     return { actions, textReply };
   }
 
-  // ─── 3. ÇEKİM PLANLAMA NİYETİ (SHOOT INTENT) ──────────────────────────────
-  const isShootIntent =
-    lower.includes('çekim') ||
-    lower.includes('cekim') ||
-    lower.includes('çekimi') ||
-    lower.includes('saat') ||
-    lower.includes('planla');
+  // ─── 4. ÇEKİM PLANLAMA NİYETİ (SHOOT INTENT) ──────────────────────────────
+  const isShootIntent = containsAny(lower, shootKeywords);
 
   if (isShootIntent) {
     const targetDate = parseTargetDate(lower);
@@ -355,43 +405,6 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
     }
   }
 
-  // ─── 4. GELİR EKLEME NİYETİ (INCOME INTENT) ───────────────────────────────
-  const isIncomeIntent =
-    lower.includes('gelir') ||
-    lower.includes('ödeme yaptı') ||
-    lower.includes('odeme yapti') ||
-    lower.includes('tahsilat');
-
-  if (isIncomeIntent) {
-    const amountMatch = lower.match(/(\d+)\s*(tl|₺|lira)?/);
-    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
-    const matchedClient = matchClientNameFromQuery(query, data.isletmeler);
-    const clientName = matchedClient || 'Müşteri';
-
-    if (amount > 0) {
-      actions.push({
-        type: 'ADD_INCOME',
-        payload: {
-          client: clientName,
-          description: `${clientName} - Tahsilat / Ödeme`,
-          amount,
-          date: todayStr,
-          status: lower.includes('yaptı') || lower.includes('ödendi') ? 'paid' : 'pending',
-          paidAmount: lower.includes('yaptı') || lower.includes('ödendi') ? amount : 0,
-        },
-        summary: `💰 <b>${clientName}</b> — ₺${amount.toLocaleString('tr-TR')}`,
-      });
-
-      let textReply = `✅ <b>GELİR KAYDI VERİTABANINA EKLENDİ:</b>\n\n`;
-      textReply += `• Müşteri: <b>${clientName}</b>\n`;
-      textReply += `• Tutar: <b>₺${amount.toLocaleString('tr-TR')}</b>\n`;
-      textReply += `• Durum: <b>${lower.includes('yaptı') || lower.includes('ödendi') ? '🟢 Ödendi' : '🟡 Bekliyor'}</b>\n\n`;
-      textReply += `Gelirler modülünden finansal detayları inceleyebilirsiniz! 💵`;
-
-      return { actions, textReply };
-    }
-  }
-
   // ─── 5. HAFTALIK NOT / GÖREV NİYETİ (NOTE INTENT) ─────────────────────────
   if (lower.includes('not') && (lower.includes('ekle') || lower.includes('al') || lower.includes('yaz'))) {
     const matchedClient = matchClientNameFromQuery(query, data.isletmeler);
@@ -450,7 +463,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     query.includes('naber')
   ) {
     const activeCount = data.isletmeler.filter((i) => i.active).length;
-    return `Selamlar! Ben MOKA CREATIVE AGENCY canlı veritabanı hafızasına sahip AI Operatörünüzüm. 🤖\n\nŞu an sistemde <b>${data.isletmeler.length} işletmeniz</b> (${activeCount} aktif), planlı çekimleriniz, kurgularınız ve harcamalarınız güncel olarak zihnimdedir.\n\nBana doğal Türkçe cümlelerle emredebilirsiniz:\n• <i>"1200 tl yakıt aldım kadirin araba gider olarak ekle"</i>\n• <i>"Cuma 12'ye pety music sinematik 2 adet reels çekimi yaz"</i>\n• <i>"2 gün içinde akbay tekstil sinematik videosuna revize notları ses düzenlenecek"</i>`;
+    return `Selamlar! Ben MOKA CREATIVE AGENCY canlı veritabanı hafızasına sahip AI Operatörünüzüm. 🤖\n\nŞu an sistemde <b>${data.isletmeler.length} işletmeniz</b> (${activeCount} aktif), planlı çekimleriniz, kurgularınız ve harcamalarınız güncel olarak zihnimdedir.\n\nBana doğal Türkçe cümlelerle emredebilirsiniz:\n• <i>"1200 tl yakıt aldım kadirin araba gider olarak ekle"</i>\n• <i>"Akbay tekstilden 15000 tl ödeme aldık gelir olarak ekle"</i>\n• <i>"2 gün içinde akbay tekstil sinematik videosuna revize notları ses düzenlenecek"</i>\n• <i>"Cuma 12'ye pety music sinematik 2 adet reels çekimi yaz"</i>`;
   }
 
   // 2. STRATEJİK ANALİZ: Düşük Getiri / Düşük Ciro / Zahmetli İşletmeler
@@ -625,8 +638,9 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
 
   // Varsayılan genel cevap
   return `Anlaşıldı! Veritabanındaki **${data.isletmeler.length} işletmeniz**, çekimleriniz, editleriniz ve finansal kayıtlarınız zihnimde anlık olarak günceldir.\n\n` +
-         `Bana doğal Türkçe ile komut verebilirsiniz:\n` +
+         `Bana doğal Türkçe ile dilediğiniz kelimeyle komut verebilirsiniz:\n` +
          `• <i>"1200 tl yakıt aldım kadirin araba gider olarak ekle"</i>\n` +
+         `• <i>"Akbay tekstilden 15000 tl ödeme aldık gelir ekle"</i>\n` +
          `• <i>"2 gün içinde akbay tekstil sinematik videosuna revize notları ses düzenlenecek"</i>\n` +
          `• <i>"Cuma 12'ye pety music sinematik 2 adet reels çekimi yaz"</i>`;
 }
