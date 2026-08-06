@@ -106,7 +106,7 @@ function EditlerPageContent() {
   const pendingEdits = sortEditsByUrgency(editler.filter((e) => e.status !== 'ready' && e.status !== 'published'));
   const completedEdits = sortEditsByUrgency(editler.filter((e) => e.status === 'ready' || e.status === 'published'));
 
-  const editingEdits = sortEditsByUrgency(editler.filter((e) => e.status === 'editing' || e.status === 'waiting'));
+  const editingEdits = sortEditsByUrgency(editler.filter((e) => e.status !== 'client_review' && e.status !== 'ready' && e.status !== 'published'));
   const reviewEdits = sortEditsByUrgency(editler.filter((e) => e.status === 'client_review'));
 
   return (
@@ -279,14 +279,14 @@ function EditlerPageContent() {
         {/* VIEW 1: Yapılması Gereken Editler (🎬 1. Kurguda & 👀 2. Müşteri Onayında) — Tek satırda 5 video kutusu */}
         {mainCategory === 'pending' && (
           <div className="mt-6 space-y-6">
-            {/* Section 1: 🎬 1. Kurguda / Yapılıyor */}
+            {/* Section 1: 🎬 1. Kurguda & Revizedekiler */}
             <div className="bg-card/70 rounded-2xl p-4 border border-border shadow-xs">
               <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
                 <div className="flex items-center gap-2">
                   <div className="bg-primary/10 p-1.5 rounded-lg">
                     <Video className="w-4 h-4 text-primary" />
                   </div>
-                  <h3 className="text-base font-extrabold text-foreground">1. Kurguda / Yapılıyor</h3>
+                  <h3 className="text-base font-extrabold text-foreground">1. Kurguda & Revizedekiler</h3>
                 </div>
                 <Badge variant="secondary" className="text-xs font-mono font-extrabold px-2.5 py-0.5">
                   {editingEdits.length} Video
@@ -297,19 +297,22 @@ function EditlerPageContent() {
               {editingEdits.length === 0 ? (
                 <div className="p-6 text-center text-xs text-muted-foreground bg-muted/10 rounded-xl border border-dashed border-border flex items-center justify-center gap-2">
                   <Video className="w-5 h-5 opacity-40" />
-                  <span>Kurguda olan edit bulunmuyor.</span>
+                  <span>Kurguda veya revizede olan edit bulunmuyor.</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                   {editingEdits.map((card) => {
                     const isDueToday = card.deadline === todayStr;
                     const isOverdue = card.deadline < todayStr;
+                    const isRevision = card.status === 'revision';
 
                     return (
                       <Card
                         key={card.id}
                         className={`p-3 bg-card border rounded-xl transition-all shadow-xs flex flex-col justify-between h-full ${
-                          isDueToday || isOverdue
+                          isRevision
+                            ? 'border-red-500/80 bg-red-500/10'
+                            : isDueToday || isOverdue
                             ? 'border-primary/70 red-border-left bg-primary/5'
                             : 'border-border hover:border-primary/40'
                         }`}
@@ -320,7 +323,11 @@ function EditlerPageContent() {
                               {card.client}
                             </span>
                             <div className="flex items-center gap-1 shrink-0">
-                              <Badge variant="outline" className="text-[8px] px-1 py-0 font-bold">{card.type}</Badge>
+                              {isRevision ? (
+                                <Badge className="bg-red-500 text-white text-[8px] px-1 py-0 font-extrabold">🔴 Revize</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[8px] px-1 py-0 font-bold">{card.type}</Badge>
+                              )}
                               <button
                                 onClick={() => deleteEdit(card.id)}
                                 className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
@@ -335,7 +342,7 @@ function EditlerPageContent() {
                             {card.title}
                           </h4>
 
-                          {(isDueToday || isOverdue) && (
+                          {(isDueToday || isOverdue) && !isRevision && (
                             <div className="p-1 bg-red-500/10 border border-red-500/30 text-red-400 text-[9px] font-bold rounded flex items-center gap-1">
                               <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
                               <span className="truncate">{isDueToday ? 'Bugün Teslim!' : 'Gecikti!'}</span>
@@ -359,6 +366,7 @@ function EditlerPageContent() {
                             className="w-full text-[10px] h-6 bg-background border border-input rounded px-1 text-foreground font-extrabold outline-none cursor-pointer truncate"
                           >
                             <option value="editing">🎬 Kurguda</option>
+                            <option value="revision">🔴 Revizede</option>
                             <option value="client_review">👀 Onayda</option>
                             <option value="ready">🚀 Bitenler</option>
                           </select>

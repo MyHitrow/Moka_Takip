@@ -278,19 +278,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           type: e.content_type_label || e.content_type || 'Reels',
           editor: e.editor_name || 'Atanmadı',
           deadline: e.deadline || new Date().toISOString().split('T')[0],
-          status: e.status || 'waiting',
+          status: e.status || 'editing',
         }));
 
-        setEditler((prev) => {
-          if (cloudEdits.length === 0) return prev;
-          const combined = [...cloudEdits];
-          prev.forEach((p) => {
-            if (!combined.some((c) => c.title === p.title && c.client === p.client)) {
-              combined.push(p);
-            }
-          });
-          return combined;
-        });
+        setEditler(cloudEdits);
       }
 
       // 7. Takvim
