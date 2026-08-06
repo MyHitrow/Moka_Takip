@@ -11,15 +11,10 @@ import { Label } from '@/components/ui/label';
 import { TrendingDown, Calendar, CreditCard, Trash2, Plus } from 'lucide-react';
 import { EXPENSE_CATEGORY_LABELS } from '@/lib/constants';
 import { useData } from '@/context/data-context';
-
-import { PermissionGuard } from '@/components/shared/permission-guard';
+import { ExpenseChartWidget } from '@/components/giderler/expense-chart-widget';
 
 export default function GiderlerPage() {
-  return (
-    <PermissionGuard requiredPermission="canManageFinance">
-      <GiderlerPageContent />
-    </PermissionGuard>
-  );
+  return <GiderlerPageContent />;
 }
 
 function GiderlerPageContent() {
@@ -62,14 +57,14 @@ function GiderlerPageContent() {
       <Header title="Giderler" />
       <div className="px-4 lg:px-8 pb-8">
         <PageHeader
-          title="Giderler"
-          subtitle="Gider ve harcama kalemi takibi"
+          title="Giderler & Harcama Analizi"
+          subtitle="Gider ve harcama kalemi takibi, kategori analizi ve net ofis/personel harcama dağılımı"
           icon={TrendingDown}
           action={
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger
                 render={
-                  <Button className="bg-primary hover:bg-primary/90">
+                  <Button className="bg-primary hover:bg-primary/90 font-bold">
                     <Plus className="w-4 h-4 mr-2" /> Yeni Gider Kaydı
                   </Button>
                 }
@@ -85,7 +80,7 @@ function GiderlerPageContent() {
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Örn: Ofis Kirası"
+                      placeholder="Örn: Ofis Kirası veya Kadir Avans"
                       required
                     />
                   </div>
@@ -95,7 +90,7 @@ function GiderlerPageContent() {
                       id="category"
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm font-semibold"
                     >
                       {Object.entries(EXPENSE_CATEGORY_LABELS).map(([key, label]) => (
                         <option key={key} value={key}>
@@ -136,7 +131,7 @@ function GiderlerPageContent() {
                       placeholder="Örn: Şirket Hesabı veya Kadir"
                     />
                   </div>
-                  <Button type="submit" className="w-full mt-4">
+                  <Button type="submit" className="w-full mt-4 bg-primary hover:bg-primary/90 font-bold">
                     Kaydet
                   </Button>
                 </form>
@@ -146,15 +141,16 @@ function GiderlerPageContent() {
         />
 
         <div className="mt-6 space-y-6">
-          <Card className="p-5 bg-card border-border flex items-center max-w-md">
-            <div className="bg-amber-500/10 p-3 rounded-full mr-4">
-              <TrendingDown className="w-6 h-6 text-amber-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground font-medium">Toplam Harcama / Gider</p>
-              <h3 className="text-2xl font-bold text-amber-400">{formatCurrency(totalExpenses)}</h3>
-            </div>
-          </Card>
+          {/* Visual Category Breakdown & Interactive Chart */}
+          <ExpenseChartWidget />
+
+          {/* Table Header & Search/Filter */}
+          <div className="flex items-center justify-between pt-2">
+            <h3 className="text-base font-bold text-foreground">Harcama Geçmişi & Kayıtlar</h3>
+            <span className="text-xs text-muted-foreground font-mono">
+              Toplam {giderler.length} kayıt ({formatCurrency(totalExpenses)})
+            </span>
+          </div>
 
           {/* Desktop Table View */}
           <div className="hidden md:block overflow-x-auto">
@@ -172,28 +168,28 @@ function GiderlerPageContent() {
                 {giderler.map((expense) => (
                   <tr key={expense.id} className="border-b border-border bg-card hover:bg-muted/30 transition-colors">
                     <td className="px-6 py-4 font-medium text-foreground">
-                      <div>{expense.title}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="font-bold text-sm">{expense.title}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
                         {EXPENSE_CATEGORY_LABELS[expense.category as keyof typeof EXPENSE_CATEGORY_LABELS] || expense.category}
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-semibold text-amber-400">
+                    <td className="px-6 py-4 font-bold text-amber-400">
                       {formatCurrency(expense.amount)}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <Calendar className="w-3 h-3 mr-2 text-muted-foreground" /> {formatDateTr(expense.date)}
+                      <div className="flex items-center font-mono text-xs">
+                        <Calendar className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> {formatDateTr(expense.date)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <CreditCard className="w-3 h-3 mr-2 text-muted-foreground" /> {expense.paidBy}
+                      <div className="flex items-center text-xs font-semibold">
+                        <CreditCard className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> {expense.paidBy}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => deleteGider(expense.id)}
-                        className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                        className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10"
                         title="Sil"
                       >
                         <Trash2 className="w-4 h-4" />
