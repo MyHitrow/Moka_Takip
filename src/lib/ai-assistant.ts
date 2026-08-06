@@ -86,20 +86,65 @@ export function buildAgencySystemPrompt(data: DataContextPayload): string {
 }
 
 /**
- * Helper to calculate target date string YYYY-MM-DD from Turkish relative date keywords
+ * Helper to calculate target date string YYYY-MM-DD from Turkish relative date keywords and days of week
  */
 function parseTargetDate(query: string): string {
+  const lower = query.toLowerCase();
   const now = new Date();
-  if (query.includes('yarın') || query.includes('yarin')) {
-    now.setDate(now.getDate() + 1);
-  } else if (query.includes('öbür gün') || query.includes('obur gun')) {
-    now.setDate(now.getDate() + 2);
+
+  // "X gün içinde" or "X gün sonra"
+  const daysMatch = lower.match(/(\d+)\s*gün/);
+  if (daysMatch) {
+    const days = parseInt(daysMatch[1], 10);
+    now.setDate(now.getDate() + days);
+    return now.toISOString().split('T')[0];
   }
+
+  if (lower.includes('yarın') || lower.includes('yarin')) {
+    now.setDate(now.getDate() + 1);
+    return now.toISOString().split('T')[0];
+  }
+  if (lower.includes('öbür gün') || lower.includes('obur gun')) {
+    now.setDate(now.getDate() + 2);
+    return now.toISOString().split('T')[0];
+  }
+
+  // Days of week in Turkish
+  const daysMap: Record<string, number> = {
+    pazartesi: 1, salı: 2, sali: 2, çarşamba: 3, carsamba: 3,
+    perşembe: 4, persembe: 4, cuma: 5, cumartesi: 6, pazar: 0,
+  };
+
+  for (const [dayName, targetDayIdx] of Object.entries(daysMap)) {
+    if (lower.includes(dayName)) {
+      const currentDayIdx = now.getDay();
+      let diff = targetDayIdx - currentDayIdx;
+      if (diff <= 0) diff += 7; // Next occurrence
+      now.setDate(now.getDate() + diff);
+      return now.toISOString().split('T')[0];
+    }
+  }
+
   return now.toISOString().split('T')[0];
 }
 
 /**
- * Intelligent AI Command & Intent Parser to create Shoots, Edits, Notes, Expenses from chat input
+ * Matches a registered business name from user query
+ */
+function matchClientNameFromQuery(query: string, clients: Isletme[]): string | null {
+  const lower = query.toLowerCase();
+  for (const biz of clients) {
+    const bizNameLower = biz.name.toLowerCase();
+    const firstWord = bizNameLower.split(' ')[0];
+    if (lower.includes(bizNameLower) || (firstWord.length >= 3 && lower.includes(firstWord))) {
+      return biz.name;
+    }
+  }
+  return null;
+}
+
+/**
+ * Intelligent AI Command & Intent Parser to create Shoots, Edits, Notes, Expenses, Incomes from chat input
  */
 export function parseAICommandsAndIntent(userQuery: string, data: DataContextPayload): {
   actions: AIExecutedAction[];
@@ -108,58 +153,168 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
   const query = userQuery.trim();
   const lower = query.toLowerCase();
   const actions: AIExecutedAction[] = [];
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  // Check for SHOOT CREATION Intent
+  // ─── 1. GİDER EKLEME NİYETİ (EXPENSE INTENT) ──────────────────────────────
+  const isExpenseIntent =
+    lower.includes('gider') ||
+    lower.includes('harcama') ||
+    lower.includes('yakıt') ||
+    lower.includes('benzin') ||
+    lower.includes('avans') ||
+    (lower.includes('tl') && (lower.includes('aldım') || lower.includes('ödedim') || lower.includes('harcadım')));
+
+  if (isExpenseIntent) {
+    // Extract amount: e.g. "1200 tl", "1200tl", "1200 ₺", "1200 lira"
+    const amountMatch = lower.match(/(\d+)\s*(tl|₺|lira)?/);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+
+    if (amount > 0) {
+      let category = 'office';
+      if (lower.includes('yakıt') || lower.includes('benzin') || lower.includes('araba') || lower.includes('taksi') || lower.includes('ulaşım')) {
+        category = 'transportation';
+      } else if (lower.includes('avans') || lower.includes('maaş') || lower.includes('personel')) {
+        category = 'personnel';
+      } else if (lower.includes('yemek') || lower.includes('restoran') || lower.includes('kahve')) {
+        category = 'food';
+      } else if (lower.includes('ekipman') || lower.includes('kamera') || lower.includes('lens')) {
+        category = 'equipment';
+      } else if (lower.includes('yazılım') || lower.includes('lisans') || lower.includes('adobe')) {
+        category = 'software';
+      }
+
+      // Extract paidBy
+      let paidBy = 'Şirket Hesabı';
+      if (lower.includes('kadir')) paidBy = 'Kadir';
+      else if (lower.includes('caner')) paidBy = 'Caner';
+      else if (lower.includes('alim')) paidBy = 'Alim';
+
+      // Title creation
+      let title = 'General Harcama';
+      if (lower.includes('yakıt') || lower.includes('benzin')) title = 'Yakıt / Benzin Gideri';
+      else if (lower.includes('avans')) title = 'Personel Avans Ödemesi';
+      else if (lower.includes('yemek')) title = 'Yemek Gideri';
+      else if (lower.includes('kira')) title = 'Ofis Kirası';
+      else title = query.length < 50 ? query : 'Ofis / Operasyon Gideri';
+
+      // If user mentioned car or person in query, include in title
+      if (lower.includes('kadirin araba') || lower.includes('kadir araba')) {
+        title = "Kadir'in Araba - Yakıt Gideri";
+        paidBy = 'Kadir';
+      }
+
+      const targetDate = parseTargetDate(lower);
+
+      actions.push({
+        type: 'ADD_EXPENSE',
+        payload: {
+          title,
+          category,
+          amount,
+          date: targetDate,
+          paidBy,
+        },
+        summary: `💳 <b>₺${amount.toLocaleString('tr-TR')}</b> — "${title}" (${paidBy})`,
+      });
+
+      let textReply = `✅ <b>GİDER VERİTABANINA BAŞARIYLA EKLENDİ VE İŞLENDİ:</b>\n\n`;
+      textReply += `• Tutar: <b>₺${amount.toLocaleString('tr-TR')}</b>\n`;
+      textReply += `• Başlık / Açıklama: <b>${title}</b>\n`;
+      textReply += `• Ödeyen: <b>${paidBy}</b>\n`;
+      textReply += `• Tarih: <b>${targetDate}</b>\n\n`;
+      textReply += `Giderler modülünüzden ve grafik analizinizden tüm harcamaları kontrol edebilirsiniz! 💸`;
+
+      return { actions, textReply };
+    }
+  }
+
+  // ─── 2. EDİT & REVİZE EKLEME NİYETİ (EDIT INTENT) ─────────────────────────
+  const isEditIntent =
+    lower.includes('revize') ||
+    lower.includes('kurgu') ||
+    (lower.includes('edit') && (lower.includes('ekle') || lower.includes('yapılacak') || lower.includes('düzenlenecek') || lower.includes('acil')));
+
+  if (isEditIntent) {
+    const matchedClient = matchClientNameFromQuery(query, data.isletmeler);
+    const clientName = matchedClient || 'Genel İşletme';
+    const targetDate = parseTargetDate(lower);
+
+    let editType = 'Reels';
+    if (lower.includes('sinematik')) editType = 'Kurumsal Video';
+    else if (lower.includes('post')) editType = 'Post';
+    else if (lower.includes('story')) editType = 'Story';
+    else if (lower.includes('youtube')) editType = 'YouTube';
+
+    let title = `${clientName} Video Editi`;
+    if (lower.includes('revize')) {
+      title = `${clientName} Sinematik Video Revizesi`;
+    }
+
+    actions.push({
+      type: 'ADD_EDIT',
+      payload: {
+        title,
+        client: clientName,
+        type: editType,
+        editor: 'Atanmadı',
+        deadline: targetDate,
+        status: lower.includes('revize') ? 'revision' : 'editing',
+      },
+      summary: `🎬 <b>${clientName}</b> — "${title}" (Teslim: ${targetDate})`,
+    });
+
+    let textReply = `✅ <b>KURGU / REVİZE GÖREVİ VERİTABANINA EKLENDİ:</b>\n\n`;
+    textReply += `• İşletme: <b>${clientName}</b>\n`;
+    textReply += `• Görev: <b>${title}</b>\n`;
+    textReply += `• Teslim Tarihi: <b>${targetDate}</b>\n`;
+    textReply += `• Durum: <b>${lower.includes('revize') ? '🔴 Revizede' : '🎬 Kurguda'}</b>\n\n`;
+    textReply += `Editler modülünüzden kurgu durumunu ve editör atamasını yönetebilirsiniz! 🍿`;
+
+    return { actions, textReply };
+  }
+
+  // ─── 3. ÇEKİM PLANLAMA NİYETİ (SHOOT INTENT) ──────────────────────────────
   const isShootIntent =
     lower.includes('çekim') ||
     lower.includes('cekim') ||
     lower.includes('çekimi') ||
     lower.includes('saat') ||
-    lower.includes('yaz') ||
-    lower.includes('ekle') ||
     lower.includes('planla');
 
   if (isShootIntent) {
     const targetDate = parseTargetDate(lower);
+    const foundClients: { clientName: string; time: string; title: string }[] = [];
 
-    // Try matching any registered business or candidate names in the user query
-    // e.g., "yarın saat 10 a luness 3 e dutt 6 ya sun brother pizza çekimi yaz"
-    const foundClients: { clientName: string; time: string }[] = [];
-
-    // Common time regex patterns: 10'a, 10:00, saat 10, 3'e, 15:00, 6'ya, 18:00
-    // Split query by segments or test clients against query
     data.isletmeler.forEach((biz) => {
       const bizName = biz.name.toLowerCase();
-      // Match if client name or first word is in query
       const firstWord = bizName.split(' ')[0];
       if (lower.includes(bizName) || (firstWord.length >= 3 && lower.includes(firstWord))) {
-        // Extract time near client name or index
         let time = '12:00';
         const clientIndex = lower.indexOf(firstWord);
         const subBefore = lower.substring(Math.max(0, clientIndex - 25), clientIndex);
         const subAfter = lower.substring(clientIndex, Math.min(lower.length, clientIndex + 25));
         const combinedSub = `${subBefore} ${subAfter}`;
 
-        // Look for numbers like 10, 3, 6, 15, 18
         if (combinedSub.includes('10')) time = '10:00';
         else if (combinedSub.includes('11')) time = '11:00';
         else if (combinedSub.includes('12')) time = '12:00';
-        else if (combinedSub.includes('13') || combinedSub.includes("1'e") || combinedSub.includes("1'ya")) time = '13:00';
-        else if (combinedSub.includes('14') || combinedSub.includes("2'ye") || combinedSub.includes("2'de")) time = '14:00';
-        else if (combinedSub.includes('15') || combinedSub.includes("3'e") || combinedSub.includes("3'de") || combinedSub.includes(' 3 ')) time = '15:00';
+        else if (combinedSub.includes('13') || combinedSub.includes("1'e")) time = '13:00';
+        else if (combinedSub.includes('14') || combinedSub.includes("2'ye")) time = '14:00';
+        else if (combinedSub.includes('15') || combinedSub.includes("3'e") || combinedSub.includes(' 3 ')) time = '15:00';
         else if (combinedSub.includes('16') || combinedSub.includes("4'e")) time = '16:00';
         else if (combinedSub.includes('17') || combinedSub.includes("5'e")) time = '17:00';
-        else if (combinedSub.includes('18') || combinedSub.includes("6'ya") || combinedSub.includes("6'da") || combinedSub.includes(' 6 ')) time = '18:00';
-        else if (combinedSub.includes('19') || combinedSub.includes("7'ye")) time = '19:00';
-        else if (combinedSub.includes('20') || combinedSub.includes("8'e")) time = '20:00';
+        else if (combinedSub.includes('18') || combinedSub.includes("6'ya") || combinedSub.includes(' 6 ')) time = '18:00';
 
-        foundClients.push({ clientName: biz.name, time });
+        let shootTitle = 'Sosyal Medya Video Çekimi';
+        if (lower.includes('sinematik') || lower.includes('reels')) {
+          shootTitle = 'Sinematik Reels Video Çekimi';
+        }
+
+        foundClients.push({ clientName: biz.name, time, title: shootTitle });
       }
     });
 
-    // Also extract raw client names dynamically if not registered yet
     if (foundClients.length === 0) {
-      // Dynamic extraction of words near 'çekimi' or time indicators
       const parts = lower.split(/çekimi|çekim|yaz|ekle|planla/);
       if (parts.length > 0) {
         const potentialName = parts[0].replace(/yarın|yarin|obur|öbür|gun|gün|saat|\d+('a|'e|'ya|'ye|:00)?/gi, '').trim();
@@ -169,7 +324,7 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
           if (lower.includes('10')) time = '10:00';
           else if (lower.includes('15') || lower.includes("3'e")) time = '15:00';
           else if (lower.includes('18') || lower.includes("6'ya")) time = '18:00';
-          foundClients.push({ clientName: capName, time });
+          foundClients.push({ clientName: capName, time, title: 'Sosyal Medya Video Çekimi' });
         }
       }
     }
@@ -180,7 +335,7 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
           type: 'ADD_SHOOT',
           payload: {
             client: fc.clientName,
-            title: 'Sosyal Medya Video Çekimi',
+            title: fc.title,
             date: targetDate,
             time: fc.time,
             location: 'İşletme Adresi / Çekim Alanı',
@@ -198,6 +353,64 @@ export function parseAICommandsAndIntent(userQuery: string, data: DataContextPay
 
       return { actions, textReply };
     }
+  }
+
+  // ─── 4. GELİR EKLEME NİYETİ (INCOME INTENT) ───────────────────────────────
+  const isIncomeIntent =
+    lower.includes('gelir') ||
+    lower.includes('ödeme yaptı') ||
+    lower.includes('odeme yapti') ||
+    lower.includes('tahsilat');
+
+  if (isIncomeIntent) {
+    const amountMatch = lower.match(/(\d+)\s*(tl|₺|lira)?/);
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+    const matchedClient = matchClientNameFromQuery(query, data.isletmeler);
+    const clientName = matchedClient || 'Müşteri';
+
+    if (amount > 0) {
+      actions.push({
+        type: 'ADD_INCOME',
+        payload: {
+          client: clientName,
+          description: `${clientName} - Tahsilat / Ödeme`,
+          amount,
+          date: todayStr,
+          status: lower.includes('yaptı') || lower.includes('ödendi') ? 'paid' : 'pending',
+          paidAmount: lower.includes('yaptı') || lower.includes('ödendi') ? amount : 0,
+        },
+        summary: `💰 <b>${clientName}</b> — ₺${amount.toLocaleString('tr-TR')}`,
+      });
+
+      let textReply = `✅ <b>GELİR KAYDI VERİTABANINA EKLENDİ:</b>\n\n`;
+      textReply += `• Müşteri: <b>${clientName}</b>\n`;
+      textReply += `• Tutar: <b>₺${amount.toLocaleString('tr-TR')}</b>\n`;
+      textReply += `• Durum: <b>${lower.includes('yaptı') || lower.includes('ödendi') ? '🟢 Ödendi' : '🟡 Bekliyor'}</b>\n\n`;
+      textReply += `Gelirler modülünden finansal detayları inceleyebilirsiniz! 💵`;
+
+      return { actions, textReply };
+    }
+  }
+
+  // ─── 5. HAFTALIK NOT / GÖREV NİYETİ (NOTE INTENT) ─────────────────────────
+  if (lower.includes('not') && (lower.includes('ekle') || lower.includes('al') || lower.includes('yaz'))) {
+    const matchedClient = matchClientNameFromQuery(query, data.isletmeler);
+    
+    actions.push({
+      type: 'ADD_NOTE',
+      payload: {
+        content: query,
+        client: matchedClient || undefined,
+      },
+      summary: `📝 <b>Not:</b> "${query}"`,
+    });
+
+    let textReply = `✅ <b>YAPILACAK GÖREV / NOT VERİTABANINA EKLENDİ:</b>\n\n`;
+    textReply += `• Not: <b>"${query}"</b>\n`;
+    if (matchedClient) textReply += `• İlgili İşletme: <b>${matchedClient}</b>\n`;
+    textReply += `\nDashboard haftalık notlar kısmından görevi takip edebilirsiniz! 📌`;
+
+    return { actions, textReply };
   }
 
   // Fallback to query processor if no specific creation action was parsed
@@ -237,10 +450,10 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     query.includes('naber')
   ) {
     const activeCount = data.isletmeler.filter((i) => i.active).length;
-    return `Selamlar! Ben MOKA CREATIVE AGENCY canlı veritabanı hafızasına sahip AI Asistanınızım. 🤖\n\nŞu an sistemde <b>${data.isletmeler.length} işletmeniz</b> (${activeCount} aktif), planlı çekimleriniz ve kurgularınız güncel olarak zihnimdedir.\n\nBana <i>"İşletmelerimizi listele"</i>, <i>"Editör yükü nasıl?"</i> veya <i>"Yarın 10'a X çekimi yaz"</i> diyebilirsiniz!`;
+    return `Selamlar! Ben MOKA CREATIVE AGENCY canlı veritabanı hafızasına sahip AI Operatörünüzüm. 🤖\n\nŞu an sistemde <b>${data.isletmeler.length} işletmeniz</b> (${activeCount} aktif), planlı çekimleriniz, kurgularınız ve harcamalarınız güncel olarak zihnimdedir.\n\nBana doğal Türkçe cümlelerle emredebilirsiniz:\n• <i>"1200 tl yakıt aldım kadirin araba gider olarak ekle"</i>\n• <i>"Cuma 12'ye pety music sinematik 2 adet reels çekimi yaz"</i>\n• <i>"2 gün içinde akbay tekstil sinematik videosuna revize notları ses düzenlenecek"</i>`;
   }
 
-  // 2. STKATEJİK ANALİZ: Düşük Getiri / Düşük Ciro / Zahmetli İşletmeler
+  // 2. STRATEJİK ANALİZ: Düşük Getiri / Düşük Ciro / Zahmetli İşletmeler
   if (
     query.includes('düşük getiri') ||
     query.includes('düşük ciro') ||
@@ -253,7 +466,6 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
       return `Veritabanında kayıtlı işletme bulunmuyor.`;
     }
 
-    // Sort clients by numeric fee ascending
     const parsedClients = data.isletmeler.map((biz) => {
       const numFee = Number(biz.fee.replace(/[^0-9.]/g, '')) || 0;
       const reelsTarget = biz.monthlyReelsTarget || 10;
@@ -276,7 +488,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 3. STRATEJİK ANALİZ: Kaybetmememiz Gereken / Hayati Önemdeki / Yüksek Cirolu Müşteriler
+  // 3. STRATEJİK ANALİZ: Kaybetmememiz Gereken Müşteriler
   if (
     query.includes('kaybetmemem') ||
     query.includes('kaybetmemek') ||
@@ -295,7 +507,6 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
       return { ...biz, numFee };
     });
 
-    // Sort clients by fee descending
     parsedClients.sort((a, b) => b.numFee - a.numFee);
     const topClients = parsedClients.slice(0, 5);
     const totalAgencyRev = parsedClients.reduce((acc, c) => acc + c.numFee, 0);
@@ -315,7 +526,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 4. İşletme / Müşteri Listesi Sorgusu (Örn: "işletmeleri listeler misin", "müşterilerimizi göster", "kaç işletmem var")
+  // 4. İşletme Listesi Sorgusu
   const isBusinessListIntent =
     query.includes('işletme') ||
     query.includes('isletme') ||
@@ -345,7 +556,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 3. Özel notlar & Kritik durumlar
+  // 5. Özel notlar & Kritik durumlar
   if (query.includes('not') || query.includes('taviz') || query.includes('esnek') || query.includes('kritik') || query.includes('zor') || query.includes('özellik')) {
     const clientsWithNotes = data.isletmeler.filter((i) => i.notes && i.notes.trim().length > 0);
     if (clientsWithNotes.length === 0) {
@@ -358,7 +569,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 4. Editör / Ekip İş yükü sorgusu
+  // 6. Editör / Ekip İş yükü sorgusu
   if (query.includes('editör') || query.includes('kurgu') || query.includes('iş yükü') || query.includes('ekip') || query.includes('edit')) {
     const pendingEdits = data.editler.filter((e) => e.status !== 'ready' && e.status !== 'published');
     const workload: Record<string, number> = {};
@@ -377,7 +588,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 5. Çekimler sorgusu
+  // 7. Çekimler sorgusu
   if (query.includes('çekim') || query.includes('cekim') || query.includes('günlük çekim') || query.includes('bugün') || query.includes('hafta')) {
     const todayStr = new Date().toISOString().split('T')[0];
     const todayShoots = data.cekimler.filter((s) => s.date === todayStr);
@@ -399,26 +610,7 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
     return res;
   }
 
-  // 6. Belirli bir işletme adı aranıyorsa
-  const matchedClient = data.isletmeler.find((i) => query.includes(i.name.toLowerCase()));
-  if (matchedClient) {
-    const clientEdits = data.editler.filter((e) => isClientMatch(e.client, matchedClient.name));
-    const clientShoots = data.cekimler.filter((s) => isClientMatch(s.client, matchedClient.name));
-
-    let res = `🏢 <b>${matchedClient.name} İşletme Raporu:</b>\n`;
-    res += `• <b>Paket Ücreti:</b> ${matchedClient.fee}\n`;
-    res += `• <b>Yetkili:</b> ${matchedClient.contact} (${matchedClient.phone})\n`;
-    res += `• <b>Sosyal Medya:</b> ${matchedClient.instagram}\n`;
-    res += `• <b>Aylık Hedefler:</b> ${matchedClient.monthlyReelsTarget || 10} Reels, ${matchedClient.monthlyShootTarget || 2} Çekim, Max ${matchedClient.maxDaysBetweenPosts || 3} Gün Aralık\n`;
-    res += `• <b>Çekim Sayısı:</b> ${clientShoots.length} kayıtlı çekim\n`;
-    res += `• <b>Edit Sayısı:</b> ${clientEdits.length} kurgu kaydı\n`;
-    if (matchedClient.notes) {
-      res += `• 🧠 <b>Özel AI Notu:</b> "${matchedClient.notes}"\n`;
-    }
-    return res;
-  }
-
-  // 7. Finans sorgusu
+  // 8. Finans sorgusu
   if (query.includes('gelir') || query.includes('gider') || query.includes('para') || query.includes('bütçe') || query.includes('finans')) {
     const totalRevenue = data.gelirler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
     const totalExpenses = data.giderler.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
@@ -433,9 +625,8 @@ export function processLocalAIChat(userQuery: string, data: DataContextPayload):
 
   // Varsayılan genel cevap
   return `Anlaşıldı! Veritabanındaki **${data.isletmeler.length} işletmeniz**, çekimleriniz, editleriniz ve finansal kayıtlarınız zihnimde anlık olarak günceldir.\n\n` +
-         `Bana örneğin şunları yazabilirsiniz:\n` +
-         `• <i>"Yarın saat 10'a Luness, 3'e Dutt, 6'ya Sun Brother Pizza çekimi yaz."</i> (Otomatik Veritabanına Ekler)\n` +
-         `• <i>"Kaç işletmem var?"</i>\n` +
-         `• <i>"Taviz vermeyen ve zor videolar isteyen müşteriler kimler?"</i>\n` +
-         `• <i>"Editör iş yükümüz nasıl?"</i>`;
+         `Bana doğal Türkçe ile komut verebilirsiniz:\n` +
+         `• <i>"1200 tl yakıt aldım kadirin araba gider olarak ekle"</i>\n` +
+         `• <i>"2 gün içinde akbay tekstil sinematik videosuna revize notları ses düzenlenecek"</i>\n` +
+         `• <i>"Cuma 12'ye pety music sinematik 2 adet reels çekimi yaz"</i>`;
 }

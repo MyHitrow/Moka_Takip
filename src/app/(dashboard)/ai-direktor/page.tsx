@@ -54,6 +54,8 @@ export default function AiDirektorPage() {
     addEdit,
     addHaftalikNot,
     addTakvimPost,
+    addGider,
+    addGelir,
   } = useData();
 
   const [chatInput, setChatInput] = useState('');
@@ -62,7 +64,7 @@ export default function AiDirektorPage() {
     {
       id: 'welcome',
       sender: 'ai',
-      text: `Merhaba! Ben **MOKA CREATIVE AGENCY** canlı veritabanı hafızasına ve **EYLEM YETKİSİNE** sahip **Otonom AI Asistanınızım**.\n\nSistemdeki **${isletmeler.length} işletmeniz**, çekimleriniz ve kurgularınız zihnimde günceldir.\n\nBana sadece soru sormakla kalmayıp emredebilirsiniz:\n• *"Yarın saat 10'a Luness, 3'e Dutt, 6'ya Sun Brother Pizza çekimi yaz."*\n(Anında veritabanına otomatik eklerim!)`,
+      text: `Merhaba! Ben **MOKA CREATIVE AGENCY** canlı veritabanı hafızasına ve **OTONOM EYLEM YETKİSİNE** sahip **AI Operatörünüzüm**.\n\nFormlarla uğraşmadan doğal Türkçe ile emredebilirsiniz, verileri anında veritabanına işlerim:\n\n• 💳 *"1200 tl yakıt aldım kadirin araba gider olarak ekle"* (Giderler'e ekler!)\n• 🎬 *"2 gün içinde akbay tekstil sinematik videosuna revize notları ses düzenlenecek"* (Editler'e ekler!)\n• 📸 *"Cuma 12'ye pety music sinematik 2 adet reels çekimi yaz"* (Çekimler'e ekler!)`,
       timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -123,6 +125,10 @@ export default function AiDirektorPage() {
             addEdit(act.payload);
           } else if (act.type === 'ADD_NOTE') {
             addHaftalikNot(act.payload.content, act.payload.client);
+          } else if (act.type === 'ADD_EXPENSE') {
+            addGider(act.payload);
+          } else if (act.type === 'ADD_INCOME') {
+            addGelir(act.payload);
           }
         });
 
