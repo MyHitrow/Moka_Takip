@@ -15,7 +15,6 @@ interface UseFinansProps {
 
 export function createFinansActions({
   gelirler,
-  giderler,
   isletmeler,
   setGelirler,
   setGiderler,
@@ -23,17 +22,26 @@ export function createFinansActions({
   fetchCloudData,
 }: UseFinansProps) {
   const addGelir = async (item: Omit<Gelir, 'id'>) => {
+    const tempId = `temp_${Date.now()}`;
+    const newGelir: Gelir = { id: tempId, ...item };
+
+    // Optimistik UI güncellemesi — anında ekranda göster
+    setGelirler((prev) => [newGelir, ...prev]);
+
     try {
-      const { error } = await supabase.from('income_records').insert({
+      const { data, error } = await supabase.from('income_records').insert({
         client_name: item.client.trim(),
         description: item.description,
         amount: item.amount,
         due_date: item.date,
         collection_status: item.status || 'pending',
         paid_amount: item.paidAmount || (item.status === 'paid' ? item.amount : 0),
-      });
+      }).select();
+
       if (error) {
         logger.error('Gelir ekleme hatası:', error.message);
+      } else if (data && data[0]) {
+        setGelirler((prev) => prev.map((g) => (g.id === tempId ? { ...g, id: data[0].id } : g)));
       }
       await fetchCloudData();
     } catch (e) {
@@ -42,17 +50,13 @@ export function createFinansActions({
   };
 
   const deleteGelir = async (id: string) => {
-    const target = gelirler.find((g) => g.id === id);
     setGelirler((prev) => prev.filter((i) => i.id !== id));
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('income_records').delete().eq('id', id);
         if (error) logger.error('Gelir silme hatası:', error.message);
-      } else if (target) {
-        const { error } = await supabase.from('income_records').delete().eq('description', target.description);
-        if (error) logger.error('Gelir silme hatası (description):', error.message);
+        await fetchCloudData();
       }
-      await fetchCloudData();
     } catch (e) {
       logger.error('deleteGelir beklenmeyen hata:', e);
     }
@@ -155,17 +159,26 @@ export function createFinansActions({
   };
 
   const addGider = async (item: Omit<Gider, 'id'>) => {
+    const tempId = `temp_${Date.now()}`;
+    const newGider: Gider = { id: tempId, ...item };
+
+    // Optimistik UI güncellemesi — anında ekranda göster
+    setGiderler((prev) => [newGider, ...prev]);
+
     try {
-      const { error } = await supabase.from('expense_records').insert({
+      const { data, error } = await supabase.from('expense_records').insert({
         title: item.title,
         description: item.title,
         category: safeExpenseCategory(item.category),
         amount: item.amount,
         expense_date: item.date,
         paid_by_text: item.paidBy,
-      });
+      }).select();
+
       if (error) {
         logger.error('Gider ekleme hatası:', error.message);
+      } else if (data && data[0]) {
+        setGiderler((prev) => prev.map((g) => (g.id === tempId ? { ...g, id: data[0].id } : g)));
       }
       await fetchCloudData();
     } catch (e) {
@@ -174,17 +187,13 @@ export function createFinansActions({
   };
 
   const deleteGider = async (id: string) => {
-    const target = giderler.find((g) => g.id === id);
     setGiderler((prev) => prev.filter((i) => i.id !== id));
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('expense_records').delete().eq('id', id);
         if (error) logger.error('Gider silme hatası:', error.message);
-      } else if (target) {
-        const { error } = await supabase.from('expense_records').delete().eq('title', target.title);
-        if (error) logger.error('Gider silme hatası (title):', error.message);
+        await fetchCloudData();
       }
-      await fetchCloudData();
     } catch (e) {
       logger.error('deleteGider beklenmeyen hata:', e);
     }

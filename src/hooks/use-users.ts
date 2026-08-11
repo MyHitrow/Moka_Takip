@@ -50,10 +50,11 @@ export function createUsersActions({
 
       await fetchCloudData();
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as { message?: string };
       logger.error('Kullanıcı ekleme beklenmeyen hata:', e);
       setSystemUsers((prev) => prev.filter((u) => u.id !== newId));
-      return { success: false, message: e?.message || 'Beklenmeyen bir hata oluştu.' };
+      return { success: false, message: err?.message || 'Beklenmeyen bir hata oluştu.' };
     }
   };
 
@@ -79,7 +80,7 @@ export function createUsersActions({
     setSystemUsers((prev) => prev.map((u) => (u.id === id ? updatedUser : u)));
 
     try {
-      const updateData: Record<string, any> = {};
+      const updateData: Record<string, unknown> = {};
       if (updatedFields.name) updateData.name = updatedFields.name;
       if (updatedFields.username) updateData.username = cleanUsername;
       if (updatedFields.password) updateData.password = updatedFields.password;
@@ -95,10 +96,11 @@ export function createUsersActions({
 
       await fetchCloudData();
       return { success: true };
-    } catch (e: any) {
+    } catch (e) {
+      const err = e as { message?: string };
       logger.error('Kullanıcı güncelleme beklenmeyen hata:', e);
       setSystemUsers((prev) => prev.map((u) => (u.id === id ? target : u)));
-      return { success: false, message: e?.message || 'Beklenmeyen bir hata oluştu.' };
+      return { success: false, message: err?.message || 'Beklenmeyen bir hata oluştu.' };
     }
   };
 

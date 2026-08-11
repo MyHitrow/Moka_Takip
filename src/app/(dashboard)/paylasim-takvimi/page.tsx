@@ -14,6 +14,7 @@ import { useData } from '@/context/data-context';
 import { parseExcelFile, ParsedExcelResult, downloadSampleTakvimExcelTemplate } from '@/lib/excel-importer';
 
 import { PermissionGuard } from '@/components/shared/permission-guard';
+import { ConfirmDeleteModal } from '@/components/shared/confirm-delete-modal';
 
 export default function PaylasimTakvimiPage() {
   return (
@@ -30,6 +31,7 @@ function PaylasimTakvimiPageContent() {
   const [selectedDay, setSelectedDay] = useState<number>(3); // Selected day on mobile carousel
   const [mobileView, setMobileView] = useState<'carousel' | 'list'>('carousel');
   const [open, setOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -497,7 +499,7 @@ function PaylasimTakvimiPageContent() {
                             <h4 className="text-base font-extrabold text-foreground mt-0.5">{post.title}</h4>
                           </div>
                           <button
-                            onClick={() => deleteTakvimPost(post.id)}
+                            onClick={() => setDeleteConfirmId(post.id)}
                             className="text-muted-foreground hover:text-red-500 p-1"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -684,7 +686,7 @@ function PaylasimTakvimiPageContent() {
                           <div className="flex items-center justify-between font-semibold">
                             <span className="truncate max-w-[90px]">{post.client}</span>
                             <button
-                              onClick={() => deleteTakvimPost(post.id)}
+                              onClick={() => setDeleteConfirmId(post.id)}
                               className="text-muted-foreground hover:text-red-500 p-0.5"
                               title="Sil"
                             >
@@ -717,6 +719,19 @@ function PaylasimTakvimiPageContent() {
           </div>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        open={!!deleteConfirmId}
+        onOpenChange={(op) => { if (!op) setDeleteConfirmId(null); }}
+        title="Takvim Gönderisini Sil"
+        description="Bu takvim paylaşım gönderisini silmek istediğinize emin misiniz? Bu işlem veritabanından geri alınamaz."
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteTakvimPost(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+      />
     </div>
   );
 }

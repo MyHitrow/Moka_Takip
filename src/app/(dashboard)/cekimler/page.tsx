@@ -32,6 +32,7 @@ import { generateSingleCekimIcal, generateBulkCekimlerIcal, downloadIcsCalendarF
 import { Cekim } from '@/types/app';
 
 import { PermissionGuard } from '@/components/shared/permission-guard';
+import { ConfirmDeleteModal } from '@/components/shared/confirm-delete-modal';
 
 export default function CekimlerPage() {
   return (
@@ -47,6 +48,7 @@ function CekimlerPageContent() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 7, 1)); // Default Aug 2026
   const [selectedDay, setSelectedDay] = useState<number>(5);
   const [open, setOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -528,10 +530,10 @@ function CekimlerPageContent() {
                             >
                               {SHOOT_STATUS_LABELS?.[shoot.status as keyof typeof SHOOT_STATUS_LABELS] || shoot.status}
                             </Badge>
-                            <button
-                              onClick={() => deleteCekim(shoot.id)}
-                              className="text-muted-foreground hover:text-red-500 p-1"
-                            >
+                             <button
+                               onClick={() => setDeleteConfirmId(shoot.id)}
+                               className="text-muted-foreground hover:text-red-500 p-1"
+                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -649,11 +651,11 @@ function CekimlerPageContent() {
                             >
                               <div className="flex items-center justify-between font-bold text-foreground">
                                 <span className="truncate max-w-[90px] text-primary">{shoot.client}</span>
-                                <button
-                                  onClick={() => deleteCekim(shoot.id)}
-                                  className="text-muted-foreground hover:text-red-500 p-0.5"
-                                  title="Sil"
-                                >
+                                 <button
+                                   onClick={() => setDeleteConfirmId(shoot.id)}
+                                   className="text-muted-foreground hover:text-red-500 p-0.5"
+                                   title="Sil"
+                                 >
                                   <Trash2 className="w-3 h-3" />
                                 </button>
                               </div>
@@ -759,11 +761,11 @@ function CekimlerPageContent() {
                               </select>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button
-                                onClick={() => deleteCekim(shoot.id)}
-                                className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                                title="Sil"
-                              >
+                               <button
+                                 onClick={() => setDeleteConfirmId(shoot.id)}
+                                 className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                                 title="Sil"
+                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </td>
@@ -806,7 +808,7 @@ function CekimlerPageContent() {
                             <h4 className="font-extrabold text-base text-foreground">{shoot.title}</h4>
                           </div>
                           <button
-                            onClick={() => deleteCekim(shoot.id)}
+                            onClick={() => setDeleteConfirmId(shoot.id)}
                             className="text-muted-foreground hover:text-red-500 transition-colors p-1"
                             title="Sil"
                           >
@@ -845,6 +847,19 @@ function CekimlerPageContent() {
           </div>
         )}
       </div>
+
+      <ConfirmDeleteModal
+        open={!!deleteConfirmId}
+        onOpenChange={(op) => { if (!op) setDeleteConfirmId(null); }}
+        title="Çekim Kaydını Sil"
+        description="Bu çekim kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteCekim(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+      />
     </div>
   );
 }

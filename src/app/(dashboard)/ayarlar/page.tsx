@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Settings, ShieldCheck, Plus, Trash2, Edit, Eye, EyeOff, Copy, Check, Cloud, Database, AlertTriangle, Key } from 'lucide-react';
 import { useData, SystemUser } from '@/context/data-context';
+import { ConfirmDeleteModal } from '@/components/shared/confirm-delete-modal';
 
 export default function AyarlarPage() {
   const { systemUsers, currentUser, isCloudConnected, addSystemUser, updateSystemUser, deleteSystemUser } = useData();
@@ -18,6 +19,7 @@ export default function AyarlarPage() {
   const [openUserModal, setOpenUserModal] = useState(false);
   const [openEditModal, setOpenEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [errorMsg, setErrorMsg] = useState('');
   const [editErrorMsg, setEditErrorMsg] = useState('');
@@ -287,7 +289,7 @@ export default function AyarlarPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => deleteSystemUser(user.id)}
+                        onClick={() => setDeleteConfirmId(user.id)}
                         className="text-muted-foreground hover:text-red-500 hover:bg-red-500/10 h-8 w-8 p-0"
                         title="Kullanıcıyı Sil"
                       >
@@ -406,6 +408,19 @@ export default function AyarlarPage() {
           </Card>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        open={!!deleteConfirmId}
+        onOpenChange={(op) => { if (!op) setDeleteConfirmId(null); }}
+        title="Kullanıcı Hesabını Sil"
+        description="Bu panel giriş hesabını silmek istediğinize emin misiniz? Bu kullanıcı bir daha panele giriş yapamayacaktır."
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteSystemUser(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+      />
     </div>
   );
 }

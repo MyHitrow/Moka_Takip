@@ -26,6 +26,7 @@ import {
 import { useData } from '@/context/data-context';
 
 import { PermissionGuard } from '@/components/shared/permission-guard';
+import { ConfirmDeleteModal } from '@/components/shared/confirm-delete-modal';
 
 export default function EditlerPage() {
   return (
@@ -38,6 +39,7 @@ export default function EditlerPage() {
 function EditlerPageContent() {
   const { editler, ekip, isletmeler, addEdit, deleteEdit, updateEditStatus, formatDateTr } = useData();
   const [open, setOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [mainCategory, setMainCategory] = useState<'pending' | 'completed'>('pending');
 
   const [title, setTitle] = useState('');
@@ -329,7 +331,7 @@ function EditlerPageContent() {
                                 <Badge variant="outline" className="text-[8px] px-1 py-0 font-bold">{card.type}</Badge>
                               )}
                               <button
-                                onClick={() => deleteEdit(card.id)}
+                                onClick={() => setDeleteConfirmId(card.id)}
                                 className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
                                 title="Sil"
                               >
@@ -421,7 +423,7 @@ function EditlerPageContent() {
                             <div className="flex items-center gap-1 shrink-0">
                               <Badge variant="outline" className="text-[8px] px-1 py-0 font-bold">{card.type}</Badge>
                               <button
-                                onClick={() => deleteEdit(card.id)}
+                                onClick={() => setDeleteConfirmId(card.id)}
                                 className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
                                 title="Sil"
                               >
@@ -495,7 +497,7 @@ function EditlerPageContent() {
                             🚀 Hazır
                           </Badge>
                           <button
-                            onClick={() => deleteEdit(card.id)}
+                            onClick={() => setDeleteConfirmId(card.id)}
                             className="text-muted-foreground hover:text-red-500 transition-colors p-0.5"
                             title="Sil"
                           >
@@ -535,6 +537,19 @@ function EditlerPageContent() {
           </div>
         )}
       </div>
+
+      <ConfirmDeleteModal
+        open={!!deleteConfirmId}
+        onOpenChange={(op) => { if (!op) setDeleteConfirmId(null); }}
+        title="Edit Görevini Sil"
+        description="Bu edit görevini silmek istediğinize emin misiniz? Bu işlem veritabanından geri alınamaz."
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteEdit(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+      />
     </div>
   );
 }

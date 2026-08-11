@@ -11,10 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Users, Phone, Video, Trash2, Plus, Sparkles, Scale, Megaphone, Flame } from 'lucide-react';
 import { useData } from '@/context/data-context';
+import { ConfirmDeleteModal } from '@/components/shared/confirm-delete-modal';
 
 export default function EkipPage() {
   const { ekip, editler, addEkipUyesi, deleteEkipUyesi } = useData();
   const [open, setOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [name, setName] = useState('');
   const [role, setRole] = useState('Creative Director');
@@ -145,7 +147,7 @@ export default function EkipPage() {
             return (
               <Card key={member.id} className="p-6 bg-card border-border flex flex-col items-center text-center relative group shadow-sm hover:border-primary/50 transition-colors">
                 <button
-                  onClick={() => deleteEkipUyesi(member.id)}
+                  onClick={() => setDeleteConfirmId(member.id)}
                   className="absolute top-3 right-3 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
                   title="Sil"
                 >
@@ -172,6 +174,19 @@ export default function EkipPage() {
           })}
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        open={!!deleteConfirmId}
+        onOpenChange={(op) => { if (!op) setDeleteConfirmId(null); }}
+        title="Ekip Üyesini Sil"
+        description="Bu ekip üyesini silmek istediğinize emin misiniz? Bu işlem geri alınamaz."
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteEkipUyesi(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+      />
     </div>
   );
 }

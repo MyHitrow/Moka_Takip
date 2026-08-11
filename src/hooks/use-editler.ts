@@ -11,7 +11,6 @@ interface UseEditlerProps {
 }
 
 export function createEditlerActions({
-  editler,
   setEditler,
   supabase,
   fetchCloudData,
@@ -44,17 +43,13 @@ export function createEditlerActions({
   };
 
   const deleteEdit = async (id: string) => {
-    const target = editler.find((e) => e.id === id);
     setEditler((prev) => prev.filter((i) => i.id !== id));
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('edits').delete().eq('id', id);
         if (error) logger.error('Edit silme hatası:', error.message);
-      } else if (target) {
-        const { error } = await supabase.from('edits').delete().eq('title', target.title).eq('client_name', target.client);
-        if (error) logger.error('Edit silme hatası (title):', error.message);
+        await fetchCloudData();
       }
-      await fetchCloudData();
     } catch (e) {
       logger.error('deleteEdit beklenmeyen hata:', e);
     }

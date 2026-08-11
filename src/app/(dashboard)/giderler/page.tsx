@@ -12,6 +12,7 @@ import { TrendingDown, Calendar, CreditCard, Trash2, Plus } from 'lucide-react';
 import { EXPENSE_CATEGORY_LABELS } from '@/lib/constants';
 import { useData } from '@/context/data-context';
 import { ExpenseChartWidget } from '@/components/giderler/expense-chart-widget';
+import { ConfirmDeleteModal } from '@/components/shared/confirm-delete-modal';
 
 export default function GiderlerPage() {
   return <GiderlerPageContent />;
@@ -20,14 +21,15 @@ export default function GiderlerPage() {
 function GiderlerPageContent() {
   const { giderler, addGider, deleteGider, formatDateTr } = useData();
   const [open, setOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('office');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(todayStr);
   const [paidBy, setPaidBy] = useState('Şirket Hesabı');
-
-  const todayStr = new Date().toISOString().split('T')[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +44,7 @@ function GiderlerPageContent() {
     setTitle('');
     setCategory('office');
     setAmount('');
-    setDate('');
+    setDate(todayStr);
     setPaidBy('Şirket Hesabı');
     setOpen(false);
   };
@@ -188,7 +190,7 @@ function GiderlerPageContent() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => deleteGider(expense.id)}
+                        onClick={() => setDeleteConfirmId(expense.id)}
                         className="text-muted-foreground hover:text-red-500 transition-colors p-1.5 rounded-lg hover:bg-red-500/10"
                         title="Sil"
                       >
@@ -213,7 +215,7 @@ function GiderlerPageContent() {
                     </p>
                   </div>
                   <button
-                    onClick={() => deleteGider(expense.id)}
+                    onClick={() => setDeleteConfirmId(expense.id)}
                     className="text-muted-foreground hover:text-red-500 p-1"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -239,6 +241,19 @@ function GiderlerPageContent() {
           </div>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        open={!!deleteConfirmId}
+        onOpenChange={(op) => { if (!op) setDeleteConfirmId(null); }}
+        title="Gider Kaydını Sil"
+        description="Bu gider/harcama kaydını silmek istediğinize emin misiniz? Bu işlem veritabanından geri alınamaz."
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteGider(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+      />
     </div>
   );
 }

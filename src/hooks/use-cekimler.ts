@@ -11,7 +11,6 @@ interface UseCekimlerProps {
 }
 
 export function createCekimlerActions({
-  cekimler,
   setCekimler,
   supabase,
   fetchCloudData,
@@ -36,17 +35,13 @@ export function createCekimlerActions({
   };
 
   const deleteCekim = async (id: string) => {
-    const target = cekimler.find((c) => c.id === id);
     setCekimler((prev) => prev.filter((i) => i.id !== id));
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('shoots').delete().eq('id', id);
         if (error) logger.error('Çekim silme hatası:', error.message);
-      } else if (target) {
-        const { error } = await supabase.from('shoots').delete().eq('title', target.title);
-        if (error) logger.error('Çekim silme hatası (title):', error.message);
+        await fetchCloudData();
       }
-      await fetchCloudData();
     } catch (e) {
       logger.error('deleteCekim beklenmeyen hata:', e);
     }

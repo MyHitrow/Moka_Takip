@@ -28,6 +28,7 @@ const MONTHS_TR = [
 ];
 
 import { PermissionGuard } from '@/components/shared/permission-guard';
+import { ConfirmDeleteModal } from '@/components/shared/confirm-delete-modal';
 
 export default function GelirlerPage() {
   return (
@@ -58,6 +59,7 @@ function GelirlerPageContent() {
   const [selectedMonth, setSelectedMonth] = useState<string>(defaultMonthKey);
   const [selectedYear, setSelectedYear] = useState<string>(String(defaultYear));
   const [open, setOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [generatedMsg, setGeneratedMsg] = useState('');
 
   // Partial Payment Modal State
@@ -564,7 +566,7 @@ function GelirlerPageContent() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <button
-                            onClick={() => deleteGelir(income.id)}
+                            onClick={() => setDeleteConfirmId(income.id)}
                             className="text-muted-foreground hover:text-red-500 transition-colors p-1"
                             title="Sil"
                           >
@@ -616,7 +618,7 @@ function GelirlerPageContent() {
                         <p className="text-xs text-muted-foreground">{income.description}</p>
                       </div>
                       <button
-                        onClick={() => deleteGelir(income.id)}
+                        onClick={() => setDeleteConfirmId(income.id)}
                         className="text-muted-foreground hover:text-red-500 p-1"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -767,6 +769,19 @@ function GelirlerPageContent() {
             )}
           </DialogContent>
         </Dialog>
+
+        <ConfirmDeleteModal
+          open={!!deleteConfirmId}
+          onOpenChange={(op) => { if (!op) setDeleteConfirmId(null); }}
+          title="Tahsilat Kaydını Sil"
+          description="Bu gelir/tahsilat kaydını silmek istediğinize emin misiniz? Bu işlem veritabanından geri alınamaz."
+          onConfirm={() => {
+            if (deleteConfirmId) {
+              deleteGelir(deleteConfirmId);
+              setDeleteConfirmId(null);
+            }
+          }}
+        />
       </div>
     </div>
   );

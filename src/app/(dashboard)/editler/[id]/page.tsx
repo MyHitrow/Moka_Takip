@@ -14,7 +14,7 @@ export default function EditDetayPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const { editler, updateEditStatus, formatDateTr } = useData();
 
-  const edit = editler.find((e) => e.id === id) || editler[0];
+  const edit = editler.find((e) => e.id === id);
 
   if (!edit) {
     return (

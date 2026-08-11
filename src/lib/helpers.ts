@@ -1,25 +1,11 @@
-// Yardımcı saf fonksiyonlar — side effect yok, test edilebilir
+import { formatDate } from './utils';
 
 export function isUUID(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
 export function formatDateTr(dateStr: string): string {
-  if (!dateStr) return '-';
-  const parts = dateStr.split('-');
-  if (parts.length === 3) {
-    const year = parts[0];
-    const monthIndex = parseInt(parts[1], 10) - 1;
-    const day = parts[2];
-    const months = [
-      'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-      'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
-    ];
-    if (months[monthIndex]) {
-      return `${day} ${months[monthIndex]} ${year}`;
-    }
-  }
-  return dateStr;
+  return formatDate(dateStr);
 }
 
 export function normalizeRoleKey(roleStr: string): string {
@@ -101,14 +87,17 @@ export function safeExpenseCategory(category: string): string {
  * - Dutt için: 7 gün öncesine (etkinlik gecesi paylaşımları 3-4 gün önceden hazırlandığından 7 gün evvel edite girer).
  * - Diğer tüm işletmeler için: 2 gün öncesine (Örn: 7 Ağustos Cuma paylaşımı için 5 Ağustos Çarşamba editi).
  */
-export function calculateEditDeadlineForPost(clientName: string, postDateStr: string): string {
+export function calculateEditDeadlineForPost(
+  clientName: string,
+  postDateStr: string,
+  customDaysBefore?: number
+): string {
   if (!postDateStr) return new Date().toISOString().split('T')[0];
 
   const postDate = new Date(postDateStr);
   if (isNaN(postDate.getTime())) return postDateStr;
 
-  const normClient = (clientName || '').trim().toLowerCase();
-  const daysToSubtract = normClient.includes('dutt') ? 7 : 2;
+  const daysToSubtract = typeof customDaysBefore === 'number' ? customDaysBefore : 2;
 
   const editDate = new Date(postDate);
   editDate.setDate(editDate.getDate() - daysToSubtract);

@@ -220,7 +220,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       if (clientsData) {
         const realClients = clientsData.filter((c) => c.name !== '__SYSTEM_SETTINGS__');
         currentClientsList = realClients.map((c) => {
-          let rawContact = (c.contact_name || '-').split('__AI_META__:')[0].trim();
+          const rawContact = (c.contact_name || '-').split('__AI_META__:')[0].trim();
           let rawNotes = (c.notes || c.ai_notes || '').split('__AI_META__:')[0].trim();
           let maxDays = 3;
           let reelsTarget = 10;
@@ -228,12 +228,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
           if (c.contact_name && c.contact_name.includes('__AI_META__:')) {
             try {
-              const meta = JSON.parse(c.contact_name.split('__AI_META__:')[1]);
-              if (meta.maxDaysBetweenPosts) maxDays = Number(meta.maxDaysBetweenPosts);
-              if (meta.monthlyReelsTarget) reelsTarget = Number(meta.monthlyReelsTarget);
-              if (meta.monthlyShootTarget) shootTarget = Number(meta.monthlyShootTarget);
-              if (meta.notes) rawNotes = meta.notes;
-            } catch (e) {}
+              const parts = c.contact_name.split('__AI_META__:');
+              if (parts[1]) {
+                const meta = JSON.parse(parts[1]);
+                if (meta.maxDaysBetweenPosts && !isNaN(Number(meta.maxDaysBetweenPosts))) {
+                  maxDays = Number(meta.maxDaysBetweenPosts);
+                }
+                if (meta.monthlyReelsTarget && !isNaN(Number(meta.monthlyReelsTarget))) {
+                  reelsTarget = Number(meta.monthlyReelsTarget);
+                }
+                if (meta.monthlyShootTarget && !isNaN(Number(meta.monthlyShootTarget))) {
+                  shootTarget = Number(meta.monthlyShootTarget);
+                }
+                if (meta.notes && typeof meta.notes === 'string') {
+                  rawNotes = meta.notes;
+                }
+              }
+            } catch (e) {
+              logger.warn('AI Meta JSON parse hatası:', e);
+            }
           }
 
           const rawFee = c.monthly_fee !== undefined && c.monthly_fee !== null ? c.monthly_fee : c.package_fee;

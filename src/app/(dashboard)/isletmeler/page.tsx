@@ -13,6 +13,7 @@ import { Building2, Phone, AtSign, CheckCircle2, Trash2, Plus, Edit, Bot, Sparkl
 import { useData, Isletme } from '@/context/data-context';
 
 import { PermissionGuard } from '@/components/shared/permission-guard';
+import { ConfirmDeleteModal } from '@/components/shared/confirm-delete-modal';
 
 export default function IsletmelerPage() {
   return (
@@ -50,6 +51,8 @@ function IsletmelerPageContent() {
   const [editMonthlyReelsTarget, setEditMonthlyReelsTarget] = useState<number>(10);
   const [editMonthlyShootTarget, setEditMonthlyShootTarget] = useState<number>(2);
   const [editNotes, setEditNotes] = useState('');
+  // Delete Confirmation State
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -273,7 +276,7 @@ function IsletmelerPageContent() {
                   </button>
 
                   <button
-                    onClick={() => deleteIsletme(business.id)}
+                    onClick={() => setDeleteConfirmId(business.id)}
                     className="text-muted-foreground hover:text-red-500 transition-colors p-1"
                     title="İşletmeyi Sil"
                   >
@@ -451,6 +454,19 @@ function IsletmelerPageContent() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteModal
+        open={!!deleteConfirmId}
+        onOpenChange={(op) => { if (!op) setDeleteConfirmId(null); }}
+        title="İşletmeyi Sil"
+        description="Bu işletmeyi ve ilgili tüm verilerini silmek istediğinize emin misiniz? Bu işlem veritabanından geri alınamaz."
+        onConfirm={() => {
+          if (deleteConfirmId) {
+            deleteIsletme(deleteConfirmId);
+            setDeleteConfirmId(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -43,7 +43,7 @@ export function createIsletmelerActions({
     const fullContact = `${cleanContact} __AI_META__:${aiMeta}`;
 
     try {
-      const { data, error } = await supabase.from('clients').insert({
+      const { error } = await supabase.from('clients').insert({
         name: item.name.trim(),
         contact_name: fullContact,
         phone: item.phone || '-',
@@ -191,24 +191,21 @@ export function createIsletmelerActions({
       if (isUUID(id)) {
         const { error } = await supabase.from('clients').delete().eq('id', id);
         if (error) logger.error('İşletme silme hatası:', error.message);
-      } else if (target) {
-        const { error } = await supabase.from('clients').delete().eq('name', target.name);
-        if (error) logger.error('İşletme silme hatası (name):', error.message);
-      }
 
-      if (targetName) {
-        for (const table of ['income_records', 'shoots', 'edits', 'content_calendar'] as const) {
-          const { data: rows } = await supabase.from(table).select('id, client_name');
-          if (rows) {
-            for (const row of rows) {
-              if (isClientMatch(row.client_name, targetName)) {
-                await supabase.from(table).delete().eq('id', row.id);
+        if (targetName) {
+          for (const table of ['income_records', 'shoots', 'edits', 'content_calendar'] as const) {
+            const { data: rows } = await supabase.from(table).select('id, client_name');
+            if (rows) {
+              for (const row of rows) {
+                if (isClientMatch(row.client_name, targetName)) {
+                  await supabase.from(table).delete().eq('id', row.id);
+                }
               }
             }
           }
         }
+        await fetchCloudData();
       }
-      await fetchCloudData();
     } catch (e) {
       logger.error('deleteIsletme beklenmeyen hata:', e);
     }

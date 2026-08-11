@@ -14,7 +14,7 @@ export default function IsletmeDetayPage({ params }: { params: Promise<{ id: str
   const { id } = use(params);
   const { isletmeler, cekimler, editler, gelirler, formatDateTr } = useData();
 
-  const business = isletmeler.find((b) => b.id === id) || isletmeler[0];
+  const business = isletmeler.find((b) => b.id === id);
 
   if (!business) {
     return (

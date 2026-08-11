@@ -51,7 +51,6 @@ function findBestMatchingClient(
 }
 
 export function createTakvimActions({
-  takvimPosts,
   setTakvimPosts,
   setEditler,
   supabase,
@@ -77,7 +76,7 @@ export function createTakvimActions({
         if (newC) clientId = newC.id;
       }
 
-      const calendarRow: Record<string, any> = {
+      const calendarRow: Record<string, unknown> = {
         client_id: clientId,
         client_name: officialClientName,
         title: item.title,
@@ -113,7 +112,7 @@ export function createTakvimActions({
         ]);
       }
 
-      const editRow: Record<string, any> = {
+      const editRow: Record<string, unknown> = {
         client_id: clientId,
         client_name: officialClientName,
         title: editTitle,
@@ -136,17 +135,13 @@ export function createTakvimActions({
   };
 
   const deleteTakvimPost = async (id: string) => {
-    const target = takvimPosts.find((t) => t.id === id);
     setTakvimPosts((prev) => prev.filter((t) => t.id !== id));
     try {
       if (isUUID(id)) {
         const { error } = await supabase.from('content_calendar').delete().eq('id', id);
         if (error) logger.error('Takvim post silme hatası:', error.message);
-      } else if (target) {
-        const { error } = await supabase.from('content_calendar').delete().eq('title', target.title);
-        if (error) logger.error('Takvim post silme hatası (title):', error.message);
+        await fetchCloudData();
       }
-      await fetchCloudData();
     } catch (e) {
       logger.error('deleteTakvimPost beklenmeyen hata:', e);
     }

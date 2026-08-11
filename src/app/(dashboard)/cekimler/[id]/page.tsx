@@ -15,7 +15,7 @@ export default function CekimDetayPage({ params }: { params: Promise<{ id: strin
   const { id } = use(params);
   const { cekimler, editler, ekip, formatDateTr, updateCekimStatus } = useData();
 
-  const shoot = cekimler.find((c) => c.id === id) || cekimler[0];
+  const shoot = cekimler.find((c) => c.id === id);
 
   if (!shoot) {
     return (

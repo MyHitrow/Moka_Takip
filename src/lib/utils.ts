@@ -36,7 +36,10 @@ export function formatCurrencyDetailed(amount: number): string {
  * formatDate('2026-07-30') → "30 Temmuz 2026"
  */
 export function formatDate(date: string | Date): string {
-  return new Date(date).toLocaleDateString('tr-TR', {
+  if (!date) return '-';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (isNaN(d.getTime())) return String(date);
+  return d.toLocaleDateString('tr-TR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
