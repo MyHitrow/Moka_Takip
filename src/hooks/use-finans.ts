@@ -29,34 +29,75 @@ export function createFinansActions({
     setGelirler((prev) => [newGelir, ...prev]);
 
     try {
-      // client_id kısıtlamasını aşmak için veritabanındaki müşteri id'sini bul
+      // 1. Müşteri ID'sini bul veya gerekirse oluştur
       const { data: clients } = await supabase.from('clients').select('id, name');
-      const matched = clients?.find((c) => isClientMatch(c.name, item.client));
-      const validClientId = matched?.id || (clients && clients.length > 0 ? clients[0].id : null);
+      let matched = clients?.find((c) => isClientMatch(c.name, item.client));
+      let validClientId = matched?.id;
 
-      const insertRow: Record<string, unknown> = {
-        client_name: item.client.trim(),
-        description: item.description,
+      if (!validClientId && clients && clients.length > 0) {
+        validClientId = clients[0].id;
+      }
+
+      if (!validClientId) {
+        const { data: newClientData } = await supabase.from('clients').insert({
+          name: item.client.trim(),
+          contact_person: '-',
+          phone: '-',
+        }).select();
+        if (newClientData && newClientData[0]) {
+          validClientId = newClientData[0].id;
+        }
+      }
+
+      // 2. Insert payload'u hazırla
+      const payload: Record<string, unknown> = {
+        description: item.description || `${item.client} - Tahsilat`,
         amount: item.amount,
         due_date: item.date,
         collection_status: item.status || 'pending',
-        paid_amount: item.paidAmount || (item.status === 'paid' ? item.amount : 0),
       };
 
       if (validClientId) {
-        insertRow.client_id = validClientId;
+        payload.client_id = validClientId;
+      }
+      payload.client_name = item.client.trim();
+      payload.paid_amount = item.paidAmount || (item.status === 'paid' ? item.amount : 0);
+
+      // 3. Supabase'e ekle
+      let { data, error } = await supabase.from('income_records').insert(payload).select();
+
+      // Eğer yeni sütunlardan biri (client_name/paid_amount) hata verirse, çekirdek alanlarla tekrar dene
+      if (error) {
+        logger.error('Gelir ekleme 1. deneme hatası:', error.message);
+
+        const fallbackPayload: Record<string, unknown> = {
+          description: item.description || `${item.client} - Tahsilat`,
+          amount: item.amount,
+          due_date: item.date,
+          collection_status: item.status || 'pending',
+        };
+        if (validClientId) {
+          fallbackPayload.client_id = validClientId;
+        }
+
+        const retry = await supabase.from('income_records').insert(fallbackPayload).select();
+        data = retry.data;
+        error = retry.error;
       }
 
-      const { data, error } = await supabase.from('income_records').insert(insertRow).select();
-
       if (error) {
-        logger.error('Gelir ekleme hatası:', error.message);
-      } else if (data && data[0]) {
+        logger.error('Gelir ekleme nihai hatası:', error.message);
+        alert(`Gelir veritabanına kaydedilemedi: ${error.message}`);
+        return;
+      }
+
+      if (data && data[0]) {
         setGelirler((prev) => prev.map((g) => (g.id === tempId ? { ...g, id: data[0].id } : g)));
       }
       await fetchCloudData();
-    } catch (e) {
+    } catch (e: any) {
       logger.error('addGelir beklenmeyen hata:', e);
+      alert(`Gelir ekleme sırasında bir hata oluştu: ${e?.message || e}`);
     }
   };
 
@@ -177,23 +218,38 @@ export function createFinansActions({
     setGiderler((prev) => [newGider, ...prev]);
 
     try {
-      const { data, error } = await supabase.from('expense_records').insert({
+      const payload: Record<string, unknown> = {
         title: item.title,
         description: item.title,
         category: safeExpenseCategory(item.category),
         amount: item.amount,
         expense_date: item.date,
         paid_by_text: item.paidBy,
-      }).select();
+      };
+
+      let { data, error } = await supabase.from('expense_records').insert(payload).select();
 
       if (error) {
-        logger.error('Gider ekleme hatası:', error.message);
-      } else if (data && data[0]) {
+        logger.error('Gider 1. deneme hatası:', error.message);
+        delete payload.paid_by_text;
+        const retry = await supabase.from('expense_records').insert(payload).select();
+        data = retry.data;
+        error = retry.error;
+      }
+
+      if (error) {
+        logger.error('Gider ekleme nihai hatası:', error.message);
+        alert(`Gider veritabanına kaydedilemedi: ${error.message}`);
+        return;
+      }
+
+      if (data && data[0]) {
         setGiderler((prev) => prev.map((g) => (g.id === tempId ? { ...g, id: data[0].id } : g)));
       }
       await fetchCloudData();
-    } catch (e) {
+    } catch (e: any) {
       logger.error('addGider beklenmeyen hata:', e);
+      alert(`Gider ekleme sırasında hata oluştu: ${e?.message || e}`);
     }
   };
 
