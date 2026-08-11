@@ -29,77 +29,23 @@ export function createFinansActions({
     setGelirler((prev) => [newGelir, ...prev]);
 
     try {
-      // 1. Müşteri ID'sini bul veya gerekirse oluştur
-      const { data: clients } = await supabase.from('clients').select('id, name');
-      let matched = clients?.find((c) => isClientMatch(c.name, item.client));
-      let validClientId = matched?.id;
-
-      if (!validClientId && clients && clients.length > 0) {
-        validClientId = clients[0].id;
-      }
-
-      if (!validClientId) {
-        const { data: newClientData } = await supabase.from('clients').insert({
-          name: item.client.trim(),
-          contact_person: '-',
-          phone: '-',
-        }).select();
-        if (newClientData && newClientData[0]) {
-          validClientId = newClientData[0].id;
-        }
-      }
-
-      // 2. Insert payload'u hazırla
-      let payload: Record<string, unknown> = {
+      const { data, error } = await supabase.from('income_records').insert({
+        client_name: item.client.trim(),
         description: item.description || `${item.client} - Tahsilat`,
         amount: item.amount,
         due_date: item.date,
         collection_status: item.status || 'pending',
-      };
-
-      if (validClientId) {
-        payload.client_id = validClientId;
-      }
-      payload.client_name = item.client.trim();
-      payload.paid_amount = item.paidAmount || (item.status === 'paid' ? item.amount : 0);
-
-      // 3. Supabase'e ekle
-      let { data, error } = await supabase.from('income_records').insert(payload).select();
-
-      // Eğer ek sütunlardan biri hata verirse, sadeleştirip dene
-      if (error && error.message.includes('column')) {
-        logger.error('Gelir ekleme 1. deneme hatası:', error.message);
-
-        const fallbackPayload: Record<string, unknown> = {
-          amount: item.amount,
-          due_date: item.date,
-          collection_status: item.status || 'pending',
-        };
-        if (validClientId) {
-          fallbackPayload.client_id = validClientId;
-        }
-        if (!error.message.includes('description')) {
-          fallbackPayload.description = item.description || `${item.client} - Tahsilat`;
-        }
-
-        const retry = await supabase.from('income_records').insert(fallbackPayload).select();
-        data = retry.data;
-        error = retry.error;
-      }
+        paid_amount: item.paidAmount || (item.status === 'paid' ? item.amount : 0),
+      }).select();
 
       if (error) {
-        logger.error('Gelir ekleme nihai hatası:', error.message);
-        alert(`Gelir veritabanına kaydedilemedi: ${error.message}`);
-        return;
-      }
-
-      if (data && data[0]) {
+        logger.error('Gelir ekleme hatası:', error.message);
+      } else if (data && data[0]) {
         setGelirler((prev) => prev.map((g) => (g.id === tempId ? { ...g, id: data[0].id } : g)));
       }
       await fetchCloudData();
-    } catch (e: any) {
-      logger.error('addGelir beklenmeyen hata:', e);
-      alert(`Gelir ekleme sırasında bir hata oluştu: ${e?.message || e}`);
+    } catch (e) {
+      logger.error('addGelir hatası:', e);
     }
   };
 
