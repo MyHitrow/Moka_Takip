@@ -154,18 +154,48 @@ export function createFinansActions({
     setGiderler((prev) => [newGider, ...prev]);
 
     try {
-      const { data, error } = await supabase.from('expense_records').insert({
+      let insertObj: Record<string, unknown> = {
         title: item.title,
         description: item.title,
         amount: item.amount,
         category: safeExpenseCategory(item.category),
         expense_date: item.date,
         paid_by_text: item.paidBy || 'Şirket Hesabı',
-      }).select();
+      };
+
+      let { data, error } = await supabase.from('expense_records').insert(insertObj).select();
+
+      // Eğer veritabanında sütun farkı varsa (title veya description eksikse) otomatik adapte ol
+      if (error) {
+        logger.warn('Gider ekleme 1. deneme uyarısı:', error.message);
+
+        const cleanPayload: Record<string, unknown> = {
+          amount: item.amount,
+          category: safeExpenseCategory(item.category),
+          expense_date: item.date,
+        };
+
+        if (error.message.includes('description')) {
+          cleanPayload.title = item.title;
+        } else if (error.message.includes('title')) {
+          cleanPayload.description = item.title;
+        } else {
+          cleanPayload.title = item.title;
+          cleanPayload.description = item.title;
+        }
+
+        const retry = await supabase.from('expense_records').insert(cleanPayload).select();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
-        logger.error('Gider ekleme hatası:', error.message);
-      } else if (data && data[0]) {
+        logger.error('Gider ekleme nihai hatası:', error.message);
+        // Veritabanı hatasında fetchCloudData çalıştırmıyoruz ki ekrandaki veri silinmesin!
+        return;
+      }
+
+      if (data && data[0]) {
         setGiderler((prev) => prev.map((g) => (g.id === tempId ? { ...g, id: data[0].id } : g)));
       }
       await fetchCloudData();
