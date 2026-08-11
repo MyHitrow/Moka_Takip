@@ -219,8 +219,8 @@ export function createFinansActions({
 
     try {
       const payload: Record<string, unknown> = {
-        title: item.title,
         description: item.title,
+        title: item.title,
         category: safeExpenseCategory(item.category),
         amount: item.amount,
         expense_date: item.date,
@@ -229,10 +229,18 @@ export function createFinansActions({
 
       let { data, error } = await supabase.from('expense_records').insert(payload).select();
 
+      // Eğer Supabase'de title veya paid_by_text sütunları yoksa, 001 ana şemadaki 4 çekirdek alanla tekrar dene
       if (error) {
         logger.error('Gider 1. deneme hatası:', error.message);
-        delete payload.paid_by_text;
-        const retry = await supabase.from('expense_records').insert(payload).select();
+
+        const corePayload = {
+          description: item.title,
+          category: safeExpenseCategory(item.category),
+          amount: item.amount,
+          expense_date: item.date,
+        };
+
+        const retry = await supabase.from('expense_records').insert(corePayload).select();
         data = retry.data;
         error = retry.error;
       }
