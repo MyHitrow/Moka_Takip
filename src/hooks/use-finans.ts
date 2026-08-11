@@ -50,7 +50,7 @@ export function createFinansActions({
       }
 
       // 2. Insert payload'u hazırla
-      const payload: Record<string, unknown> = {
+      let payload: Record<string, unknown> = {
         description: item.description || `${item.client} - Tahsilat`,
         amount: item.amount,
         due_date: item.date,
@@ -66,18 +66,20 @@ export function createFinansActions({
       // 3. Supabase'e ekle
       let { data, error } = await supabase.from('income_records').insert(payload).select();
 
-      // Eğer yeni sütunlardan biri (client_name/paid_amount) hata verirse, çekirdek alanlarla tekrar dene
-      if (error) {
+      // Eğer ek sütunlardan biri hata verirse, sadeleştirip dene
+      if (error && error.message.includes('column')) {
         logger.error('Gelir ekleme 1. deneme hatası:', error.message);
 
         const fallbackPayload: Record<string, unknown> = {
-          description: item.description || `${item.client} - Tahsilat`,
           amount: item.amount,
           due_date: item.date,
           collection_status: item.status || 'pending',
         };
         if (validClientId) {
           fallbackPayload.client_id = validClientId;
+        }
+        if (!error.message.includes('description')) {
+          fallbackPayload.description = item.description || `${item.client} - Tahsilat`;
         }
 
         const retry = await supabase.from('income_records').insert(fallbackPayload).select();
@@ -114,46 +116,33 @@ export function createFinansActions({
     }
   };
 
-  const updateGelirStatus = async (id: string, status: string, customPaidAmount?: number) => {
+  const updateGelirStatus = async (id: string, status: string, paidAmount?: number) => {
     setGelirler((prev) =>
       prev.map((g) => {
-        if (g.id === id) {
-          const finalPaid =
-            status === 'paid'
-              ? g.amount
-              : status === 'partial'
-              ? customPaidAmount !== undefined
-                ? customPaidAmount
-                : g.paidAmount || 0
-              : 0;
-
-          return { ...g, status, paidAmount: finalPaid };
-        }
-        return g;
+        if (g.id !== id) return g;
+        const newPaidAmount = paidAmount !== undefined ? paidAmount : status === 'paid' ? g.amount : g.paidAmount || 0;
+        return { ...g, status, paidAmount: newPaidAmount };
       })
     );
 
     try {
       if (isUUID(id)) {
-        const item = gelirler.find((g) => g.id === id);
-        const finalPaid =
-          status === 'paid'
-            ? (item?.amount || 0)
-            : status === 'partial'
-            ? customPaidAmount !== undefined
-              ? customPaidAmount
-              : item?.paidAmount || 0
-            : 0;
+        const updatePayload: Record<string, unknown> = { collection_status: status };
+        if (paidAmount !== undefined) {
+          updatePayload.paid_amount = paidAmount;
+        } else if (status === 'paid') {
+          const currentItem = gelirler.find((g) => g.id === id);
+          if (currentItem) updatePayload.paid_amount = currentItem.amount;
+        }
 
-        const updateObj: Record<string, unknown> = {
-          collection_status: status,
-          paid_amount: finalPaid,
-        };
-
-        const { error } = await supabase.from('income_records').update(updateObj).eq('id', id);
-        if (error) logger.error('Gelir durumu güncelleme hatası:', error.message);
+        const { error } = await supabase.from('income_records').update(updatePayload).eq('id', id);
+        if (error) {
+          logger.error('Gelir durumu güncelleme hatası:', error.message);
+          delete updatePayload.paid_amount;
+          await supabase.from('income_records').update(updatePayload).eq('id', id);
+        }
+        await fetchCloudData();
       }
-      await fetchCloudData();
     } catch (e) {
       logger.error('updateGelirStatus beklenmeyen hata:', e);
     }
@@ -161,13 +150,14 @@ export function createFinansActions({
 
   // Ayın 27'sinden itibaren bir sonraki aya otomatik gelir oluştur
   const generateMonthlyIncomes = async (targetMonthStr?: string): Promise<number> => {
-    const today = new Date();
-    let year = today.getFullYear();
-    let month = today.getMonth() + 1;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
 
-    if (!targetMonthStr && today.getDate() >= 27) {
-      month += 1;
-      if (month > 12) { month = 1; year += 1; }
+    let targetDate = new Date();
+    if (targetMonthStr) {
+      const [y, m] = targetMonthStr.split('-');
+      targetDate = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
     }
 
     const datePrefix = targetMonthStr || `${year}-${String(month).padStart(2, '0')}`;
@@ -218,9 +208,10 @@ export function createFinansActions({
     setGiderler((prev) => [newGider, ...prev]);
 
     try {
-      const payload: Record<string, unknown> = {
-        description: item.title,
+      // 1. Deneme: Tüm alanlarla dene (title, description, category, amount, expense_date, paid_by_text)
+      let payload: Record<string, unknown> = {
         title: item.title,
+        description: item.title,
         category: safeExpenseCategory(item.category),
         amount: item.amount,
         expense_date: item.date,
@@ -229,18 +220,42 @@ export function createFinansActions({
 
       let { data, error } = await supabase.from('expense_records').insert(payload).select();
 
-      // Eğer Supabase'de title veya paid_by_text sütunları yoksa, 001 ana şemadaki 4 çekirdek alanla tekrar dene
-      if (error) {
-        logger.error('Gider 1. deneme hatası:', error.message);
+      // 2. Deneme: Eğer 'description' sütunu Supabase'de yoksa, sadece 'title' ile dene
+      if (error && error.message.includes('description')) {
+        payload = {
+          title: item.title,
+          category: safeExpenseCategory(item.category),
+          amount: item.amount,
+          expense_date: item.date,
+        };
+        if (item.paidBy) payload.paid_by_text = item.paidBy;
+        const retry = await supabase.from('expense_records').insert(payload).select();
+        data = retry.data;
+        error = retry.error;
+      }
 
-        const corePayload = {
+      // 3. Deneme: Eğer 'title' veya 'paid_by_text' yoksa, sadece 'description' ile dene
+      if (error && (error.message.includes('title') || error.message.includes('paid_by_text'))) {
+        payload = {
           description: item.title,
           category: safeExpenseCategory(item.category),
           amount: item.amount,
           expense_date: item.date,
         };
+        const retry = await supabase.from('expense_records').insert(payload).select();
+        data = retry.data;
+        error = retry.error;
+      }
 
-        const retry = await supabase.from('expense_records').insert(corePayload).select();
+      // 4. Deneme: En yalın hali (title + category + amount + expense_date)
+      if (error) {
+        payload = {
+          title: item.title,
+          category: safeExpenseCategory(item.category),
+          amount: item.amount,
+          expense_date: item.date,
+        };
+        const retry = await supabase.from('expense_records').insert(payload).select();
         data = retry.data;
         error = retry.error;
       }
