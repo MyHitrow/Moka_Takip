@@ -67,10 +67,12 @@ function GelirlerPageContent() {
   const [selectedGelirForPartial, setSelectedGelirForPartial] = useState<Gelir | null>(null);
   const [inputPartialAmount, setInputPartialAmount] = useState<string>('');
 
+  const defaultDueDate = `${selectedYear}-${selectedMonth}-05`;
+
   const [client, setClient] = useState('');
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(defaultDueDate);
   const [status, setStatus] = useState('pending');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -84,13 +86,13 @@ function GelirlerPageContent() {
       client,
       description: description || `${monthName} Ayı Paket Ücreti`,
       amount: parseFloat(amount) || 0,
-      date: date || `${selectedYear}-${selectedMonth}-05`,
+      date: date || defaultDueDate,
       status,
     });
     setClient('');
     setDescription('');
     setAmount('');
-    setDate('');
+    setDate(defaultDueDate);
     setStatus('pending');
     setOpen(false);
   };

@@ -329,8 +329,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           const matchedBiz = currentClientsList.find((biz) => isClientMatch(biz.name, rawClient));
           const clientName = matchedBiz ? matchedBiz.name : rawClient;
 
-          const numFee = matchedBiz ? (parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || Number(g.amount)) : Number(g.amount);
-          const finalAmount = g.collection_status !== 'paid' && numFee > 0 ? numFee : Number(g.amount);
+          const numFee = matchedBiz ? (parseFloat(matchedBiz.fee.replace(/[^0-9.]/g, '')) || 0) : 0;
+          const finalAmount = Number(g.amount) > 0 ? Number(g.amount) : (numFee > 0 ? numFee : 0);
 
           let paidAmt = g.paid_amount !== undefined && g.paid_amount !== null ? Number(g.paid_amount) : 0;
           if (g.collection_status === 'paid' && paidAmt === 0) {

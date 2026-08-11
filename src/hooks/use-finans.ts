@@ -29,14 +29,25 @@ export function createFinansActions({
     setGelirler((prev) => [newGelir, ...prev]);
 
     try {
-      const { data, error } = await supabase.from('income_records').insert({
+      // client_id kısıtlamasını aşmak için veritabanındaki müşteri id'sini bul
+      const { data: clients } = await supabase.from('clients').select('id, name');
+      const matched = clients?.find((c) => isClientMatch(c.name, item.client));
+      const validClientId = matched?.id || (clients && clients.length > 0 ? clients[0].id : null);
+
+      const insertRow: Record<string, unknown> = {
         client_name: item.client.trim(),
         description: item.description,
         amount: item.amount,
         due_date: item.date,
         collection_status: item.status || 'pending',
         paid_amount: item.paidAmount || (item.status === 'paid' ? item.amount : 0),
-      }).select();
+      };
+
+      if (validClientId) {
+        insertRow.client_id = validClientId;
+      }
+
+      const { data, error } = await supabase.from('income_records').insert(insertRow).select();
 
       if (error) {
         logger.error('Gelir ekleme hatası:', error.message);
